@@ -140,7 +140,10 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
             Send Notice
           </button>
           <button
-            onClick={() => toast.info(`Nearest CRC: ${customer.nearest_crc_location || "None found"}`)}
+            onClick={() => {
+              navigator.clipboard.writeText(customer.nearest_crc_location || "");
+              toast.success(`CRC address copied: ${customer.nearest_crc_location || "None found"}`);
+            }}
             className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
           >
             <MapPin className="w-3 h-3" />
