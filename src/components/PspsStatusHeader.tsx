@@ -32,6 +32,21 @@ function usePspsStats(): PspsStats {
     return () => clearInterval(timer);
   }, []);
 
+  // Listen for progress updates from SafetyModules
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.affectedDelta) {
+        setStats((prev) => ({
+          ...prev,
+          customersAffected: Math.max(0, prev.customersAffected + detail.affectedDelta),
+        }));
+      }
+    };
+    window.addEventListener("psps-progress-updated", handler);
+    return () => window.removeEventListener("psps-progress-updated", handler);
+  }, []);
+
   return stats;
 }
 
@@ -44,6 +59,14 @@ function formatCountdown(totalSeconds: number) {
 export default function PspsStatusHeader() {
   const stats = usePspsStats();
   const patrolPct = Math.round((stats.patrollingDone / stats.patrollingTotal) * 100);
+  const [flash, setFlash] = useState(false);
+
+  // Flash animation on affected count change
+  useEffect(() => {
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 600);
+    return () => clearTimeout(t);
+  }, [stats.customersAffected]);
 
   return (
     <div className="sticky top-0 z-50 border-b border-destructive/30 bg-destructive/5 backdrop-blur-sm">
@@ -61,7 +84,11 @@ export default function PspsStatusHeader() {
           <span className="h-3 w-px bg-border" />
           <Stat label="Circuits" value={stats.circuits.toLocaleString()} />
           <span className="h-3 w-px bg-border" />
-          <Stat label="Customers Affected" value={stats.customersAffected.toLocaleString()} />
+          <Stat
+            label="Customers Affected"
+            value={stats.customersAffected.toLocaleString()}
+            flash={flash}
+          />
           <span className="h-3 w-px bg-border" />
           <Stat label="CRCs Open" value={String(stats.crcsOpen)} />
         </div>
@@ -102,9 +129,9 @@ export default function PspsStatusHeader() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, flash }: { label: string; value: string; flash?: boolean }) {
   return (
-    <span className="flex items-center gap-1 text-xs">
+    <span className={`flex items-center gap-1 text-xs transition-all duration-300 ${flash ? "scale-110 text-destructive" : ""}`}>
       <span className="font-bold text-foreground tabular-nums">{value}</span>
       <span className="text-muted-foreground">{label}</span>
     </span>
