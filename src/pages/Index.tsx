@@ -169,11 +169,28 @@ const Index = () => {
             <div className="p-5 rounded-lg border border-border bg-card">
               <h2 className="text-sm font-semibold text-card-foreground mb-3">Quick Links</h2>
               <ul className="space-y-2">
-                {["Report an outage", "View my bill", "Apply for assistance", "Wildfire safety tips", "Demand response enrollment"].map((item) => (
-                  <li key={item}>
-                    <button className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-secondary text-foreground transition-colors">
-                      {item}
-                    </button>
+                {[
+                  { label: "Report an outage", href: null },
+                  { label: "View my bill", href: null },
+                  { label: "Apply for assistance", href: null },
+                  { label: "Wildfire safety tips", href: "https://www.pge.com/en/outages-and-safety/safety/wildfire-safety.html" },
+                  { label: "Demand response enrollment", href: null },
+                ].map((item) => (
+                  <li key={item.label}>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full block text-left text-sm px-3 py-2 rounded-md hover:bg-secondary text-foreground transition-colors"
+                      >
+                        {item.label} ↗
+                      </a>
+                    ) : (
+                      <button className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-secondary text-foreground transition-colors">
+                        {item.label}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
