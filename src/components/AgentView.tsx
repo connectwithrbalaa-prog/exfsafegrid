@@ -238,7 +238,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
           {/* Medical Priority Badge — HIGHEST PRIORITY, sticky */}
           {selected?.medical_baseline && (
-            <div className="p-4 rounded-lg border-2 border-destructive bg-destructive/10 space-y-2 sticky top-0 z-10 shadow-md shadow-destructive/10">
+            <div className="p-4 rounded-lg border-2 border-destructive bg-destructive/10 space-y-2 shadow-md shadow-destructive/10">
               <div className="flex items-center gap-2">
                 <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
                 <span className="text-sm font-bold text-destructive">🚨 MEDICAL BASELINE CUSTOMER</span>
