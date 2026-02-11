@@ -20,6 +20,12 @@ export interface Customer {
   restoration_timer: string;
   nearest_crc_location: string;
   created_at: string;
+  psps_phase: string;
+  patrolling_progress: number;
+  doorbell_status: string;
+  digital_ack_status: string;
+  last_update: string;
+  psps_event_id: string;
 }
 
 export function buildCustomerContext(c: Customer): string {

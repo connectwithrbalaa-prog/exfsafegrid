@@ -6,8 +6,9 @@ import { toast } from "sonner";
 const PSPS_PHASES = ["Weather Forecast", "PSPS Activation", "Weather All-Clear", "Patrolling", "100% Restored"];
 
 function phaseIndex(status: string): number {
-  if (status === "PSPS Active" || status === "EPSS Active") return 1;
-  if (status === "Weather All-Clear") return 2;
+  if (status === "Forecast") return 0;
+  if (status === "Active" || status === "PSPS Active" || status === "EPSS Active") return 1;
+  if (status === "All-Clear" || status === "Weather All-Clear") return 2;
   if (status === "Patrolling") return 3;
   if (status === "Restored" || status === "Normal") return 4;
   return 0;
@@ -67,10 +68,10 @@ function statusBg(status: string) {
 export default function SafetyModules({ customer }: { customer: Customer }) {
   const isOutageActive = customer.current_outage_status !== "Normal";
   const remaining = useCountdown(customer.restoration_timer, isOutageActive);
-  const currentPhase = phaseIndex(customer.current_outage_status);
-  const [patrolPct, setPatrolPct] = useState(currentPhase === 3 ? 62 : currentPhase >= 4 ? 100 : 0);
-  const [doorbellStatus, setDoorbellStatus] = useState<"Pending" | "Verified" | "Dispatched">("Pending");
-  const lastUpdate = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const currentPhase = phaseIndex(customer.psps_phase || customer.current_outage_status);
+  const [patrolPct, setPatrolPct] = useState(customer.patrolling_progress ?? 0);
+  const [doorbellStatus, setDoorbellStatus] = useState<string>(customer.doorbell_status || "Not Needed");
+  const lastUpdate = customer.last_update ? new Date(customer.last_update).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="space-y-4">
@@ -93,6 +94,7 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           <span className="font-semibold text-foreground">{customer.name}</span>
           <span className="text-muted-foreground">Circuit: <span className="font-mono font-medium text-foreground">HTD-{customer.zip_code.slice(-4)}</span></span>
           <span className="text-muted-foreground">ZIP: <span className="font-medium text-foreground">{customer.zip_code}</span></span>
+          {customer.psps_event_id && <span className="text-muted-foreground">Event: <span className="font-mono font-medium text-foreground">{customer.psps_event_id}</span></span>}
         </div>
 
         {/* Live Status */}
