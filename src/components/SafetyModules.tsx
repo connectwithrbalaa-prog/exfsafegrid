@@ -204,14 +204,13 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => {
-                const query = encodeURIComponent(customer.nearest_crc_location || "");
-                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank", "noopener");
-                toast.info(`Opening map for ${customer.nearest_crc_location}`);
+                navigator.clipboard.writeText(customer.nearest_crc_location || "");
+                toast.success("CRC address copied to clipboard");
               }}
               className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
               <MapPin className="w-3 h-3" />
-              Open Map
+              Copy Address
             </button>
             <button
               onClick={() => toast.success(`Directions sent to ${customer.name}`)}
@@ -220,6 +219,19 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
               <Send className="w-3 h-3" />
               Send Directions
             </button>
+          </div>
+          <div className="rounded-md overflow-hidden border border-border">
+            <img
+              src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(customer.nearest_crc_location || "")}&zoom=14&size=400x200&markers=color:red%7C${encodeURIComponent(customer.nearest_crc_location || "")}&key=`}
+              alt={`Map of ${customer.nearest_crc_location}`}
+              className="w-full h-[140px] object-cover bg-muted"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            <div className="px-3 py-2 bg-muted/50 text-xs text-muted-foreground">
+              📍 {customer.nearest_crc_location}
+            </div>
           </div>
         </div>
       )}
