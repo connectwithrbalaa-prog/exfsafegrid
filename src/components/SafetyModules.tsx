@@ -1,5 +1,6 @@
-import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity } from "lucide-react";
+import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
+import { toast } from "sonner";
 
 function outageColor(status: string) {
   if (status === "PSPS Active" || status === "EPSS Active") return "text-destructive";
@@ -40,31 +41,40 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
         </div>
       </div>
 
-      {/* Battery & Backup Resources */}
+      {/* Backup Power Portfolio */}
       <div className="p-4 rounded-lg border border-border bg-card space-y-3">
         <div className="flex items-center gap-2">
           <BatteryCharging className="w-4 h-4 text-info" />
-          <h3 className="text-sm font-semibold text-card-foreground">Backup Resources</h3>
+          <h3 className="text-sm font-semibold text-card-foreground">Backup Power Assets</h3>
         </div>
         <div className="grid grid-cols-1 gap-2">
-          <ResourceRow
-            icon={Battery}
-            label="Portable Battery"
-            value={customer.has_portable_battery ? "Available" : "None"}
-            positive={customer.has_portable_battery}
-          />
-          <ResourceRow
-            icon={Gauge}
-            label="Transfer Meter"
-            value={customer.has_transfer_meter ? "Installed" : "None"}
-            positive={customer.has_transfer_meter}
-          />
-          <ResourceRow
-            icon={BatteryCharging}
-            label="Permanent Battery"
-            value={customer.has_permanent_battery}
-            positive={customer.has_permanent_battery !== "None"}
-          />
+          <AssetRow checked={customer.has_portable_battery} label="Portable Battery Program (PBP)" />
+          <AssetRow checked={customer.has_transfer_meter} label="Backup Power Transfer Meter" />
+          <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Battery className={`w-3.5 h-3.5 ${customer.has_permanent_battery !== "None" ? "text-success" : "text-muted-foreground"}`} />
+              <span className="text-xs text-muted-foreground">Permanent Battery</span>
+            </div>
+            <span className={`text-xs font-medium ${customer.has_permanent_battery !== "None" ? "text-success" : "text-muted-foreground"}`}>
+              {customer.has_permanent_battery}
+            </span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={() => toast.info(`Backup status for ${customer.name}: All systems nominal`)}
+            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+          >
+            <Gauge className="w-3 h-3" />
+            View Backup Status
+          </button>
+          <button
+            onClick={() => toast.success(`Connection test sent to ${customer.name}'s backup systems`)}
+            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+          >
+            <Plug className="w-3 h-3" />
+            Test Connection
+          </button>
         </div>
       </div>
 
@@ -82,19 +92,16 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
   );
 }
 
-function ResourceRow({ icon: Icon, label, value, positive }: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  positive: boolean;
-}) {
+function AssetRow({ checked, label }: { checked: boolean; label: string }) {
   return (
     <div className="flex items-center justify-between py-1.5 px-2 rounded-md bg-muted/30">
       <div className="flex items-center gap-2">
-        <Icon className={`w-3.5 h-3.5 ${positive ? "text-success" : "text-muted-foreground"}`} />
+        <CheckSquare className={`w-3.5 h-3.5 ${checked ? "text-success" : "text-muted-foreground"}`} />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <span className={`text-xs font-medium ${positive ? "text-success" : "text-muted-foreground"}`}>{value}</span>
+      <span className={`text-xs font-medium ${checked ? "text-success" : "text-muted-foreground"}`}>
+        {checked ? "Enrolled" : "None"}
+      </span>
     </div>
   );
 }
