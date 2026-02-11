@@ -86,6 +86,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hazard_reports: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          description: string | null
+          hazard_type: string
+          id: string
+          photo_url: string | null
+          review_due_at: string
+          status: string
+          submitted_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          hazard_type: string
+          id?: string
+          photo_url?: string | null
+          review_due_at?: string
+          status?: string
+          submitted_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          description?: string | null
+          hazard_type?: string
+          id?: string
+          photo_url?: string | null
+          review_due_at?: string
+          status?: string
+          submitted_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

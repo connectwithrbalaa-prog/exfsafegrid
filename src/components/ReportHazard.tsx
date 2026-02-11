@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Camera, AlertTriangle, TreePine, HelpCircle, Send } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const HAZARD_TYPES = [
   { label: "Hazardous Pole", icon: AlertTriangle },
@@ -15,31 +16,71 @@ interface ReportHazardProps {
 export default function ReportHazard({ customerName }: ReportHazardProps) {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = () => {
-    // Simulate photo selection
-    setPhotoName("hazard_photo.jpg");
-    toast.info("Photo attached");
+    fileInputRef.current?.click();
   };
 
-  const handleSubmit = () => {
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      toast.info(`Photo attached: ${file.name}`);
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!selectedType) {
       toast.error("Please select a hazard type");
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      toast.success(
-        `Hazard report submitted to Safety Team — 30-day review promised`,
-        { description: `${selectedType}${customerName ? ` near ${customerName}'s location` : ""}` }
-      );
+
+    try {
+      let photoUrl: string | null = null;
+
+      // Upload photo if attached
+      if (photoFile) {
+        const ext = photoFile.name.split(".").pop();
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("hazard-photos")
+          .upload(path, photoFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("hazard-photos")
+          .getPublicUrl(path);
+        photoUrl = urlData.publicUrl;
+      }
+
+      // Insert report
+      const { error } = await supabase.from("hazard_reports").insert({
+        customer_name: customerName || null,
+        hazard_type: selectedType,
+        description: description || null,
+        photo_url: photoUrl,
+      } as any);
+
+      if (error) throw error;
+
+      toast.success("Hazard report submitted to Safety Team — 30-day review promised", {
+        description: `${selectedType}${customerName ? ` near ${customerName}'s location` : ""}`,
+      });
+
       setSelectedType(null);
       setDescription("");
-      setPhotoName(null);
+      setPhotoFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err: any) {
+      toast.error(`Failed to submit: ${err.message}`);
+    } finally {
       setSubmitting(false);
-    }, 600);
+    }
   };
 
   return (
@@ -49,18 +90,26 @@ export default function ReportHazard({ customerName }: ReportHazardProps) {
         <h3 className="text-sm font-semibold text-card-foreground">Field Reporting: Report It</h3>
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={onFileChange}
+        className="hidden"
+      />
+
       {/* Photo + Hazard Type */}
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handlePhotoUpload}
           className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${
-            photoName
+            photoFile
               ? "border-success/50 bg-success/10 text-success"
               : "border-border hover:bg-secondary text-foreground"
           }`}
         >
           <Camera className="w-3 h-3" />
-          {photoName ? "📸 Photo Attached" : "📸 Upload Photo"}
+          {photoFile ? `📸 ${photoFile.name}` : "📸 Upload Photo"}
         </button>
         {HAZARD_TYPES.map(({ label, icon: Icon }) => (
           <button
