@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      customer_requests: {
+        Row: {
+          agent_response: string | null
+          created_at: string
+          customer_id: string | null
+          customer_name: string
+          details: Json
+          id: string
+          request_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_response?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name: string
+          details?: Json
+          id?: string
+          request_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_response?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_name?: string
+          details?: Json
+          id?: string
+          request_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           agent_notes: string | null
