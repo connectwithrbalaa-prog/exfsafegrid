@@ -311,53 +311,69 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
         </div>
       </div>
 
-      {/* Nearest CRC — prominent when power is off */}
-      {customer.nearest_crc_location && isOutageActive && (
-        <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-card-foreground">📍 Nearest CRC</h3>
+      {/* ===== CRC INTEGRATION ===== */}
+      {customer.nearest_crc_location && (
+        <div className={`p-4 rounded-lg border-2 space-y-3 ${isOutageActive ? "border-primary/50 bg-primary/5" : "border-border bg-card"}`}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold text-card-foreground">📍 Nearest CRC</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-success/20 border border-success/30 text-success">OPEN</span>
+              <span className="text-[10px] text-muted-foreground">Capacity: <span className="font-bold text-foreground">73%</span></span>
+            </div>
           </div>
+
           <p className="text-sm font-bold text-foreground">{customer.nearest_crc_location}</p>
-          <div className="flex flex-wrap gap-2">
-            {["♿ ADA Restrooms", "☕ WiFi", "⚡ Medical Charging", "💧 Water"].map((svc) => (
-              <span key={svc} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted border border-border text-muted-foreground">
-                {svc}
+
+          {/* Capacity bar */}
+          <div className="space-y-1">
+            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full bg-success transition-all duration-500" style={{ width: "73%" }} />
+            </div>
+            <p className="text-[10px] text-muted-foreground">73% capacity — 27 spots remaining</p>
+          </div>
+
+          {/* Services */}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { icon: "♿", label: "ADA Restrooms" },
+              { icon: "☕", label: "WiFi" },
+              { icon: "⚡", label: "Medical Charging" },
+              { icon: "💧", label: "Water" },
+            ].map((svc) => (
+              <span key={svc.label} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted border border-border text-muted-foreground">
+                {svc.icon} {svc.label}
               </span>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-3 gap-2">
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.nearest_crc_location || "")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity font-medium"
             >
               <MapPin className="w-3 h-3" />
-              View Map
+              Interactive Map
             </a>
             <button
-              onClick={() => toast.success(`Directions sent to ${customer.name}`)}
-              className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+              onClick={() => toast.success(`SMS directions sent to ${customer.name}`)}
+              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
             >
               <Send className="w-3 h-3" />
-              Send Directions
+              Send SMS
+            </button>
+            <button
+              onClick={() => toast.info(`Check-in log opened for ${customer.nearest_crc_location}`)}
+              className="flex items-center justify-center gap-1 text-[10px] px-2 py-1.5 rounded-md bg-muted/50 border border-border hover:bg-secondary text-foreground font-medium transition-colors"
+            >
+              📋 Check-in Log
             </button>
           </div>
-          <div className="px-3 py-2 rounded-md bg-muted/50 text-xs text-muted-foreground">
-            📍 {customer.nearest_crc_location}
-          </div>
-        </div>
-      )}
-
-      {/* CRC info when power is normal */}
-      {customer.nearest_crc_location && !isOutageActive && (
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-card-foreground">Nearest CRC</h3>
-          </div>
-          <p className="text-sm text-foreground mt-1.5">{customer.nearest_crc_location}</p>
         </div>
       )}
     </div>
