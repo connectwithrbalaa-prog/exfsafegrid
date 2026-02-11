@@ -13,7 +13,11 @@ const quickTopics = [
   { icon: Activity, label: "Grid Stress", prompt: "What is grid stress and how can I help reduce demand?" },
 ];
 
-export default function ChatPanel() {
+interface ChatPanelProps {
+  customerContext?: string;
+}
+
+export default function ChatPanel({ customerContext }: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +49,7 @@ export default function ChatPanel() {
     try {
       await streamChat({
         messages: [...messages, userMsg],
+        customerContext,
         onDelta: upsert,
         onDone: () => setIsLoading(false),
         onError: (err) => {
