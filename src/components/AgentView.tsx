@@ -13,6 +13,7 @@ import {
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
+import AgentRequestsPanel from "@/components/AgentRequestsPanel";
 
 import { toast } from "sonner";
 
@@ -388,6 +389,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
               </div>
             )}
           </div>
+
+          {/* Customer Requests Inbox */}
+          <AgentRequestsPanel />
 
           {/* Report It Hazard Tool */}
           <ReportHazard customerName={selected?.name} />
