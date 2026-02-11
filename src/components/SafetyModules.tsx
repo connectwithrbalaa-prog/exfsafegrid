@@ -198,32 +198,45 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => toast.info(`ETR updated for ${customer.name}`)}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 text-destructive font-medium transition-colors"
-          >
-            <Clock className="w-3 h-3" />
-            Update ETR
-          </button>
-          <button
-            onClick={() => toast.success(`Digital notice sent to ${customer.name}`)}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
-          >
-            <Send className="w-3 h-3" />
-            Send Notice
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(customer.nearest_crc_location || "");
-              toast.success(`CRC address copied: ${customer.nearest_crc_location || "None found"}`);
-            }}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
-          >
-            <MapPin className="w-3 h-3" />
-            Locate CRC
-          </button>
+        {/* ===== ACTION PANEL ===== */}
+        <div className="space-y-3 pt-1">
+          {/* Row 1 — Urgent */}
+          <div>
+            <p className="text-[9px] font-semibold text-destructive uppercase tracking-wider mb-1.5">🚨 Urgent</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <ActionBtn emoji="📨" label="Send PSPS Notice" onClick={() => toast.success(`PSPS notice sent to ${customer.name}`)} variant="destructive" />
+              <ActionBtn emoji="✅" label="Digital Ack Check" onClick={() => toast.info(`Checking digital acknowledgment for ${customer.name}…`)} variant="destructive" />
+              <ActionBtn emoji="🔔" label="Doorbell Dispatch" onClick={() => { setDoorbellStatus("Dispatched"); toast.success(`Doorbell dispatched for ${customer.name}`); }} variant="destructive" />
+            </div>
+          </div>
+          {/* Row 2 — Operations */}
+          <div>
+            <p className="text-[9px] font-semibold text-primary uppercase tracking-wider mb-1.5">🔋 Operations</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <ActionBtn emoji="🔋" label="Verify Backup" onClick={() => toast.info(`Backup verified for ${customer.name}`)} variant="primary" />
+              <ActionBtn emoji="📍" label="Locate CRC" onClick={() => { navigator.clipboard.writeText(customer.nearest_crc_location || ""); toast.success(`CRC: ${customer.nearest_crc_location || "None"}`); }} variant="primary" />
+              <ActionBtn emoji="⚡" label="Gen Alert" onClick={() => toast.success(`Generation alert sent for ${customer.name}`)} variant="primary" />
+            </div>
+          </div>
+          {/* Row 3 — Case Management */}
+          <div>
+            <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">📋 Case Management</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <ActionBtn emoji="📝" label="Customer Notes" onClick={() => toast.info("Scroll to Agent Notes below")} variant="default" />
+              <ActionBtn emoji="🔺" label="Escalate Priority" onClick={() => toast.warning(`Priority escalated for ${customer.name}`)} variant="default" />
+              <ActionBtn emoji="✔️" label="Close Case" onClick={() => toast.success(`Case closed for ${customer.name}`)} variant="default" />
+            </div>
+          </div>
+        </div>
+
+        {/* ===== LIVE METRICS ===== */}
+        <div className="p-3 rounded-md bg-background/60 border border-border space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Live Metrics</p>
+          <div className="space-y-1.5">
+            <MetricRow label="Digital Notice Delivery" value="94%" detail="1,742 / 1,850" color="text-success" pct={94} />
+            <MetricRow label="Doorbell Verifications" value="87%" detail="Complete" color="text-warning" pct={87} />
+            <MetricRow label="CRC Check-ins" value="23" detail="customers" color="text-info" pct={46} />
+          </div>
         </div>
       </div>
 
@@ -327,6 +340,36 @@ function AssetRow({ checked, label }: { checked: boolean; label: string }) {
       <span className={`text-xs font-medium ${checked ? "text-success" : "text-muted-foreground"}`}>
         {checked ? "Enrolled" : "None"}
       </span>
+    </div>
+  );
+}
+
+function ActionBtn({ emoji, label, onClick, variant }: { emoji: string; label: string; onClick: () => void; variant: "destructive" | "primary" | "default" }) {
+  const styles = {
+    destructive: "bg-destructive/10 border-destructive/30 hover:bg-destructive/20 text-destructive",
+    primary: "bg-primary/10 border-primary/30 hover:bg-primary/20 text-primary",
+    default: "bg-muted/50 border-border hover:bg-secondary text-foreground",
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-center gap-1 text-[10px] px-1.5 py-1.5 rounded-md border font-medium transition-colors leading-tight text-center ${styles[variant]}`}
+    >
+      <span>{emoji}</span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function MetricRow({ label, value, detail, color, pct }: { label: string; value: string; detail: string; color: string; pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground flex-shrink-0 w-[120px] truncate">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all duration-700 ${color === "text-success" ? "bg-success" : color === "text-warning" ? "bg-warning" : "bg-info"}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={`text-xs font-bold tabular-nums ${color}`}>{value}</span>
+      <span className="text-[10px] text-muted-foreground">({detail})</span>
     </div>
   );
 }
