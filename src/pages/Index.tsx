@@ -1,6 +1,9 @@
 import ChatPanel from "@/components/ChatPanel";
 import StatusBar from "@/components/StatusBar";
+import { mockCustomer, buildCustomerContext } from "@/lib/mock-customer";
 import { Zap } from "lucide-react";
+
+const customerContext = buildCustomerContext(mockCustomer);
 
 const Index = () => {
   return (
@@ -20,7 +23,7 @@ const Index = () => {
 
       {/* Main */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <StatusBar />
+        <StatusBar customer={mockCustomer} />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Info panel */}
@@ -55,7 +58,7 @@ const Index = () => {
 
           {/* Chat panel */}
           <div className="lg:col-span-3 h-[520px]">
-            <ChatPanel />
+            <ChatPanel customerContext={customerContext} />
           </div>
         </div>
       </main>
