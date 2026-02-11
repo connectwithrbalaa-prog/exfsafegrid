@@ -8,6 +8,7 @@ import { buildCustomerContext } from "@/lib/customer-types";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw } from "lucide-react";
+import PspsStatusHeader from "@/components/PspsStatusHeader";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -44,6 +45,7 @@ const Index = () => {
   if (role === "agent") {
     return (
       <div className="min-h-screen bg-background">
+        <PspsStatusHeader />
         <header className="border-b border-border bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
