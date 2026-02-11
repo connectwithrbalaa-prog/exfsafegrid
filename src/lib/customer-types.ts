@@ -13,13 +13,13 @@ export interface Customer {
 }
 
 export function buildCustomerContext(c: Customer): string {
-  return `Customer context:
-Name: ${c.name}
-ZIP: ${c.zip_code}
-Wildfire risk tier: ${c.wildfire_risk}
-Bill status: ${c.arrears_status === "Yes" ? "Past Due" : "Current"}
-Past-due amount: $${c.arrears_amount}
-Bill trend: ${c.bill_trend}
-Grid stress level: ${c.grid_stress_level}
-Outage history: ${c.outage_history || "None"}`;
+  return `CURRENT CUSTOMER CONTEXT (always use this info in your responses):
+- Name: ${c.name}
+- ZIP Code: ${c.zip_code}
+- Wildfire Risk: ${c.wildfire_risk}
+- Arrears Status: ${c.arrears_status}
+- Arrears Amount: $${c.arrears_amount}
+- Bill Trend: ${c.bill_trend}
+- Grid Stress Level: ${c.grid_stress_level}
+- Recent Outages: ${c.outage_history || "None"}`;
 }

@@ -104,12 +104,19 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build system messages: base prompt + optional customer context
+    // Build system messages: base prompt + customer context with conditional rules
     const systemMessages = [
       { role: "system", content: systemPrompt },
     ];
     if (customerContext) {
-      systemMessages.push({ role: "system", content: customerContext });
+      const contextWithRules = `${customerContext}
+
+CONDITIONAL RESPONSE RULES (apply automatically based on the customer data above):
+- If arrears_status is "Yes" or "Past Due", proactively mention REACH and Match My Payment assistance programs and offer to explain enrollment steps.
+- If wildfire_risk is "High", explain EPSS (Enhanced Powerline Safety Settings) and PSPS (Public Safety Power Shutoffs) and reference the undergrounding plans in their area.
+- If grid_stress_level is "High", mention Dynamic Line Rating (DLR) technology and provide load-shifting tips (avoid 4–9 PM peak, enroll in demand response).
+- Always personalize responses using the customer's name, ZIP code, and specific data above. Never give generic answers when you have their context.`;
+      systemMessages.push({ role: "system", content: contextWithRules });
     }
 
     const response = await fetch(
