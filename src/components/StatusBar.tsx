@@ -1,8 +1,8 @@
-import { Flame, Zap, Thermometer, Shield, DollarSign, AlertTriangle } from "lucide-react";
-import { CustomerProfile } from "@/lib/mock-customer";
+import { Flame, Thermometer, DollarSign, AlertTriangle } from "lucide-react";
+import type { Customer } from "@/lib/customer-types";
 
 interface StatusBarProps {
-  customer: CustomerProfile;
+  customer: Customer;
 }
 
 export default function StatusBar({ customer }: StatusBarProps) {
@@ -12,17 +12,15 @@ export default function StatusBar({ customer }: StatusBarProps) {
 
   const stressColor =
     customer.grid_stress_level === "High" ? "text-destructive" :
-    customer.grid_stress_level === "Elevated" ? "text-warning" : "text-info";
+    customer.grid_stress_level === "Medium" ? "text-warning" : "text-info";
 
-  const arrearsColor =
-    customer.arrears_status === "Critical" ? "text-destructive" :
-    customer.arrears_status === "Past Due" ? "text-warning" : "text-success";
+  const arrearsColor = customer.arrears_status === "Yes" ? "text-warning" : "text-success";
 
   const stats = [
     { icon: Flame, label: "Fire Risk", value: customer.wildfire_risk, color: riskColor },
     { icon: Thermometer, label: "Grid Stress", value: customer.grid_stress_level, color: stressColor },
-    { icon: DollarSign, label: "Monthly Bill", value: `$${customer.monthly_bill}`, color: "text-info" },
-    { icon: AlertTriangle, label: "Payment Status", value: customer.arrears_status, color: arrearsColor },
+    { icon: DollarSign, label: "Arrears", value: customer.arrears_status === "Yes" ? `$${customer.arrears_amount}` : "None", color: arrearsColor },
+    { icon: AlertTriangle, label: "Bill Trend", value: customer.bill_trend, color: "text-info" },
   ];
 
   return (
@@ -34,10 +32,7 @@ export default function StatusBar({ customer }: StatusBarProps) {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((s) => (
-          <div
-            key={s.label}
-            className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card"
-          >
+          <div key={s.label} className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
