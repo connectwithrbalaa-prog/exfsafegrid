@@ -256,6 +256,12 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                   </span>
                 ))}
               </div>
+              {selected.current_outage_status === "PSPS Active" && (
+                <div className="mt-2 px-3 py-2 rounded-md bg-destructive/20 border border-destructive/40">
+                  <p className="text-xs font-bold text-destructive">⚠️ URGENT: Doorbell verification needed</p>
+                  <p className="text-xs text-destructive/80 mt-0.5">No digital acknowledgment received. In-person check required.</p>
+                </div>
+              )}
             </div>
           )}
 
