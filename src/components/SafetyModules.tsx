@@ -203,7 +203,11 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => toast.info(`Opening map for ${customer.nearest_crc_location}`)}
+              onClick={() => {
+                const query = encodeURIComponent(customer.nearest_crc_location || "");
+                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank", "noopener");
+                toast.info(`Opening map for ${customer.nearest_crc_location}`);
+              }}
               className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
               <MapPin className="w-3 h-3" />
