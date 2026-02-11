@@ -18,37 +18,39 @@ const Index = () => {
 
   const customerContext = buildCustomerContext(customer);
 
+  const outages = customer.outage_history
+    ? customer.outage_history.split(",").map((d) => d.trim()).filter(Boolean)
+    : [];
+
   const infoCards = [
     {
       icon: Flame,
       title: "Wildfire Risk",
       color: "text-destructive",
-      description:
-        customer.wildfire_risk === "High"
-          ? "Your area is classified as high wildfire risk. The utility uses EPSS and PSPS shutoffs during extreme fire weather. Undergrounding and system hardening are underway."
-          : customer.wildfire_risk === "Medium"
-          ? "Your area has moderate wildfire risk. Stay informed about fire weather alerts and have an emergency plan ready."
-          : "Your area has low wildfire risk. Standard safety protocols are in place.",
+      details: [
+        { label: "Risk Level", value: customer.wildfire_risk },
+        { label: "ZIP Code", value: customer.zip_code },
+        { label: "Recent Outages", value: outages.length > 0 ? outages.join(", ") : "None" },
+      ],
     },
     {
       icon: DollarSign,
       title: "Bill & Assistance",
       color: "text-warning",
-      description:
-        customer.arrears_status === "Yes"
-          ? `You have a past-due balance of $${customer.arrears_amount}. You may qualify for REACH or Match My Payment assistance programs.`
-          : "Your account is current. Keep up the great work managing your energy costs!",
+      details: [
+        { label: "Bill Trend", value: customer.bill_trend },
+        { label: "Arrears", value: customer.arrears_status === "Yes" ? "Yes" : "No" },
+        { label: "Amount Due", value: customer.arrears_status === "Yes" ? `$${customer.arrears_amount}` : "$0" },
+      ],
     },
     {
       icon: Activity,
       title: "Grid Stress",
       color: "text-info",
-      description:
-        customer.grid_stress_level === "High"
-          ? "Grid stress is currently high. Consider shifting energy use outside peak hours (4–9 PM) and enrolling in demand response programs."
-          : customer.grid_stress_level === "Medium"
-          ? "Grid stress is moderate. Be mindful of peak-hour usage to help stabilize the grid."
-          : "Grid stress is low. Normal operations are in effect.",
+      details: [
+        { label: "Stress Level", value: customer.grid_stress_level },
+        { label: "ZIP Code", value: customer.zip_code },
+      ],
     },
   ];
 
@@ -78,11 +80,18 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {infoCards.map((card) => (
             <div key={card.title} className="p-5 rounded-lg border border-border bg-card">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <card.icon className={`w-5 h-5 ${card.color}`} />
                 <h2 className="text-sm font-semibold text-card-foreground">{card.title}</h2>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{card.description}</p>
+              <dl className="space-y-1.5">
+                {card.details.map((d) => (
+                  <div key={d.label} className="flex justify-between text-sm">
+                    <dt className="text-muted-foreground">{d.label}</dt>
+                    <dd className="font-medium text-card-foreground">{d.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           ))}
         </div>
