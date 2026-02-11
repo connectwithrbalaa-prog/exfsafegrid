@@ -154,33 +154,8 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
         {/* ETR + Progress Row */}
         <div className="grid grid-cols-2 gap-3">
           {/* ETR Countdown with dropdown */}
-          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase">⏱️ ETR Countdown</span>
-              <div className="relative">
-                <select
-                  value=""
-                  onChange={async (e) => {
-                    const val = e.target.value;
-                    if (!val) return;
-                    const prev = customer.restoration_timer;
-                    await supabase
-                      .from("customers")
-                      .update({ restoration_timer: val, last_update: new Date().toISOString() } as any)
-                      .eq("id", customer.id as any);
-                    toast.success(`ETR Updated: ${prev} → ${val} — All agents notified`);
-                    // Force local re-render via parent refresh
-                    window.dispatchEvent(new CustomEvent("psps-etr-updated", { detail: { id: customer.id, etr: val } }));
-                  }}
-                  className="text-[9px] font-medium text-primary bg-transparent border-none cursor-pointer focus:outline-none appearance-none pr-4"
-                >
-                  <option value="">Update ▼</option>
-                  {["2 hours", "4 hours", "12 hours", "24 hours", "TBD"].map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase">⏱️ ETR Countdown</span>
             {isOutageActive && remaining !== null && remaining > 0 ? (
               <p className="text-lg font-bold text-destructive font-mono tabular-nums flex items-center gap-1">
                 <Clock className="w-4 h-4 animate-pulse" />
@@ -192,6 +167,26 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
                 {isOutageActive ? customer.restoration_timer : "—"}
               </p>
             )}
+            <select
+              value=""
+              onChange={async (e) => {
+                const val = e.target.value;
+                if (!val) return;
+                const prev = customer.restoration_timer;
+                await supabase
+                  .from("customers")
+                  .update({ restoration_timer: val, last_update: new Date().toISOString() } as any)
+                  .eq("id", customer.id as any);
+                toast.success(`ETR Updated: ${prev} → ${val} — All agents notified`);
+                window.dispatchEvent(new CustomEvent("psps-etr-updated", { detail: { id: customer.id, etr: val } }));
+              }}
+              className="w-full text-[10px] font-medium text-primary bg-background border border-border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Update ETR ▾</option>
+              {["2 hours", "4 hours", "12 hours", "24 hours", "TBD"].map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
           </div>
 
           {/* Patrolling Progress with slider */}
