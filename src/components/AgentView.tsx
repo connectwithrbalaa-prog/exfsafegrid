@@ -4,6 +4,7 @@ import type { Customer } from "@/lib/customer-types";
 import { buildCustomerContext } from "@/lib/customer-types";
 import { User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
+import { toast } from "sonner";
 
 export default function AgentView() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -92,14 +93,21 @@ export default function AgentView() {
         {/* Quick Actions card */}
         <div className="p-5 rounded-lg border border-border bg-card space-y-3">
           <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
-          <div className="space-y-2">
-            {["Escalate to Supervisor", "Send Payment Reminder", "Schedule Callback", "Flag for Review"].map((action) => (
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { emoji: "📞", label: "Call Customer" },
+              { emoji: "💰", label: "Apply REACH" },
+              { emoji: "⚠️", label: "PSPS Alert" },
+              { emoji: "📝", label: "Add Note" },
+            ].map((action) => (
               <button
-                key={action}
+                key={action.label}
                 disabled={!selected}
-                className="w-full text-left text-sm px-3 py-2 rounded-md border border-border hover:bg-secondary text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => toast.success(`Action logged: ${action.label}${selected ? ` for ${selected.name}` : ""}`)}
+                className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-border hover:bg-secondary text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {action}
+                <span>{action.emoji}</span>
+                {action.label}
               </button>
             ))}
           </div>
