@@ -133,8 +133,42 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
         </div>
       </div>
 
-      {/* Nearest CRC */}
-      {customer.nearest_crc_location && (
+      {/* Nearest CRC — prominent when power is off */}
+      {customer.nearest_crc_location && customer.current_outage_status !== "Normal" && (
+        <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-card-foreground">📍 Nearest CRC</h3>
+          </div>
+          <p className="text-sm font-bold text-foreground">{customer.nearest_crc_location}</p>
+          <div className="flex flex-wrap gap-2">
+            {["♿ ADA Restrooms", "☕ WiFi", "⚡ Medical Charging", "💧 Water"].map((svc) => (
+              <span key={svc} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-muted border border-border text-muted-foreground">
+                {svc}
+              </span>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => toast.info(`Opening map for ${customer.nearest_crc_location}`)}
+              className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              <MapPin className="w-3 h-3" />
+              Open Map
+            </button>
+            <button
+              onClick={() => toast.success(`Directions sent to ${customer.name}`)}
+              className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            >
+              <Send className="w-3 h-3" />
+              Send Directions
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CRC info when power is normal */}
+      {customer.nearest_crc_location && customer.current_outage_status === "Normal" && (
         <div className="p-4 rounded-lg border border-border bg-card">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
