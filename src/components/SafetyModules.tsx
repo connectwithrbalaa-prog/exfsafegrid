@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send, ChevronDown, AlertTriangle, HeartPulse, Radio } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const PSPS_PHASES = ["Weather Forecast", "PSPS Activation", "Weather All-Clear", "Patrolling", "100% Restored"];
@@ -130,15 +131,33 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
 
         {/* ETR + Progress Row */}
         <div className="grid grid-cols-2 gap-3">
+          {/* ETR Countdown with dropdown */}
           <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase">⏱️ ETR Countdown</span>
-              <button
-                onClick={() => toast.info(`ETR updated for ${customer.name}`)}
-                className="flex items-center gap-0.5 text-[9px] font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                Update <ChevronDown className="w-2.5 h-2.5" />
-              </button>
+              <div className="relative">
+                <select
+                  value=""
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    const prev = customer.restoration_timer;
+                    await supabase
+                      .from("customers")
+                      .update({ restoration_timer: val, last_update: new Date().toISOString() } as any)
+                      .eq("id", customer.id as any);
+                    toast.success(`ETR Updated: ${prev} → ${val} — All agents notified`);
+                    // Force local re-render via parent refresh
+                    window.dispatchEvent(new CustomEvent("psps-etr-updated", { detail: { id: customer.id, etr: val } }));
+                  }}
+                  className="text-[9px] font-medium text-primary bg-transparent border-none cursor-pointer focus:outline-none appearance-none pr-4"
+                >
+                  <option value="">Update ▼</option>
+                  {["2 hours", "4 hours", "12 hours", "24 hours", "TBD"].map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             {isOutageActive && remaining !== null && remaining > 0 ? (
               <p className="text-lg font-bold text-destructive font-mono tabular-nums flex items-center gap-1">
@@ -153,25 +172,38 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
             )}
           </div>
 
-          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1">
+          {/* Patrolling Progress with slider */}
+          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase">📊 Patrolling</span>
-              <button
-                onClick={() => {
-                  const next = Math.min(100, patrolPct + 5);
-                  setPatrolPct(next);
-                  toast.success(`Progress updated to ${next}%`);
-                }}
-                className="flex items-center gap-0.5 text-[9px] font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                Update <ChevronDown className="w-2.5 h-2.5" />
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-foreground font-mono tabular-nums">{patrolPct}%</span>
-              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${patrolPct}%` }} />
-              </div>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={patrolPct}
+              onChange={(e) => setPatrolPct(Number(e.target.value))}
+              onMouseUp={async () => {
+                const prev = customer.patrolling_progress;
+                await supabase
+                  .from("customers")
+                  .update({ patrolling_progress: patrolPct, last_update: new Date().toISOString() } as any)
+                  .eq("id", customer.id as any);
+                toast.success(`Patrolling Progress: ${prev}% → ${patrolPct}%`);
+              }}
+              onTouchEnd={async () => {
+                const prev = customer.patrolling_progress;
+                await supabase
+                  .from("customers")
+                  .update({ patrolling_progress: patrolPct, last_update: new Date().toISOString() } as any)
+                  .eq("id", customer.id as any);
+                toast.success(`Patrolling Progress: ${prev}% → ${patrolPct}%`);
+              }}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer bg-muted accent-primary"
+            />
+            <div className="w-full h-2 rounded-full bg-muted overflow-hidden -mt-1">
+              <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${patrolPct}%` }} />
             </div>
           </div>
         </div>
