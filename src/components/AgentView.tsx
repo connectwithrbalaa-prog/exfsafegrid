@@ -224,6 +224,18 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         <div className="lg:col-span-3 space-y-4">
           <h2 className="text-xl font-bold text-foreground">Agent Actions</h2>
 
+          {/* Compact Customer Summary Bar */}
+          {selected && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
+              <User className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-semibold text-card-foreground truncate">{selected.name}</span>
+              <span className="text-xs text-muted-foreground">ZIP {selected.zip_code}</span>
+              <span className={`text-xs font-medium ml-auto ${riskColor(selected.wildfire_risk)}`}>
+                🔥 {selected.wildfire_risk}
+              </span>
+            </div>
+          )}
+
           {/* Medical Priority Badge — HIGHEST PRIORITY, sticky */}
           {selected?.medical_baseline && (
             <div className="p-4 rounded-lg border-2 border-destructive bg-destructive/10 space-y-2 sticky top-0 z-10 shadow-md shadow-destructive/10">
