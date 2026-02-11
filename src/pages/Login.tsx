@@ -3,23 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import type { Customer } from "@/lib/customer-types";
+import { AGENT_REGIONS } from "@/lib/region-utils";
 import { Zap, LogIn, User, Headset } from "lucide-react";
 import { toast } from "sonner";
 
 const DEMO_PASSWORD = "demo123";
 const AGENT_PASSWORD = "agent123";
 
-const DEMO_AGENTS = [
-  { name: "Agent Smith", email: "agent.smith@gridguard.com" },
-  { name: "Agent Rivera", email: "agent.rivera@gridguard.com" },
-];
+const DEMO_AGENTS = Object.entries(AGENT_REGIONS).map(([email, region]) => ({
+  name: email.split("@")[0].split(".").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+  email,
+  region,
+}));
 
 export default function Login() {
   const [tab, setTab] = useState<UserRole>("customer");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setCustomer, setRole } = useCustomer();
+  const { setCustomer, setRole, setAgentEmail } = useCustomer();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -33,6 +35,7 @@ export default function Login() {
       }
       // Agent login doesn't need a customer record — just set role and go
       setRole("agent");
+      setAgentEmail(email.trim().toLowerCase());
       setCustomer(null);
       navigate("/");
       return;
@@ -150,7 +153,7 @@ export default function Login() {
               <p className="text-xs font-medium text-foreground">Demo Agent Accounts</p>
               <ul className="text-xs text-muted-foreground space-y-0.5">
                 {DEMO_AGENTS.map((a) => (
-                  <li key={a.email}>{a.email}</li>
+                  <li key={a.email}>{a.email} <span className="text-foreground/50">({a.region})</span></li>
                 ))}
               </ul>
               <p className="text-xs text-muted-foreground">Password: <span className="font-mono text-foreground">agent123</span></p>
