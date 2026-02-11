@@ -222,27 +222,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
         {/* RIGHT COLUMN — 30% */}
         <div className="lg:col-span-3 space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Agent Dashboard</h2>
-
-          {/* Customer Profile card */}
-          <div className="p-5 rounded-lg border border-border bg-card space-y-2">
-            <h3 className="text-sm font-semibold text-card-foreground">Customer Profile</h3>
-            {selected ? (
-              <dl className="text-sm space-y-1.5">
-                <ProfileRow label="Name" value={selected.name} />
-                <ProfileRow label="ZIP" value={selected.zip_code} />
-                <ProfileRow label="Region" value={selected.region} />
-                <ProfileRow label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
-                <ProfileRow label="Medical Baseline" value={selected.medical_baseline ? "Yes" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
-                <ProfileRow label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
-                <ProfileRow label="Arrears" value={selected.arrears_status === "Yes" ? `Yes ($${selected.arrears_amount})` : "No ($0)"} />
-                <ProfileRow label="Bill Trend" value={selected.bill_trend} />
-                <ProfileRow label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
-              </dl>
-            ) : (
-              <p className="text-sm text-muted-foreground">No customer selected</p>
-            )}
-          </div>
+          <h2 className="text-xl font-bold text-foreground">Agent Actions</h2>
 
           {/* Medical Priority Badge — HIGHEST PRIORITY, sticky */}
           {selected?.medical_baseline && (
