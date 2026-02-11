@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customers: {
+        Row: {
+          arrears_amount: number
+          arrears_status: string
+          bill_trend: string
+          created_at: string
+          email: string | null
+          grid_stress_level: string
+          id: string
+          name: string
+          outage_history: string | null
+          wildfire_risk: string
+          zip_code: string
+        }
+        Insert: {
+          arrears_amount?: number
+          arrears_status?: string
+          bill_trend?: string
+          created_at?: string
+          email?: string | null
+          grid_stress_level?: string
+          id?: string
+          name: string
+          outage_history?: string | null
+          wildfire_risk?: string
+          zip_code: string
+        }
+        Update: {
+          arrears_amount?: number
+          arrears_status?: string
+          bill_trend?: string
+          created_at?: string
+          email?: string | null
+          grid_stress_level?: string
+          id?: string
+          name?: string
+          outage_history?: string | null
+          wildfire_risk?: string
+          zip_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
