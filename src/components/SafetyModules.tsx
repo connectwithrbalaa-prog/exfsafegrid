@@ -1,8 +1,51 @@
+import { useState, useEffect, useCallback } from "react";
 import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
 import { toast } from "sonner";
 
 const OUTAGE_STAGES = ["PSPS Active", "Weather All-Clear", "Patrolling", "Restored"];
+
+/** Parse "X hours" or "X hours Y min" into total seconds */
+function parseEtrToSeconds(etr: string): number | null {
+  if (!etr || etr === "TBD" || etr === "N/A") return null;
+  let total = 0;
+  const hourMatch = etr.match(/(\d+)\s*h/i);
+  const minMatch = etr.match(/(\d+)\s*m/i);
+  if (hourMatch) total += parseInt(hourMatch[1]) * 3600;
+  if (minMatch) total += parseInt(minMatch[1]) * 60;
+  if (total === 0) {
+    const numOnly = etr.match(/^(\d+)$/);
+    if (numOnly) total = parseInt(numOnly[1]) * 3600; // assume hours
+  }
+  return total > 0 ? total : null;
+}
+
+function formatCountdown(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+function useCountdown(etr: string, isActive: boolean) {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    const parsed = isActive ? parseEtrToSeconds(etr) : null;
+    setRemaining(parsed);
+  }, [etr, isActive]);
+
+  useEffect(() => {
+    if (remaining === null || remaining <= 0) return;
+    const timer = setInterval(() => {
+      setRemaining((prev) => (prev && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [remaining !== null && remaining > 0]);
+
+  return remaining;
+}
 
 function outageColor(status: string) {
   if (status === "PSPS Active" || status === "EPSS Active") return "text-destructive";
@@ -18,6 +61,9 @@ function outageBackground(status: string) {
 }
 
 export default function SafetyModules({ customer }: { customer: Customer }) {
+  const isOutageActive = customer.current_outage_status !== "Normal";
+  const remaining = useCountdown(customer.restoration_timer, isOutageActive);
+  
   return (
     <div className="space-y-4">
       {/* Outage Status Banner */}
@@ -35,10 +81,17 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">⏱️ ETR</p>
-            <p className="text-sm font-bold text-foreground flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {customer.current_outage_status === "Normal" ? "N/A" : customer.restoration_timer}
-            </p>
+            {isOutageActive && remaining !== null && remaining > 0 ? (
+              <p className="text-sm font-bold text-destructive flex items-center gap-1 font-mono tabular-nums">
+                <Clock className="w-3.5 h-3.5 animate-pulse" />
+                {formatCountdown(remaining)}
+              </p>
+            ) : (
+              <p className="text-sm font-bold text-foreground flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                {isOutageActive ? customer.restoration_timer : "N/A"}
+              </p>
+            )}
           </div>
         </div>
 
