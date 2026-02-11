@@ -23,9 +23,12 @@ export type Database = {
           created_at: string
           email: string | null
           grid_stress_level: string
+          hftd_tier: string
           id: string
+          medical_baseline: boolean
           name: string
           outage_history: string | null
+          region: string
           wildfire_risk: string
           zip_code: string
         }
@@ -37,9 +40,12 @@ export type Database = {
           created_at?: string
           email?: string | null
           grid_stress_level?: string
+          hftd_tier?: string
           id?: string
+          medical_baseline?: boolean
           name: string
           outage_history?: string | null
+          region?: string
           wildfire_risk?: string
           zip_code: string
         }
@@ -51,9 +57,12 @@ export type Database = {
           created_at?: string
           email?: string | null
           grid_stress_level?: string
+          hftd_tier?: string
           id?: string
+          medical_baseline?: boolean
           name?: string
           outage_history?: string | null
+          region?: string
           wildfire_risk?: string
           zip_code?: string
         }
