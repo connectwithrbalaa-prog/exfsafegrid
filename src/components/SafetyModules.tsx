@@ -1,6 +1,8 @@
-import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug } from "lucide-react";
+import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
 import { toast } from "sonner";
+
+const OUTAGE_STAGES = ["PSPS Active", "Weather All-Clear", "Patrolling", "Restored"];
 
 function outageColor(status: string) {
   if (status === "PSPS Active" || status === "EPSS Active") return "text-destructive";
@@ -19,8 +21,8 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
   return (
     <div className="space-y-4">
       {/* Outage Status Banner */}
-      <div className={`p-4 rounded-lg border ${outageBackground(customer.current_outage_status)}`}>
-        <div className="flex items-center gap-2 mb-2">
+      <div className={`p-4 rounded-lg border ${outageBackground(customer.current_outage_status)} space-y-3`}>
+        <div className="flex items-center gap-2">
           <Activity className={`w-4 h-4 ${outageColor(customer.current_outage_status)}`} />
           <h3 className="text-sm font-semibold text-card-foreground">Outage Status</h3>
         </div>
@@ -32,12 +34,65 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Est. Restoration</p>
+            <p className="text-xs text-muted-foreground">⏱️ ETR</p>
             <p className="text-sm font-bold text-foreground flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
               {customer.current_outage_status === "Normal" ? "N/A" : customer.restoration_timer}
             </p>
           </div>
+        </div>
+
+        {/* Status Pipeline */}
+        {customer.current_outage_status !== "Normal" && (
+          <div className="flex items-center gap-1 pt-1">
+            {OUTAGE_STAGES.map((stage, i) => {
+              const activeIdx = OUTAGE_STAGES.findIndex(s => s === customer.current_outage_status);
+              const isActive = i <= activeIdx;
+              const isCurrent = i === activeIdx;
+              return (
+                <div key={stage} className="flex items-center gap-1 flex-1 min-w-0">
+                  <div className={`h-1.5 rounded-full flex-1 ${isCurrent ? "bg-primary animate-pulse" : isActive ? "bg-primary" : "bg-muted"}`} />
+                  {i === OUTAGE_STAGES.length - 1 && (
+                    <span className="text-[9px] text-muted-foreground whitespace-nowrap ml-0.5">24hr goal</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {customer.current_outage_status !== "Normal" && (
+          <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+            {OUTAGE_STAGES.map((stage) => (
+              <span key={stage} className={`flex-1 min-w-0 truncate ${stage === customer.current_outage_status ? "font-bold text-foreground" : ""}`}>
+                {stage}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <button
+            onClick={() => toast.info(`ETR updated for ${customer.name}`)}
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+          >
+            <Clock className="w-3 h-3" />
+            Update ETR
+          </button>
+          <button
+            onClick={() => toast.success(`Digital notice sent to ${customer.name}`)}
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+          >
+            <Send className="w-3 h-3" />
+            Send Notice
+          </button>
+          <button
+            onClick={() => toast.info(`Nearest CRC: ${customer.nearest_crc_location || "None found"}`)}
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+          >
+            <MapPin className="w-3 h-3" />
+            Locate CRC
+          </button>
         </div>
       </div>
 
