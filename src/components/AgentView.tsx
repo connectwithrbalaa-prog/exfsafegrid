@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
+import ReportHazard from "@/components/ReportHazard";
+
 import { toast } from "sonner";
 
 interface RedFlagData {
@@ -335,6 +337,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
               </div>
             )}
           </div>
+
+          {/* Report It Hazard Tool */}
+          <ReportHazard customerName={selected?.name} />
         </div>
       </div>
     </div>
