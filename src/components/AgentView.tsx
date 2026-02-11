@@ -244,22 +244,54 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
             )}
           </div>
 
-          {/* Medical Priority Badge */}
+          {/* Medical Priority Badge — HIGHEST PRIORITY, sticky */}
           {selected?.medical_baseline && (
-            <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/10 space-y-2">
+            <div className="p-4 rounded-lg border-2 border-destructive bg-destructive/10 space-y-2 sticky top-0 z-10 shadow-md shadow-destructive/10">
               <div className="flex items-center gap-2">
-                <HeartPulse className="w-4 h-4 text-destructive" />
+                <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
                 <span className="text-sm font-bold text-destructive">🚨 MEDICAL BASELINE CUSTOMER</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {["Doorbell Ring Required", "Priority Restoration", "Backup Assets OK?"].map((tag) => (
-                  <span key={tag} className="px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30">
-                    {tag}
-                  </span>
-                ))}
+                <button
+                  onClick={() => {
+                    toast.success(`Doorbell verification dispatched for ${selected.name}`, {
+                      description: "Field crew notified for in-person check",
+                    });
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
+                >
+                  🔔 Doorbell Ring Required
+                </button>
+                <button
+                  onClick={() => {
+                    toast.success(`Priority restoration flagged for ${selected.name}`, {
+                      description: "Added to priority restoration queue",
+                    });
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
+                >
+                  ⚡ Priority Restoration
+                </button>
+                <button
+                  onClick={() => {
+                    const assets = [
+                      selected.has_portable_battery ? "✅ PBP" : "❌ PBP",
+                      selected.has_transfer_meter ? "✅ Transfer Meter" : "❌ Transfer Meter",
+                      `🔋 ${selected.has_permanent_battery}`,
+                    ].join(" · ");
+                    toast.info(`Backup Assets: ${assets}`, {
+                      description: selected.has_portable_battery || selected.has_transfer_meter
+                        ? "Assets available — verify charge levels"
+                        : "No backup assets — recommend PBP enrollment",
+                    });
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
+                >
+                  🔋 Backup Assets OK?
+                </button>
               </div>
               {selected.current_outage_status === "PSPS Active" && (
-                <div className="mt-2 px-3 py-2 rounded-md bg-destructive/20 border border-destructive/40">
+                <div className="mt-2 px-3 py-2 rounded-md bg-destructive/20 border border-destructive/40 animate-pulse">
                   <p className="text-xs font-bold text-destructive">⚠️ URGENT: Doorbell verification needed</p>
                   <p className="text-xs text-destructive/80 mt-0.5">No digital acknowledgment received. In-person check required.</p>
                 </div>

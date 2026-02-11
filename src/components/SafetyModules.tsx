@@ -123,25 +123,25 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons — Red=Urgent, Green=Available, Blue=Action */}
         <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             onClick={() => toast.info(`ETR updated for ${customer.name}`)}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 text-destructive font-medium transition-colors"
           >
             <Clock className="w-3 h-3" />
             Update ETR
           </button>
           <button
             onClick={() => toast.success(`Digital notice sent to ${customer.name}`)}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
           >
             <Send className="w-3 h-3" />
             Send Notice
           </button>
           <button
             onClick={() => toast.info(`Nearest CRC: ${customer.nearest_crc_location || "None found"}`)}
-            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
           >
             <MapPin className="w-3 h-3" />
             Locate CRC
@@ -171,14 +171,14 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
             onClick={() => toast.info(`Backup status for ${customer.name}: All systems nominal`)}
-            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary/10 border border-primary/30 hover:bg-primary/20 text-primary font-medium transition-colors"
           >
             <Gauge className="w-3 h-3" />
             View Backup Status
           </button>
           <button
             onClick={() => toast.success(`Connection test sent to ${customer.name}'s backup systems`)}
-            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-secondary text-foreground transition-colors"
+            className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-success/10 border border-success/30 hover:bg-success/20 text-success font-medium transition-colors"
           >
             <Plug className="w-3 h-3" />
             Test Connection
