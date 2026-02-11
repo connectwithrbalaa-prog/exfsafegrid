@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback } from "react";
-import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send } from "lucide-react";
+import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send, ChevronDown, AlertTriangle, HeartPulse, Radio } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
 import { toast } from "sonner";
 
-const OUTAGE_STAGES = ["PSPS Active", "Weather All-Clear", "Patrolling", "Restored"];
+const PSPS_PHASES = ["Weather Forecast", "PSPS Activation", "Weather All-Clear", "Patrolling", "100% Restored"];
+
+function phaseIndex(status: string): number {
+  if (status === "PSPS Active" || status === "EPSS Active") return 1;
+  if (status === "Weather All-Clear") return 2;
+  if (status === "Patrolling") return 3;
+  if (status === "Restored" || status === "Normal") return 4;
+  return 0;
+}
 
 /** Parse "X hours" or "X hours Y min" into total seconds */
 function parseEtrToSeconds(etr: string): number | null {
@@ -15,7 +23,7 @@ function parseEtrToSeconds(etr: string): number | null {
   if (minMatch) total += parseInt(minMatch[1]) * 60;
   if (total === 0) {
     const numOnly = etr.match(/^(\d+)$/);
-    if (numOnly) total = parseInt(numOnly[1]) * 3600; // assume hours
+    if (numOnly) total = parseInt(numOnly[1]) * 3600;
   }
   return total > 0 ? total : null;
 }
@@ -30,12 +38,9 @@ function formatCountdown(seconds: number): string {
 
 function useCountdown(etr: string, isActive: boolean) {
   const [remaining, setRemaining] = useState<number | null>(null);
-
   useEffect(() => {
-    const parsed = isActive ? parseEtrToSeconds(etr) : null;
-    setRemaining(parsed);
+    setRemaining(isActive ? parseEtrToSeconds(etr) : null);
   }, [etr, isActive]);
-
   useEffect(() => {
     if (remaining === null || remaining <= 0) return;
     const timer = setInterval(() => {
@@ -43,88 +48,158 @@ function useCountdown(etr: string, isActive: boolean) {
     }, 1000);
     return () => clearInterval(timer);
   }, [remaining !== null && remaining > 0]);
-
   return remaining;
 }
 
-function outageColor(status: string) {
+function statusColor(status: string) {
   if (status === "PSPS Active" || status === "EPSS Active") return "text-destructive";
   if (status === "Patrolling") return "text-warning";
-  if (status === "Restored") return "text-info";
-  return "text-success";
+  if (status === "Restored" || status === "Normal") return "text-success";
+  return "text-info";
 }
 
-function outageBackground(status: string) {
-  if (status === "PSPS Active" || status === "EPSS Active") return "bg-destructive/10 border-destructive/30";
-  if (status === "Patrolling") return "bg-warning/10 border-warning/30";
+function statusBg(status: string) {
+  if (status === "PSPS Active" || status === "EPSS Active") return "bg-destructive/10 border-destructive/40";
+  if (status === "Patrolling") return "bg-warning/10 border-warning/40";
   return "bg-muted/50 border-border";
 }
 
 export default function SafetyModules({ customer }: { customer: Customer }) {
   const isOutageActive = customer.current_outage_status !== "Normal";
   const remaining = useCountdown(customer.restoration_timer, isOutageActive);
-  
+  const currentPhase = phaseIndex(customer.current_outage_status);
+  const [patrolPct, setPatrolPct] = useState(currentPhase === 3 ? 62 : currentPhase >= 4 ? 100 : 0);
+  const [doorbellStatus, setDoorbellStatus] = useState<"Pending" | "Verified" | "Dispatched">("Pending");
+  const lastUpdate = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   return (
     <div className="space-y-4">
-      {/* Outage Status Banner */}
-      <div className={`p-4 rounded-lg border ${outageBackground(customer.current_outage_status)} space-y-3`}>
-        <div className="flex items-center gap-2">
-          <Activity className={`w-4 h-4 ${outageColor(customer.current_outage_status)}`} />
-          <h3 className="text-sm font-semibold text-card-foreground">Outage Status</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Current Status</p>
-            <p className={`text-sm font-bold ${outageColor(customer.current_outage_status)}`}>
-              {customer.current_outage_status}
-            </p>
+      {/* ===== PSPS EVENT TRACKER ===== */}
+      <div className={`p-4 rounded-lg border-2 ${statusBg(customer.current_outage_status)} space-y-4`}>
+        {/* Header row */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOutageActive ? "bg-destructive" : "bg-success"}`} />
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isOutageActive ? "bg-destructive" : "bg-success"}`} />
+            </span>
+            <h3 className="text-sm font-bold text-card-foreground">PSPS Event Tracker</h3>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">⏱️ ETR</p>
-            {isOutageActive && remaining !== null && remaining > 0 ? (
-              <p className="text-sm font-bold text-destructive flex items-center gap-1 font-mono tabular-nums">
-                <Clock className="w-3.5 h-3.5 animate-pulse" />
-                {formatCountdown(remaining)}
-              </p>
-            ) : (
-              <p className="text-sm font-bold text-foreground flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {isOutageActive ? customer.restoration_timer : "N/A"}
-              </p>
-            )}
-          </div>
+          <span className="text-[10px] text-muted-foreground">Updated {lastUpdate}</span>
         </div>
 
-        {/* Status Pipeline */}
-        {customer.current_outage_status !== "Normal" && (
-          <div className="flex items-center gap-1 pt-1">
-            {OUTAGE_STAGES.map((stage, i) => {
-              const activeIdx = OUTAGE_STAGES.findIndex(s => s === customer.current_outage_status);
-              const isActive = i <= activeIdx;
-              const isCurrent = i === activeIdx;
+        {/* Customer + Circuit Info */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+          <span className="font-semibold text-foreground">{customer.name}</span>
+          <span className="text-muted-foreground">Circuit: <span className="font-mono font-medium text-foreground">HTD-{customer.zip_code.slice(-4)}</span></span>
+          <span className="text-muted-foreground">ZIP: <span className="font-medium text-foreground">{customer.zip_code}</span></span>
+        </div>
+
+        {/* Live Status */}
+        <div className="flex items-center gap-2">
+          <Activity className={`w-4 h-4 ${statusColor(customer.current_outage_status)}`} />
+          <span className={`text-sm font-bold ${statusColor(customer.current_outage_status)}`}>
+            {customer.current_outage_status}
+          </span>
+        </div>
+
+        {/* Phase Timeline */}
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Phase Timeline</p>
+          <div className="flex items-center gap-0.5">
+            {PSPS_PHASES.map((phase, i) => {
+              const isComplete = i < currentPhase;
+              const isCurrent = i === currentPhase;
               return (
-                <div key={stage} className="flex items-center gap-1 flex-1 min-w-0">
-                  <div className={`h-1.5 rounded-full flex-1 ${isCurrent ? "bg-primary animate-pulse" : isActive ? "bg-primary" : "bg-muted"}`} />
-                  {i === OUTAGE_STAGES.length - 1 && (
-                    <span className="text-[9px] text-muted-foreground whitespace-nowrap ml-0.5">24hr goal</span>
-                  )}
+                <div key={phase} className="flex-1 min-w-0">
+                  <div className={`h-2 rounded-full transition-all ${isCurrent ? "bg-primary animate-pulse" : isComplete ? "bg-primary" : "bg-muted"}`} />
                 </div>
               );
             })}
           </div>
-        )}
-        {customer.current_outage_status !== "Normal" && (
-          <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
-            {OUTAGE_STAGES.map((stage) => (
-              <span key={stage} className={`flex-1 min-w-0 truncate ${stage === customer.current_outage_status ? "font-bold text-foreground" : ""}`}>
-                {stage}
+          <div className="flex items-center gap-0.5">
+            {PSPS_PHASES.map((phase, i) => (
+              <span key={phase} className={`flex-1 min-w-0 text-[8px] leading-tight truncate ${i === currentPhase ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                {phase}
               </span>
             ))}
           </div>
+        </div>
+
+        {/* ETR + Progress Row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase">⏱️ ETR Countdown</span>
+              <button
+                onClick={() => toast.info(`ETR updated for ${customer.name}`)}
+                className="flex items-center gap-0.5 text-[9px] font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Update <ChevronDown className="w-2.5 h-2.5" />
+              </button>
+            </div>
+            {isOutageActive && remaining !== null && remaining > 0 ? (
+              <p className="text-lg font-bold text-destructive font-mono tabular-nums flex items-center gap-1">
+                <Clock className="w-4 h-4 animate-pulse" />
+                {formatCountdown(remaining)}
+              </p>
+            ) : (
+              <p className="text-lg font-bold text-foreground font-mono tabular-nums flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {isOutageActive ? customer.restoration_timer : "—"}
+              </p>
+            )}
+          </div>
+
+          <div className="p-2.5 rounded-md bg-background/60 border border-border space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase">📊 Patrolling</span>
+              <button
+                onClick={() => {
+                  const next = Math.min(100, patrolPct + 5);
+                  setPatrolPct(next);
+                  toast.success(`Progress updated to ${next}%`);
+                }}
+                className="flex items-center gap-0.5 text-[9px] font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Update <ChevronDown className="w-2.5 h-2.5" />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-foreground font-mono tabular-nums">{patrolPct}%</span>
+              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${patrolPct}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Medical Priority Row */}
+        {customer.medical_baseline && isOutageActive && (
+          <div className="p-3 rounded-md border border-destructive/40 bg-destructive/10 space-y-2">
+            <div className="flex items-center gap-2">
+              <HeartPulse className="w-4 h-4 text-destructive animate-pulse" />
+              <span className="text-xs font-bold text-destructive">MEDICAL PRIORITY</span>
+              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-destructive/30 bg-destructive/20 text-destructive font-medium">
+                🚨 Doorbell: {doorbellStatus}
+              </span>
+            </div>
+            {doorbellStatus === "Pending" && (
+              <button
+                onClick={() => {
+                  setDoorbellStatus("Dispatched");
+                  toast.success(`Doorbell verification dispatched for ${customer.name}`);
+                }}
+                className="w-full text-xs px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity font-medium"
+              >
+                🔔 Dispatch Doorbell Verification
+              </button>
+            )}
+          </div>
         )}
 
-        {/* Action Buttons — Red=Urgent, Green=Available, Blue=Action */}
-        <div className="grid grid-cols-3 gap-2 pt-1">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => toast.info(`ETR updated for ${customer.name}`)}
             className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-md bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 text-destructive font-medium transition-colors"
@@ -190,7 +265,7 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
       </div>
 
       {/* Nearest CRC — prominent when power is off */}
-      {customer.nearest_crc_location && customer.current_outage_status !== "Normal" && (
+      {customer.nearest_crc_location && isOutageActive && (
         <div className="p-4 rounded-lg border border-primary/50 bg-primary/5 space-y-3">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
@@ -229,7 +304,7 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
       )}
 
       {/* CRC info when power is normal */}
-      {customer.nearest_crc_location && customer.current_outage_status === "Normal" && (
+      {customer.nearest_crc_location && !isOutageActive && (
         <div className="p-4 rounded-lg border border-border bg-card">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
