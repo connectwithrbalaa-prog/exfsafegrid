@@ -21,14 +21,20 @@ export type Database = {
           arrears_status: string
           bill_trend: string
           created_at: string
+          current_outage_status: string
           email: string | null
           grid_stress_level: string
+          has_permanent_battery: string
+          has_portable_battery: boolean
+          has_transfer_meter: boolean
           hftd_tier: string
           id: string
           medical_baseline: boolean
           name: string
+          nearest_crc_location: string
           outage_history: string | null
           region: string
+          restoration_timer: string
           wildfire_risk: string
           zip_code: string
         }
@@ -38,14 +44,20 @@ export type Database = {
           arrears_status?: string
           bill_trend?: string
           created_at?: string
+          current_outage_status?: string
           email?: string | null
           grid_stress_level?: string
+          has_permanent_battery?: string
+          has_portable_battery?: boolean
+          has_transfer_meter?: boolean
           hftd_tier?: string
           id?: string
           medical_baseline?: boolean
           name: string
+          nearest_crc_location?: string
           outage_history?: string | null
           region?: string
+          restoration_timer?: string
           wildfire_risk?: string
           zip_code: string
         }
@@ -55,14 +67,20 @@ export type Database = {
           arrears_status?: string
           bill_trend?: string
           created_at?: string
+          current_outage_status?: string
           email?: string | null
           grid_stress_level?: string
+          has_permanent_battery?: string
+          has_portable_battery?: boolean
+          has_transfer_meter?: boolean
           hftd_tier?: string
           id?: string
           medical_baseline?: boolean
           name?: string
+          nearest_crc_location?: string
           outage_history?: string | null
           region?: string
+          restoration_timer?: string
           wildfire_risk?: string
           zip_code?: string
         }
