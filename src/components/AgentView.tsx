@@ -242,6 +242,23 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
             )}
           </div>
 
+          {/* Medical Priority Badge */}
+          {selected?.medical_baseline && (
+            <div className="p-4 rounded-lg border border-destructive/50 bg-destructive/10 space-y-2">
+              <div className="flex items-center gap-2">
+                <HeartPulse className="w-4 h-4 text-destructive" />
+                <span className="text-sm font-bold text-destructive">🚨 MEDICAL BASELINE CUSTOMER</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {["Doorbell Ring Required", "Priority Restoration", "Backup Assets OK?"].map((tag) => (
+                  <span key={tag} className="px-2 py-0.5 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Safety Modules */}
           {selected && <SafetyModules customer={selected} />}
 
