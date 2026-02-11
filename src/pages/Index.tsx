@@ -1,9 +1,33 @@
 import ChatPanel from "@/components/ChatPanel";
 import StatusBar from "@/components/StatusBar";
 import { mockCustomer, buildCustomerContext } from "@/lib/mock-customer";
-import { Zap } from "lucide-react";
+import { Zap, Flame, DollarSign, Activity } from "lucide-react";
 
 const customerContext = buildCustomerContext(mockCustomer);
+
+const infoCards = [
+  {
+    icon: Flame,
+    title: "Wildfire Risk",
+    color: "text-destructive",
+    description:
+      "Your area is classified as high wildfire risk. The utility uses EPSS and PSPS shutoffs during extreme fire weather to protect communities. Undergrounding and system hardening are underway to reduce future outages.",
+  },
+  {
+    icon: DollarSign,
+    title: "Bill & Assistance",
+    color: "text-warning",
+    description:
+      "Your current bill is $187/mo with a past-due balance of $342. You may qualify for REACH or Match My Payment assistance programs to help manage costs.",
+  },
+  {
+    icon: Activity,
+    title: "Grid Stress",
+    color: "text-info",
+    description:
+      "Grid stress is currently elevated due to increased demand. Consider shifting energy use outside peak hours (4–9 PM) and enrolling in demand response programs.",
+  },
+];
 
 const Index = () => {
   return (
@@ -25,8 +49,22 @@ const Index = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <StatusBar customer={mockCustomer} />
 
+        {/* Three info cards in a row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {infoCards.map((card) => (
+            <div key={card.title} className="p-5 rounded-lg border border-border bg-card">
+              <div className="flex items-center gap-2 mb-2">
+                <card.icon className={`w-5 h-5 ${card.color}`} />
+                <h2 className="text-sm font-semibold text-card-foreground">{card.title}</h2>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{card.description}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Chat panel on the right, quick links on the left */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Info panel */}
+          {/* Left sidebar */}
           <div className="lg:col-span-2 space-y-4">
             <div className="p-5 rounded-lg border border-border bg-card">
               <h2 className="text-sm font-semibold text-card-foreground mb-3">Quick Links</h2>
@@ -56,9 +94,14 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Chat panel */}
-          <div className="lg:col-span-3 h-[520px]">
-            <ChatPanel customerContext={customerContext} />
+          {/* Chat panel — right side */}
+          <div className="lg:col-span-3 space-y-2">
+            <p className="text-sm text-muted-foreground px-1">
+              Ask any question about your power, bills, or wildfire safety.
+            </p>
+            <div className="h-[520px]">
+              <ChatPanel customerContext={customerContext} />
+            </div>
           </div>
         </div>
       </main>
