@@ -2,13 +2,18 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 import type { Customer } from "@/lib/customer-types";
 
 const STORAGE_KEY = "gridguard_customer";
+const ROLE_KEY = "gridguard_role";
+
+export type UserRole = "customer" | "agent";
 
 interface CustomerCtx {
   customer: Customer | null;
   setCustomer: (c: Customer | null) => void;
+  role: UserRole;
+  setRole: (r: UserRole) => void;
 }
 
-const Ctx = createContext<CustomerCtx>({ customer: null, setCustomer: () => {} });
+const Ctx = createContext<CustomerCtx>({ customer: null, setCustomer: () => {}, role: "customer", setRole: () => {} });
 
 function loadCustomer(): Customer | null {
   try {
@@ -21,6 +26,7 @@ function loadCustomer(): Customer | null {
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const [customer, setCustomerState] = useState<Customer | null>(loadCustomer);
+  const [role, setRoleState] = useState<UserRole>(() => (localStorage.getItem(ROLE_KEY) as UserRole) || "customer");
 
   const setCustomer = useCallback((c: Customer | null) => {
     setCustomerState(c);
@@ -31,7 +37,12 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  return <Ctx.Provider value={{ customer, setCustomer }}>{children}</Ctx.Provider>;
+  const setRole = useCallback((r: UserRole) => {
+    setRoleState(r);
+    localStorage.setItem(ROLE_KEY, r);
+  }, []);
+
+  return <Ctx.Provider value={{ customer, setCustomer, role, setRole }}>{children}</Ctx.Provider>;
 }
 
 export function useCustomer() {
