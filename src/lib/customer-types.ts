@@ -46,5 +46,12 @@ export function buildCustomerContext(c: Customer): string {
 - Permanent Battery: ${c.has_permanent_battery}
 - Outage Status: ${c.current_outage_status}
 - Restoration Timer: ${c.restoration_timer}
-- Nearest CRC: ${c.nearest_crc_location || "None"}`;
+- Nearest CRC: ${c.nearest_crc_location || "None"}
+- PSPS Phase: ${c.psps_phase || "Restored"}
+- Patrolling Progress: ${c.patrolling_progress ?? 0}%
+- Doorbell Status: ${c.doorbell_status || "Not Needed"}
+- Digital Ack Status: ${c.digital_ack_status || "Sent"}
+- PSPS Event ID: ${c.psps_event_id || "None"}
+- Last Update: ${c.last_update || "N/A"}
+- Circuit ID: HTD-${c.zip_code.slice(-4)}`;
 }
