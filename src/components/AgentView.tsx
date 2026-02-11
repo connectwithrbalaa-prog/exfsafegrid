@@ -65,6 +65,33 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
       .then(({ data }) => {
         if (data) setCustomers(data as unknown as Customer[]);
       });
+
+    // Realtime: live updates across all agents
+    const channel = supabase
+      .channel("customers-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "customers" },
+        (payload) => {
+          const updated = payload.new as unknown as Customer;
+          // Update customer list
+          setCustomers((prev) =>
+            prev.map((c) => (c.id === updated.id ? updated : c))
+          );
+          // Update selected customer if it's the one that changed
+          setSelected((prev) =>
+            prev && prev.id === updated.id ? updated : prev
+          );
+          if (selected?.id === updated.id) {
+            setNotes(updated.agent_notes ?? "");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [agentRegion]);
 
   const sortedCustomers = sortCustomers(customers, redFlagActive);

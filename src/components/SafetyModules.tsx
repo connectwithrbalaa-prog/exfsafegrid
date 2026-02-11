@@ -83,6 +83,14 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
   const [doorbellStatus, setDoorbellStatus] = useState<string>(customer.doorbell_status || "Not Needed");
   const lastUpdate = customer.last_update ? new Date(customer.last_update).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+  // Sync local state when customer prop updates (realtime)
+  useEffect(() => {
+    setPatrolPct(customer.patrolling_progress ?? 0);
+  }, [customer.patrolling_progress]);
+  useEffect(() => {
+    setDoorbellStatus(customer.doorbell_status || "Not Needed");
+  }, [customer.doorbell_status]);
+
   return (
     <div className="space-y-4">
       {/* ===== PSPS EVENT TRACKER ===== */}
