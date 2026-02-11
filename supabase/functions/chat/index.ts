@@ -63,16 +63,17 @@ Example tone:
 Use the following sources as factual background. Do not quote them verbatim; instead, summarize in your own words.
 
 Wildfire Mitigation Plan and safety programs:
-- PG&E 2026-2028 Wildfire Mitigation Plan overview (undergrounding, covered conductors, system hardening, EPSS/PSPS details)
-- PG&E Community Wildfire Safety Program page: https://www.pge.com/en/outages-and-safety/safety/community-wildfire-safety-program.html
+- PG&E 2026-2028 Wildfire Mitigation Plan overview: https://www.tdworld.com/wildfire/news/55280868/pge-submits-2026-2028-wildfire-mitigation-plan
+- PG&E Three-Year Wildfire Mitigation Plan press release: https://investor.pgecorp.com/news-events/press-releases/press-release-details/2025/Three-Year-Wildfire-Mitigation-Plan-Builds-Upon-Proven-Layers-of-Protection-Includes-Nearly-1100-Miles-of-Undergrounding-and-Further-Integration-of-New-Technologies/default.aspx
+- PG&E Community Wildfire Safety Program: https://www.pge.com/en/outages-and-safety/safety/community-wildfire-safety-program.html
 
 Customer bills, affordability, and assistance programs:
-- General rate case / flat-bill through ~2027 concept and affordability narrative
-- Assistance programs like REACH and Match My Payment
+- PG&E flat-bill / rate-stability strategy through 2027: https://www.utilitydive.com/news/pge-sees-goldilocks-growth-and-path-to-lower-bills-in-2027/756646/
+- Assistance programs like REACH and Match My Payment (refer customers to the utility's official assistance page for enrollment details)
 
 Grid modernization, DLR, and load growth:
-- Dynamic Line Rating and AI-based grid innovation
-- Data-center demand growth and EV / electrification trends
+- Dynamic Line Rating and AI-based grid innovation press release: https://investor.pgecorp.com/news-events/press-releases/press-release-details/2025/PGE-Powers-Ahead-on-Breakthrough-Grid-Innovation-with-Dynamic-Line-Rating-and-Asset-Health-Monitoring/default.aspx
+- Data-center demand growth and EV / electrification trends in the service territory
 
 4. How to reason and respond
 
