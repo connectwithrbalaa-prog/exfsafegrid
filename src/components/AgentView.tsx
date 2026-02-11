@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
+import { buildCustomerContext } from "@/lib/customer-types";
 import { User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle } from "lucide-react";
+import ChatPanel from "@/components/ChatPanel";
 
 export default function AgentView() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -101,15 +103,21 @@ export default function AgentView() {
           </div>
         </div>
 
-        {/* AI Assistant Chat placeholder */}
-        <div className="p-5 rounded-lg border border-border bg-card space-y-2">
-          <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+        {/* AI Assistant Chat */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-primary" />
-            AI Assistant Chat
-          </h3>
-          <div className="h-32 rounded-md border border-dashed border-border flex items-center justify-center">
-            <p className="text-xs text-muted-foreground">Agent chat coming soon</p>
+            <h3 className="text-sm font-semibold text-card-foreground">AI Assistant Chat</h3>
           </div>
+          {selected ? (
+            <div className="h-[360px]">
+              <ChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+            </div>
+          ) : (
+            <div className="h-[360px] flex items-center justify-center">
+              <p className="text-xs text-muted-foreground">Select a customer to start chatting</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
