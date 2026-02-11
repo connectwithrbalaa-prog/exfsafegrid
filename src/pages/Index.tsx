@@ -1,18 +1,39 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ChatPanel from "@/components/ChatPanel";
 import StatusBar from "@/components/StatusBar";
 import { useCustomer } from "@/hooks/use-customer";
 import { buildCustomerContext } from "@/lib/customer-types";
-import { Zap, Flame, DollarSign, Activity, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Customer } from "@/lib/customer-types";
+import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 const Index = () => {
   const { customer, setCustomer } = useCustomer();
   const navigate = useNavigate();
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!customer) navigate("/login");
   }, [customer, navigate]);
+
+  const refreshData = useCallback(async () => {
+    if (!customer) return;
+    setRefreshing(true);
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", customer.id)
+      .maybeSingle();
+    setRefreshing(false);
+    if (error || !data) {
+      toast.error("Failed to refresh data");
+      return;
+    }
+    setCustomer(data as unknown as Customer);
+    toast.success("Data refreshed");
+  }, [customer, setCustomer]);
 
   if (!customer) return null;
 
@@ -64,13 +85,23 @@ const Index = () => {
             </div>
             <span className="text-lg font-bold text-foreground tracking-tight">GridGuard</span>
           </div>
-          <button
-            onClick={() => { setCustomer(null); navigate("/login"); }}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Switch Customer
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={refreshData}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Refreshing…" : "Refresh My Data"}
+            </button>
+            <button
+              onClick={() => { setCustomer(null); navigate("/login"); }}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Switch Customer
+            </button>
+          </div>
         </div>
       </header>
 
