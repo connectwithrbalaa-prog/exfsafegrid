@@ -222,7 +222,7 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           </div>
           <div className="rounded-md overflow-hidden border border-border">
             <img
-              src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(customer.nearest_crc_location || "")}&zoom=14&size=400x200&markers=color:red%7C${encodeURIComponent(customer.nearest_crc_location || "")}&key=`}
+              src={`https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(customer.nearest_crc_location || "")}&zoom=14&size=400x200&markers=color:red%7C${encodeURIComponent(customer.nearest_crc_location || "")}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""}`}
               alt={`Map of ${customer.nearest_crc_location}`}
               className="w-full h-[140px] object-cover bg-muted"
               onError={(e) => {
