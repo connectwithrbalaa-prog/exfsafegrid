@@ -11,6 +11,7 @@ import {
   Shield, HeartPulse, MapPin, Radio,
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
+import SafetyModules from "@/components/SafetyModules";
 import { toast } from "sonner";
 
 interface RedFlagData {
@@ -240,6 +241,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
               <p className="text-sm text-muted-foreground">No customer selected</p>
             )}
           </div>
+
+          {/* Safety Modules */}
+          {selected && <SafetyModules customer={selected} />}
 
           {/* Quick Actions card */}
           <div className="p-5 rounded-lg border border-border bg-card space-y-3">
