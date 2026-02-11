@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { buildCustomerContext } from "@/lib/customer-types";
@@ -11,6 +11,8 @@ export default function AgentView() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     supabase
@@ -25,10 +27,42 @@ export default function AgentView() {
       });
   }, []);
 
-  const handleSelect = (id: string) => {
-    const c = customers.find((c) => c.id === id) || null;
+  const handleSelect = async (id: string) => {
+    if (!id) { setSelected(null); setNotes(""); return; }
+    // Fetch fresh data from DB to get latest notes
+    const { data } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    const c = data ? (data as unknown as Customer) : customers.find((c) => c.id === id) || null;
     setSelected(c);
     setNotes(c?.agent_notes ?? "");
+    setCompletedActions(new Set());
+  };
+
+  const handleQuickAction = async (label: string) => {
+    if (!selected) return;
+
+    if (label === "Apply REACH") {
+      const newAmount = Math.round(selected.arrears_amount * 0.5 * 100) / 100;
+      await supabase
+        .from("customers")
+        .update({ arrears_amount: newAmount } as any)
+        .eq("id", selected.id as any);
+      setSelected({ ...selected, arrears_amount: newAmount });
+      toast.success(`REACH applied for ${selected.name} — arrears reduced to $${newAmount}`);
+    } else if (label === "PSPS Alert") {
+      toast.success(`PSPS alert sent to ${selected.name}`);
+    } else if (label === "Add Note") {
+      notesRef.current?.scrollIntoView({ behavior: "smooth" });
+      notesRef.current?.focus();
+      return; // don't mark as completed
+    } else {
+      toast.success(`Action logged: ${label} for ${selected.name}`);
+    }
+
+    setCompletedActions((prev) => new Set(prev).add(label));
   };
 
   const saveNotes = async () => {
@@ -118,17 +152,25 @@ export default function AgentView() {
               { emoji: "💰", label: "Apply REACH" },
               { emoji: "⚠️", label: "PSPS Alert" },
               { emoji: "📝", label: "Add Note" },
-            ].map((action) => (
-              <button
-                key={action.label}
-                disabled={!selected}
-                onClick={() => toast.success(`Action logged: ${action.label}${selected ? ` for ${selected.name}` : ""}`)}
-                className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border border-border hover:bg-secondary text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <span>{action.emoji}</span>
-                {action.label}
-              </button>
-            ))}
+            ].map((action) => {
+              const done = completedActions.has(action.label);
+              return (
+                <button
+                  key={action.label}
+                  disabled={!selected}
+                  onClick={() => handleQuickAction(action.label)}
+                  className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    done
+                      ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                      : "border-border hover:bg-secondary text-foreground"
+                  }`}
+                >
+                  <span>{action.emoji}</span>
+                  {action.label}
+                  {done && <span className="ml-auto text-xs">✓</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -136,6 +178,7 @@ export default function AgentView() {
         <div className="p-5 rounded-lg border border-border bg-card space-y-3">
           <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
           <textarea
+            ref={notesRef}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             disabled={!selected}
