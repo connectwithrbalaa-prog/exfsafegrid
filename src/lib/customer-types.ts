@@ -10,6 +10,9 @@ export interface Customer {
   grid_stress_level: string;
   outage_history: string | null;
   agent_notes: string | null;
+  region: string;
+  hftd_tier: string;
+  medical_baseline: boolean;
   created_at: string;
 }
 
@@ -17,6 +20,9 @@ export function buildCustomerContext(c: Customer): string {
   return `CURRENT CUSTOMER CONTEXT (always use this info in your responses):
 - Name: ${c.name}
 - ZIP Code: ${c.zip_code}
+- Region: ${c.region}
+- HFTD Tier: ${c.hftd_tier}
+- Medical Baseline: ${c.medical_baseline ? "Yes — Enrolled" : "No"}
 - Wildfire Risk: ${c.wildfire_risk}
 - Arrears Status: ${c.arrears_status}
 - Arrears Amount: $${c.arrears_amount}

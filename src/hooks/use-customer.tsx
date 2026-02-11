@@ -3,6 +3,7 @@ import type { Customer } from "@/lib/customer-types";
 
 const STORAGE_KEY = "gridguard_customer";
 const ROLE_KEY = "gridguard_role";
+const AGENT_EMAIL_KEY = "gridguard_agent_email";
 
 export type UserRole = "customer" | "agent";
 
@@ -11,9 +12,11 @@ interface CustomerCtx {
   setCustomer: (c: Customer | null) => void;
   role: UserRole;
   setRole: (r: UserRole) => void;
+  agentEmail: string | null;
+  setAgentEmail: (e: string | null) => void;
 }
 
-const Ctx = createContext<CustomerCtx>({ customer: null, setCustomer: () => {}, role: "customer", setRole: () => {} });
+const Ctx = createContext<CustomerCtx>({ customer: null, setCustomer: () => {}, role: "customer", setRole: () => {}, agentEmail: null, setAgentEmail: () => {} });
 
 function loadCustomer(): Customer | null {
   try {
@@ -27,6 +30,7 @@ function loadCustomer(): Customer | null {
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const [customer, setCustomerState] = useState<Customer | null>(loadCustomer);
   const [role, setRoleState] = useState<UserRole>(() => (localStorage.getItem(ROLE_KEY) as UserRole) || "customer");
+  const [agentEmail, setAgentEmailState] = useState<string | null>(() => localStorage.getItem(AGENT_EMAIL_KEY));
 
   const setCustomer = useCallback((c: Customer | null) => {
     setCustomerState(c);
@@ -42,7 +46,16 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(ROLE_KEY, r);
   }, []);
 
-  return <Ctx.Provider value={{ customer, setCustomer, role, setRole }}>{children}</Ctx.Provider>;
+  const setAgentEmail = useCallback((e: string | null) => {
+    setAgentEmailState(e);
+    if (e) {
+      localStorage.setItem(AGENT_EMAIL_KEY, e);
+    } else {
+      localStorage.removeItem(AGENT_EMAIL_KEY);
+    }
+  }, []);
+
+  return <Ctx.Provider value={{ customer, setCustomer, role, setRole, agentEmail, setAgentEmail }}>{children}</Ctx.Provider>;
 }
 
 export function useCustomer() {

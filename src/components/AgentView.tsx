@@ -1,35 +1,73 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { buildCustomerContext } from "@/lib/customer-types";
-import { User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle } from "lucide-react";
+import {
+  REGIONS, AGENT_REGIONS, type Region,
+  getRedFlagPriority, getPriorityLabel, getPriorityColor, sortCustomers,
+} from "@/lib/region-utils";
+import {
+  User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle,
+  Shield, HeartPulse, MapPin, Radio,
+} from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import { toast } from "sonner";
 
-export default function AgentView() {
+interface RedFlagData {
+  [region: string]: { active: boolean; headline?: string };
+}
+
+interface AgentViewProps {
+  agentEmail?: string;
+}
+
+export default function AgentView({ agentEmail }: AgentViewProps) {
+  const agentRegion: Region = (agentEmail && AGENT_REGIONS[agentEmail]) || "Bay Area";
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
+  const [redFlagData, setRedFlagData] = useState<RedFlagData>({});
+  const [loadingRedFlag, setLoadingRedFlag] = useState(true);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
+  const redFlagActive = redFlagData[agentRegion]?.active ?? false;
+
+  // Fetch Red Flag Warning status
+  const fetchRedFlagStatus = useCallback(async () => {
+    setLoadingRedFlag(true);
+    try {
+      const res = await supabase.functions.invoke("red-flag-status");
+      if (res.data && !res.error) {
+        setRedFlagData(res.data as RedFlagData);
+      }
+    } catch (e) {
+      console.error("Failed to fetch Red Flag status", e);
+    }
+    setLoadingRedFlag(false);
+  }, []);
+
+  useEffect(() => {
+    fetchRedFlagStatus();
+  }, [fetchRedFlagStatus]);
+
+  // Fetch customers filtered by agent's region
   useEffect(() => {
     supabase
       .from("customers")
       .select("*")
+      .eq("region", agentRegion)
       .order("name")
       .then(({ data }) => {
-        if (data) {
-          const typed = data as unknown as Customer[];
-          setCustomers(typed);
-        }
+        if (data) setCustomers(data as unknown as Customer[]);
       });
-  }, []);
+  }, [agentRegion]);
+
+  const sortedCustomers = sortCustomers(customers, redFlagActive);
 
   const handleSelect = async (id: string) => {
     if (!id) { setSelected(null); setNotes(""); return; }
-    // Fetch fresh data from DB to get latest notes
     const { data } = await supabase
       .from("customers")
       .select("*")
@@ -43,7 +81,6 @@ export default function AgentView() {
 
   const handleQuickAction = async (label: string) => {
     if (!selected) return;
-
     if (label === "Apply REACH") {
       const newAmount = Math.round(selected.arrears_amount * 0.5 * 100) / 100;
       await supabase
@@ -57,11 +94,10 @@ export default function AgentView() {
     } else if (label === "Add Note") {
       notesRef.current?.scrollIntoView({ behavior: "smooth" });
       notesRef.current?.focus();
-      return; // don't mark as completed
+      return;
     } else {
       toast.success(`Action logged: ${label} for ${selected.name}`);
     }
-
     setCompletedActions((prev) => new Set(prev).add(label));
   };
 
@@ -81,134 +117,197 @@ export default function AgentView() {
     }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-      {/* LEFT COLUMN — 70% */}
-      <div className="lg:col-span-7 space-y-5">
-        {/* Customer selector */}
-        <div className="p-5 rounded-lg border border-border bg-card space-y-4">
-          <label htmlFor="agent-customer-select" className="text-sm font-semibold text-card-foreground">
-            Select Customer
-          </label>
-          <select
-            id="agent-customer-select"
-            value={selected?.id ?? ""}
-            onChange={(e) => handleSelect(e.target.value)}
-            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">— Choose a customer —</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} — ZIP {c.zip_code}
-              </option>
-            ))}
-          </select>
-        </div>
+  const priority = selected ? getRedFlagPriority(selected) : 0;
 
-        {/* Selected customer detail cards */}
-        {selected ? (
-          <div className="grid grid-cols-2 gap-4">
-            <DetailCard icon={User} label="Name" value={selected.name} />
-            <DetailCard icon={Zap} label="ZIP Code" value={selected.zip_code} />
-            <DetailCard icon={Flame} label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
-            <DetailCard icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `Yes — $${selected.arrears_amount}` : "No"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
-            <DetailCard icon={AlertTriangle} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
-            <DetailCard icon={Zap} label="Bill Trend" value={selected.bill_trend} />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-40 rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-            Select a customer above to view their details
-          </div>
-        )}
+  return (
+    <div className="space-y-4">
+      {/* Region & Red Flag Banner */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold text-foreground">Region: {agentRegion}</span>
+          <span className="text-xs text-muted-foreground">({customers.length} customers)</span>
+        </div>
+        <button
+          onClick={fetchRedFlagStatus}
+          disabled={loadingRedFlag}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <Radio className={`w-3.5 h-3.5 ${loadingRedFlag ? "animate-spin" : ""}`} />
+          {loadingRedFlag ? "Checking…" : "Refresh Weather Alerts"}
+        </button>
       </div>
 
-      {/* RIGHT COLUMN — 30% */}
-      <div className="lg:col-span-3 space-y-4">
-        <h2 className="text-xl font-bold text-foreground">Agent Dashboard</h2>
-
-        {/* Customer Profile card */}
-        <div className="p-5 rounded-lg border border-border bg-card space-y-2">
-          <h3 className="text-sm font-semibold text-card-foreground">Customer Profile</h3>
-          {selected ? (
-            <dl className="text-sm space-y-1.5">
-              <div className="flex justify-between"><dt className="text-muted-foreground">Name</dt><dd className="font-medium text-foreground">{selected.name}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">ZIP</dt><dd className="font-medium text-foreground">{selected.zip_code}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Wildfire Risk</dt><dd className={`font-medium ${riskColor(selected.wildfire_risk)}`}>{selected.wildfire_risk}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Arrears</dt><dd className="font-medium text-foreground">{selected.arrears_status === "Yes" ? `Yes ($${selected.arrears_amount})` : "No ($0)"}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Bill Trend</dt><dd className="font-medium text-foreground">{selected.bill_trend}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Grid Stress</dt><dd className={`font-medium ${riskColor(selected.grid_stress_level)}`}>{selected.grid_stress_level}</dd></div>
-            </dl>
-          ) : (
-            <p className="text-sm text-muted-foreground">No customer selected</p>
-          )}
-        </div>
-
-        {/* Quick Actions card */}
-        <div className="p-5 rounded-lg border border-border bg-card space-y-3">
-          <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { emoji: "📞", label: "Call Customer" },
-              { emoji: "💰", label: "Apply REACH" },
-              { emoji: "⚠️", label: "PSPS Alert" },
-              { emoji: "📝", label: "Add Note" },
-            ].map((action) => {
-              const done = completedActions.has(action.label);
-              return (
-                <button
-                  key={action.label}
-                  disabled={!selected}
-                  onClick={() => handleQuickAction(action.label)}
-                  className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    done
-                      ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
-                      : "border-border hover:bg-secondary text-foreground"
-                  }`}
-                >
-                  <span>{action.emoji}</span>
-                  {action.label}
-                  {done && <span className="ml-auto text-xs">✓</span>}
-                </button>
-              );
-            })}
+      {redFlagActive && (
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
+          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-destructive">🔴 Red Flag Warning Active — {agentRegion}</p>
+            <p className="text-xs text-destructive/80 mt-0.5">
+              {redFlagData[agentRegion]?.headline || "Elevated fire weather conditions. Customers re-ranked by risk priority."}
+            </p>
           </div>
         </div>
+      )}
 
-        {/* Agent Notes */}
-        <div className="p-5 rounded-lg border border-border bg-card space-y-3">
-          <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
-          <textarea
-            ref={notesRef}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={!selected}
-            placeholder={selected ? "Add notes about this customer..." : "Select a customer first"}
-            className="w-full h-28 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
-          />
-          <button
-            onClick={saveNotes}
-            disabled={!selected || savingNotes}
-            className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-          >
-            {savingNotes ? "Saving…" : "Save Notes"}
-          </button>
+      {!redFlagActive && !loadingRedFlag && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/50">
+          <Shield className="w-4 h-4 text-success flex-shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            No active Red Flag Warnings for {agentRegion}. Customers sorted alphabetically.
+          </p>
         </div>
+      )}
 
-        {/* AI Assistant Chat */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-card-foreground">AI Assistant Chat</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* LEFT COLUMN — 70% */}
+        <div className="lg:col-span-7 space-y-5">
+          {/* Customer selector */}
+          <div className="p-5 rounded-lg border border-border bg-card space-y-4">
+            <label htmlFor="agent-customer-select" className="text-sm font-semibold text-card-foreground">
+              Select Customer {redFlagActive && <span className="text-xs text-destructive ml-1">(Priority Ranked)</span>}
+            </label>
+            <select
+              id="agent-customer-select"
+              value={selected?.id ?? ""}
+              onChange={(e) => handleSelect(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">— Choose a customer —</option>
+              {sortedCustomers.map((c) => {
+                const p = redFlagActive ? getRedFlagPriority(c) : 0;
+                const prefix = p > 0 ? `[P${p}] ` : "";
+                return (
+                  <option key={c.id} value={c.id}>
+                    {prefix}{c.name} — ZIP {c.zip_code} — HFTD {c.hftd_tier}
+                  </option>
+                );
+              })}
+            </select>
           </div>
+
+          {/* Selected customer detail cards */}
           {selected ? (
-            <div className="h-[400px]">
-              <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+            <div className="space-y-4">
+              {/* Priority banner when Red Flag active */}
+              {redFlagActive && priority > 0 && (
+                <div className={`flex items-center gap-2 p-3 rounded-lg border border-border bg-card`}>
+                  <AlertTriangle className={`w-4 h-4 ${getPriorityColor(priority)}`} />
+                  <span className={`text-sm font-bold ${getPriorityColor(priority)}`}>
+                    {getPriorityLabel(priority)}
+                  </span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <DetailCard icon={User} label="Name" value={selected.name} />
+                <DetailCard icon={Zap} label="ZIP Code" value={selected.zip_code} />
+                <DetailCard icon={MapPin} label="Region" value={selected.region} />
+                <DetailCard icon={Flame} label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
+                <DetailCard icon={Shield} label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
+                <DetailCard icon={HeartPulse} label="Medical Baseline" value={selected.medical_baseline ? "Enrolled" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
+                <DetailCard icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `Yes — $${selected.arrears_amount}` : "No"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
+                <DetailCard icon={AlertTriangle} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
+                <DetailCard icon={Zap} label="Bill Trend" value={selected.bill_trend} />
+              </div>
             </div>
           ) : (
-            <div className="h-[360px] flex items-center justify-center">
-              <p className="text-xs text-muted-foreground">Select a customer to start chatting</p>
+            <div className="flex items-center justify-center h-40 rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+              Select a customer above to view their details
             </div>
           )}
+        </div>
+
+        {/* RIGHT COLUMN — 30% */}
+        <div className="lg:col-span-3 space-y-4">
+          <h2 className="text-xl font-bold text-foreground">Agent Dashboard</h2>
+
+          {/* Customer Profile card */}
+          <div className="p-5 rounded-lg border border-border bg-card space-y-2">
+            <h3 className="text-sm font-semibold text-card-foreground">Customer Profile</h3>
+            {selected ? (
+              <dl className="text-sm space-y-1.5">
+                <ProfileRow label="Name" value={selected.name} />
+                <ProfileRow label="ZIP" value={selected.zip_code} />
+                <ProfileRow label="Region" value={selected.region} />
+                <ProfileRow label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
+                <ProfileRow label="Medical Baseline" value={selected.medical_baseline ? "Yes" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
+                <ProfileRow label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
+                <ProfileRow label="Arrears" value={selected.arrears_status === "Yes" ? `Yes ($${selected.arrears_amount})` : "No ($0)"} />
+                <ProfileRow label="Bill Trend" value={selected.bill_trend} />
+                <ProfileRow label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
+              </dl>
+            ) : (
+              <p className="text-sm text-muted-foreground">No customer selected</p>
+            )}
+          </div>
+
+          {/* Quick Actions card */}
+          <div className="p-5 rounded-lg border border-border bg-card space-y-3">
+            <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { emoji: "📞", label: "Call Customer" },
+                { emoji: "💰", label: "Apply REACH" },
+                { emoji: "⚠️", label: "PSPS Alert" },
+                { emoji: "📝", label: "Add Note" },
+              ].map((action) => {
+                const done = completedActions.has(action.label);
+                return (
+                  <button
+                    key={action.label}
+                    disabled={!selected}
+                    onClick={() => handleQuickAction(action.label)}
+                    className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      done
+                        ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                        : "border-border hover:bg-secondary text-foreground"
+                    }`}
+                  >
+                    <span>{action.emoji}</span>
+                    {action.label}
+                    {done && <span className="ml-auto text-xs">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Agent Notes */}
+          <div className="p-5 rounded-lg border border-border bg-card space-y-3">
+            <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
+            <textarea
+              ref={notesRef}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={!selected}
+              placeholder={selected ? "Add notes about this customer..." : "Select a customer first"}
+              className="w-full h-28 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
+            />
+            <button
+              onClick={saveNotes}
+              disabled={!selected || savingNotes}
+              className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              {savingNotes ? "Saving…" : "Save Notes"}
+            </button>
+          </div>
+
+          {/* AI Assistant Chat */}
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-card-foreground">AI Assistant Chat</h3>
+            </div>
+            {selected ? (
+              <div className="h-[400px]">
+                <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+              </div>
+            ) : (
+              <div className="h-[360px] flex items-center justify-center">
+                <p className="text-xs text-muted-foreground">Select a customer to start chatting</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -221,6 +320,12 @@ function riskColor(level: string) {
   return "text-success";
 }
 
+function hftdColor(tier: string) {
+  if (tier === "Tier 3") return "text-destructive";
+  if (tier === "Tier 2") return "text-warning";
+  return "text-muted-foreground";
+}
+
 function DetailCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string; color?: string }) {
   return (
     <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
@@ -231,6 +336,15 @@ function DetailCard({ icon: Icon, label, value, color }: { icon: React.ElementTy
         <p className="text-xs text-muted-foreground font-medium">{label}</p>
         <p className="text-sm font-bold text-card-foreground">{value}</p>
       </div>
+    </div>
+  );
+}
+
+function ProfileRow({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex justify-between">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={`font-medium ${color || "text-foreground"}`}>{value}</dd>
     </div>
   );
 }

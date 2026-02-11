@@ -11,7 +11,7 @@ import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw } from "lucide-reac
 import { toast } from "sonner";
 
 const Index = () => {
-  const { customer, setCustomer, role, setRole } = useCustomer();
+  const { customer, setCustomer, role, setRole, agentEmail, setAgentEmail } = useCustomer();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -54,7 +54,7 @@ const Index = () => {
               <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             </div>
             <button
-              onClick={() => { setCustomer(null); setRole("customer"); navigate("/login"); }}
+              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -63,7 +63,7 @@ const Index = () => {
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <AgentView />
+          <AgentView agentEmail={agentEmail || undefined} />
         </main>
       </div>
     );
@@ -130,7 +130,7 @@ const Index = () => {
               {refreshing ? "Refreshing…" : "Refresh My Data"}
             </button>
             <button
-              onClick={() => { setCustomer(null); setRole("customer"); navigate("/login"); }}
+              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
