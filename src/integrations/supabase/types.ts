@@ -22,6 +22,8 @@ export type Database = {
           bill_trend: string
           created_at: string
           current_outage_status: string
+          digital_ack_status: string
+          doorbell_status: string
           email: string | null
           grid_stress_level: string
           has_permanent_battery: string
@@ -29,10 +31,14 @@ export type Database = {
           has_transfer_meter: boolean
           hftd_tier: string
           id: string
+          last_update: string
           medical_baseline: boolean
           name: string
           nearest_crc_location: string
           outage_history: string | null
+          patrolling_progress: number
+          psps_event_id: string
+          psps_phase: string
           region: string
           restoration_timer: string
           wildfire_risk: string
@@ -45,6 +51,8 @@ export type Database = {
           bill_trend?: string
           created_at?: string
           current_outage_status?: string
+          digital_ack_status?: string
+          doorbell_status?: string
           email?: string | null
           grid_stress_level?: string
           has_permanent_battery?: string
@@ -52,10 +60,14 @@ export type Database = {
           has_transfer_meter?: boolean
           hftd_tier?: string
           id?: string
+          last_update?: string
           medical_baseline?: boolean
           name: string
           nearest_crc_location?: string
           outage_history?: string | null
+          patrolling_progress?: number
+          psps_event_id?: string
+          psps_phase?: string
           region?: string
           restoration_timer?: string
           wildfire_risk?: string
@@ -68,6 +80,8 @@ export type Database = {
           bill_trend?: string
           created_at?: string
           current_outage_status?: string
+          digital_ack_status?: string
+          doorbell_status?: string
           email?: string | null
           grid_stress_level?: string
           has_permanent_battery?: string
@@ -75,10 +89,14 @@ export type Database = {
           has_transfer_meter?: boolean
           hftd_tier?: string
           id?: string
+          last_update?: string
           medical_baseline?: boolean
           name?: string
           nearest_crc_location?: string
           outage_history?: string | null
+          patrolling_progress?: number
+          psps_event_id?: string
+          psps_phase?: string
           region?: string
           restoration_timer?: string
           wildfire_risk?: string
