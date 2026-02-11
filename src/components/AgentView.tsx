@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { buildCustomerContext } from "@/lib/customer-types";
 import { User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle } from "lucide-react";
-import ChatPanel from "@/components/ChatPanel";
+import AgentChatPanel from "@/components/AgentChatPanel";
 import { toast } from "sonner";
 
 export default function AgentView() {
@@ -120,8 +120,8 @@ export default function AgentView() {
             <h3 className="text-sm font-semibold text-card-foreground">AI Assistant Chat</h3>
           </div>
           {selected ? (
-            <div className="h-[360px]">
-              <ChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+            <div className="h-[400px]">
+              <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
             </div>
           ) : (
             <div className="h-[360px] flex items-center justify-center">
