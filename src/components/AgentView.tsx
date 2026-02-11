@@ -76,12 +76,14 @@ export default function AgentView() {
         <div className="p-5 rounded-lg border border-border bg-card space-y-2">
           <h3 className="text-sm font-semibold text-card-foreground">Customer Profile</h3>
           {selected ? (
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p><span className="font-medium text-foreground">{selected.name}</span></p>
-              <p>Email: {selected.email ?? "—"}</p>
-              <p>ZIP: {selected.zip_code}</p>
-              <p>Outages: {selected.outage_history || "None"}</p>
-            </div>
+            <dl className="text-sm space-y-1.5">
+              <div className="flex justify-between"><dt className="text-muted-foreground">Name</dt><dd className="font-medium text-foreground">{selected.name}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">ZIP</dt><dd className="font-medium text-foreground">{selected.zip_code}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Wildfire Risk</dt><dd className={`font-medium ${riskColor(selected.wildfire_risk)}`}>{selected.wildfire_risk}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Arrears</dt><dd className="font-medium text-foreground">{selected.arrears_status === "Yes" ? `Yes ($${selected.arrears_amount})` : "No ($0)"}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Bill Trend</dt><dd className="font-medium text-foreground">{selected.bill_trend}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Grid Stress</dt><dd className={`font-medium ${riskColor(selected.grid_stress_level)}`}>{selected.grid_stress_level}</dd></div>
+            </dl>
           ) : (
             <p className="text-sm text-muted-foreground">No customer selected</p>
           )}
