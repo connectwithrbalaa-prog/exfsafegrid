@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       customers: {
         Row: {
+          agent_notes: string | null
           arrears_amount: number
           arrears_status: string
           bill_trend: string
@@ -29,6 +30,7 @@ export type Database = {
           zip_code: string
         }
         Insert: {
+          agent_notes?: string | null
           arrears_amount?: number
           arrears_status?: string
           bill_trend?: string
@@ -42,6 +44,7 @@ export type Database = {
           zip_code: string
         }
         Update: {
+          agent_notes?: string | null
           arrears_amount?: number
           arrears_status?: string
           bill_trend?: string

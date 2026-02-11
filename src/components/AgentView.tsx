@@ -9,6 +9,8 @@ import { toast } from "sonner";
 export default function AgentView() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     supabase
@@ -26,6 +28,23 @@ export default function AgentView() {
   const handleSelect = (id: string) => {
     const c = customers.find((c) => c.id === id) || null;
     setSelected(c);
+    setNotes(c?.agent_notes ?? "");
+  };
+
+  const saveNotes = async () => {
+    if (!selected) return;
+    setSavingNotes(true);
+    const { error } = await supabase
+      .from("customers")
+      .update({ agent_notes: notes } as any)
+      .eq("id", selected.id as any);
+    setSavingNotes(false);
+    if (error) {
+      toast.error("Failed to save notes");
+    } else {
+      toast.success("Notes saved");
+      setSelected({ ...selected, agent_notes: notes });
+    }
   };
 
   return (
@@ -111,6 +130,25 @@ export default function AgentView() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Agent Notes */}
+        <div className="p-5 rounded-lg border border-border bg-card space-y-3">
+          <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={!selected}
+            placeholder={selected ? "Add notes about this customer..." : "Select a customer first"}
+            className="w-full h-28 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
+          />
+          <button
+            onClick={saveNotes}
+            disabled={!selected || savingNotes}
+            className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            {savingNotes ? "Saving…" : "Save Notes"}
+          </button>
         </div>
 
         {/* AI Assistant Chat */}

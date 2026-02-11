@@ -9,6 +9,7 @@ export interface Customer {
   bill_trend: string;
   grid_stress_level: string;
   outage_history: string | null;
+  agent_notes: string | null;
   created_at: string;
 }
 
