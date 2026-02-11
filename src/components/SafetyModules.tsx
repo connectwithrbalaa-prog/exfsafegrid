@@ -56,14 +56,23 @@ function useCountdown(etr: string, isActive: boolean) {
 function statusColor(status: string) {
   if (status === "PSPS Active" || status === "EPSS Active") return "text-destructive";
   if (status === "Patrolling") return "text-warning";
-  if (status === "Restored" || status === "Normal") return "text-success";
+  if (status === "All-Clear" || status === "Weather All-Clear" || status === "Restored") return "text-success";
+  if (status === "Normal") return "text-success";
   return "text-info";
 }
 
 function statusBg(status: string) {
-  if (status === "PSPS Active" || status === "EPSS Active") return "bg-destructive/10 border-destructive/40";
-  if (status === "Patrolling") return "bg-warning/10 border-warning/40";
+  if (status === "PSPS Active" || status === "EPSS Active") return "bg-destructive/10 border-destructive/40 shadow-md shadow-destructive/10";
+  if (status === "Patrolling") return "bg-warning/10 border-warning/40 shadow-md shadow-warning/10";
+  if (status === "All-Clear" || status === "Weather All-Clear" || status === "Restored") return "bg-success/10 border-success/40";
   return "bg-muted/50 border-border";
+}
+
+function statusIcon(status: string) {
+  if (status === "PSPS Active" || status === "EPSS Active") return "🔴";
+  if (status === "Patrolling") return "🟡";
+  if (status === "All-Clear" || status === "Weather All-Clear" || status === "Restored") return "🟢";
+  return "⚪";
 }
 
 export default function SafetyModules({ customer }: { customer: Customer }) {
@@ -100,10 +109,14 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
 
         {/* Live Status */}
         <div className="flex items-center gap-2">
-          <Activity className={`w-4 h-4 ${statusColor(customer.current_outage_status)}`} />
+          <span className="text-sm">{statusIcon(customer.current_outage_status)}</span>
+          <Activity className={`w-4 h-4 ${statusColor(customer.current_outage_status)} ${customer.current_outage_status === "PSPS Active" ? "animate-pulse" : ""}`} />
           <span className={`text-sm font-bold ${statusColor(customer.current_outage_status)}`}>
             {customer.current_outage_status}
           </span>
+          {(customer.current_outage_status === "Restored" || customer.current_outage_status === "All-Clear") && (
+            <span className="text-success text-sm">✓</span>
+          )}
         </div>
 
         {/* Phase Timeline */}
@@ -113,9 +126,10 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
             {PSPS_PHASES.map((phase, i) => {
               const isComplete = i < currentPhase;
               const isCurrent = i === currentPhase;
+              const barColor = i <= 1 ? "bg-destructive" : i <= 2 ? "bg-warning" : "bg-success";
               return (
                 <div key={phase} className="flex-1 min-w-0">
-                  <div className={`h-2 rounded-full transition-all ${isCurrent ? "bg-primary animate-pulse" : isComplete ? "bg-primary" : "bg-muted"}`} />
+                  <div className={`h-2 rounded-full transition-all duration-500 ${isCurrent ? `${barColor} animate-pulse` : isComplete ? barColor : "bg-muted"}`} />
                 </div>
               );
             })}
@@ -186,48 +200,77 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
               onChange={(e) => setPatrolPct(Number(e.target.value))}
               onMouseUp={async () => {
                 const prev = customer.patrolling_progress;
+                const delta = Math.round((patrolPct - prev) * -5.8); // ~580 customers per 100%
                 await supabase
                   .from("customers")
                   .update({ patrolling_progress: patrolPct, last_update: new Date().toISOString() } as any)
                   .eq("id", customer.id as any);
                 toast.success(`Patrolling Progress: ${prev}% → ${patrolPct}%`);
+                window.dispatchEvent(new CustomEvent("psps-progress-updated", { detail: { affectedDelta: delta } }));
               }}
               onTouchEnd={async () => {
                 const prev = customer.patrolling_progress;
+                const delta = Math.round((patrolPct - prev) * -5.8);
                 await supabase
                   .from("customers")
                   .update({ patrolling_progress: patrolPct, last_update: new Date().toISOString() } as any)
                   .eq("id", customer.id as any);
                 toast.success(`Patrolling Progress: ${prev}% → ${patrolPct}%`);
+                window.dispatchEvent(new CustomEvent("psps-progress-updated", { detail: { affectedDelta: delta } }));
               }}
               className="w-full h-2 rounded-full appearance-none cursor-pointer bg-muted accent-primary"
             />
             <div className="w-full h-2 rounded-full bg-muted overflow-hidden -mt-1">
-              <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${patrolPct}%` }} />
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${patrolPct >= 80 ? "bg-success" : patrolPct >= 40 ? "bg-warning" : "bg-destructive"}`}
+                style={{ width: `${patrolPct}%` }}
+              />
             </div>
           </div>
         </div>
 
-        {/* Medical Priority Row */}
+        {/* Medical Priority Row — sticky red badge with siren */}
         {customer.medical_baseline && isOutageActive && (
-          <div className="p-3 rounded-md border border-destructive/40 bg-destructive/10 space-y-2">
+          <div className="p-3 rounded-md border-2 border-destructive/50 bg-destructive/10 space-y-2 animate-fade-in shadow-md shadow-destructive/10">
             <div className="flex items-center gap-2">
-              <HeartPulse className="w-4 h-4 text-destructive animate-pulse" />
-              <span className="text-xs font-bold text-destructive">MEDICAL PRIORITY</span>
-              <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-destructive/30 bg-destructive/20 text-destructive font-medium">
-                🚨 Doorbell: {doorbellStatus}
+              <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
+              <span className="text-xs font-bold text-destructive">🚨 MEDICAL PRIORITY</span>
+              <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full border font-medium ${
+                doorbellStatus === "Verified" 
+                  ? "border-success/30 bg-success/20 text-success" 
+                  : doorbellStatus === "Dispatched"
+                  ? "border-warning/30 bg-warning/20 text-warning"
+                  : "border-destructive/30 bg-destructive/20 text-destructive"
+              }`}>
+                {doorbellStatus === "Verified" ? "✅" : doorbellStatus === "Dispatched" ? "🔔" : "🚨"} Doorbell: {doorbellStatus}
               </span>
             </div>
             {doorbellStatus === "Pending" && (
               <button
-                onClick={() => {
+                onClick={async () => {
                   setDoorbellStatus("Dispatched");
+                  await supabase.from("customers").update({ doorbell_status: "Dispatched", last_update: new Date().toISOString() } as any).eq("id", customer.id as any);
                   toast.success(`Doorbell verification dispatched for ${customer.name}`);
                 }}
-                className="w-full text-xs px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity font-medium"
+                className="w-full text-xs px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity font-medium animate-pulse"
               >
                 🔔 Dispatch Doorbell Verification
               </button>
+            )}
+            {doorbellStatus === "Dispatched" && (
+              <button
+                onClick={async () => {
+                  setDoorbellStatus("Verified");
+                  await supabase.from("customers").update({ doorbell_status: "Verified", last_update: new Date().toISOString() } as any).eq("id", customer.id as any);
+                  toast.success(`✅ Doorbell verified for ${customer.name}`);
+                }}
+                className="w-full text-xs px-3 py-1.5 rounded-md bg-warning text-warning-foreground hover:opacity-90 transition-opacity font-medium"
+              >
+                ✅ Mark as Verified
+              </button>
+            )}
+            {doorbellStatus === "Verified" && (
+              <p className="text-xs text-success font-medium flex items-center gap-1">✅ Doorbell verification complete</p>
             )}
           </div>
         )}
