@@ -170,6 +170,7 @@ export default function CustomerWildfireMap({
           status: f.frp > 1.5 ? "Action Recommended" : "Monitoring",
         };
       })
+      .filter((f) => f.distanceKm <= 50) // Only include fires within monitoring zone
       .sort((a, b) => a.distanceKm - b.distanceKm);
   }, [fires, assetLat, assetLng]);
 
