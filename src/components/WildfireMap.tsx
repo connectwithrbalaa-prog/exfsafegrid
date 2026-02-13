@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, RefreshCw, MapPin, AlertTriangle } from "lucide-react";
+import { Flame, RefreshCw, MapPin, AlertTriangle, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 interface FirePoint {
@@ -81,20 +82,29 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
   const mapUrl = GOOGLE_MAPS_KEY ? buildStaticMapUrl(nearbyFires) : null;
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border bg-destructive/5">
-        <div className="flex items-center gap-2">
-          <Flame className="w-4 h-4 text-destructive" />
-          <h3 className="text-sm font-semibold text-card-foreground">
-            Live Wildfire Activity
-          </h3>
-          {!loading && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
-              {nearbyFires.length} active {nearbyFires.length === 1 ? "fire" : "fires"}
-            </span>
-          )}
-        </div>
+    <TooltipProvider>
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-3 border-b border-border bg-destructive/5">
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-destructive" />
+            <h3 className="text-sm font-semibold text-card-foreground">
+              Live Wildfire Activity
+            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <HelpCircle className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-xs">Real-time fire detections from NASA FIRMS (Fire Information for Resource Management System). Shows detected thermal anomalies across California updated within hours of detection.</p>
+              </TooltipContent>
+            </Tooltip>
+            {!loading && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
+                {nearbyFires.length} active {nearbyFires.length === 1 ? "fire" : "fires"}
+              </span>
+            )}
+          </div>
         <button
           onClick={fetchFires}
           disabled={loading}
@@ -177,5 +187,6 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
         <span>{total} total detections, {nearbyFires.length} high-confidence</span>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
