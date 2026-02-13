@@ -148,9 +148,33 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
     }
   }, [nearbyFires]);
 
+  const highIntensity = nearbyFires.filter(f => f.frp > 3).length;
+  const latestTime = nearbyFires.length > 0
+    ? nearbyFires.reduce((latest, f) => {
+        const t = `${f.acq_date} ${formatTime(f.acq_time)}`;
+        return t > latest ? t : latest;
+      }, "")
+    : "—";
+
   return (
     <TooltipProvider>
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-3 p-3 border-b border-border bg-muted/30">
+          <div className="rounded-md border border-border bg-card p-3 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Total Fires</div>
+            <div className="text-xl font-bold text-card-foreground">{loading ? "…" : nearbyFires.length}</div>
+          </div>
+          <div className="rounded-md border border-border bg-card p-3 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">High Intensity (FRP &gt; 3)</div>
+            <div className="text-xl font-bold text-destructive">{loading ? "…" : highIntensity}</div>
+          </div>
+          <div className="rounded-md border border-border bg-card p-3 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Latest Detection</div>
+            <div className="text-sm font-semibold text-card-foreground">{loading ? "…" : latestTime}</div>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border bg-destructive/5">
           <div className="flex items-center gap-2">
