@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, Maximize, Minimize, ArrowLeft,
   Flame, Shield, Zap, Radio, BarChart3, Target, Users, TrendingUp,
-  AlertTriangle, Activity, MapPin, Eye,
+  AlertTriangle, Activity, MapPin, Eye, ChevronDown, ChevronUp, Save,
 } from "lucide-react";
 
 /* ── Slide data ─────────────────────────────────────────────── */
@@ -380,13 +380,37 @@ const SLIDES: Slide[] = [
   { id: "closing", section: "Closing", content: <ClosingSlide /> },
 ];
 
+const DEFAULT_PRESENTER_NOTES: Record<string, string> = {
+  title: "Welcome everyone. Set the stage for the conversation about wildfire risk and grid operations. Establish credibility early.",
+  problem: "Emphasize the volume of data (5,000+) vs actionable alerts (<2%). Ask rhetorical: 'How do you know which fires matter?' This is the key tension we solve.",
+  "what-we-do": "Walk through the three-step process: Ingest → Correlate → Prioritize. Explain how each step filters the noise. Show how infrastructure risk is the filter.",
+  "live-map": "Switch to Command Center if available. Show real fires, actual substations, and actual transmission lines. If live demo unavailable, use this as transition to next concepts.",
+  differentiator: "Focus on the difference: 'We show which fires matter.' Explain FRP (Fire Radiative Power) as intensity metric. Risk levels are the actionable framework.",
+  "business-value": "Connect to business outcomes: liability reduction (CPUC, insurance), faster PSPS decisions (customer satisfaction), executive visibility (board confidence).",
+  capabilities: "Brief overview of 6 platform pillars. Anchor each to a specific decision or outcome. Don't dwell—emphasize this is a complete ecosystem.",
+  audience: "Tailor the close to your audience. CIOs want modernization. Ops heads want situational awareness. Risk teams want liability reduction and compliance.",
+  closing: "Strong call to action. Invite them to see the live Command Center. Offer to discuss their specific regions, assets, or PSPS scenarios.",
+};
+
+
 export default function DemoPresentation() {
   const navigate = useNavigate();
   const [current, setCurrent] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(true);
+  const [notes, setNotes] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("presenter-notes");
+    return saved ? JSON.parse(saved) : DEFAULT_PRESENTER_NOTES;
+  });
+  const [editingNote, setEditingNote] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Save notes to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem("presenter-notes", JSON.stringify(notes));
+  }, [notes]);
 
   const next = useCallback(() => setCurrent((c) => Math.min(c + 1, SLIDES.length - 1)), []);
   const prev = useCallback(() => setCurrent((c) => Math.max(c - 1, 0)), []);
@@ -430,16 +454,59 @@ export default function DemoPresentation() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[hsl(220,30%,6%)] z-[9999] select-none" ref={containerRef}>
+    <div className="fixed inset-0 bg-[hsl(220,30%,6%)] z-[9999] select-none flex flex-col" ref={containerRef}>
       {/* Slide canvas */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <ScaledSlide containerRef={containerRef}>
           {SLIDES[current].content}
         </ScaledSlide>
       </div>
 
+      {/* Presenter Notes Panel */}
+      <div className="bg-[hsl(220,25%,10%)] border-t border-white/10 transition-all duration-300" style={{ maxHeight: notesOpen ? "240px" : "44px" }}>
+        <button
+          onClick={() => setNotesOpen(!notesOpen)}
+          className="w-full flex items-center justify-between px-6 py-3 hover:bg-white/5 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-white/70 font-medium text-sm">Presenter Notes</span>
+            <span className="text-white/30 text-xs">— {SLIDES[current].section}</span>
+          </div>
+          {notesOpen ? <ChevronDown className="w-4 h-4 text-white/50" /> : <ChevronUp className="w-4 h-4 text-white/50" />}
+        </button>
+
+        {notesOpen && (
+          <div className="px-6 pb-4 overflow-y-auto max-h-[190px]">
+            {editingNote ? (
+              <div className="space-y-3">
+                <textarea
+                  value={notes[SLIDES[current].id] || ""}
+                  onChange={(e) => setNotes({ ...notes, [SLIDES[current].id]: e.target.value })}
+                  className="w-full h-28 bg-white/5 border border-white/10 rounded-lg p-3 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+                  placeholder="Add speaker notes..."
+                />
+                <button
+                  onClick={() => setEditingNote(false)}
+                  className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Notes
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => setEditingNote(true)}
+                className="text-white/70 text-sm leading-relaxed cursor-pointer p-3 rounded-lg hover:bg-white/5 transition-colors min-h-[120px]"
+              >
+                {notes[SLIDES[current].id] || "No notes yet. Click to add..."}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Controls overlay */}
-      <div className={`absolute inset-x-0 bottom-0 transition-opacity duration-500 ${showControls ? "opacity-100" : "opacity-0"}`}>
+      <div className={`absolute inset-x-0 bottom-0 transition-opacity duration-500 pointer-events-none ${showControls ? "opacity-100" : "opacity-0"}`}>
         {/* Progress bar */}
         <div className="h-1 bg-white/10 mx-6 rounded-full overflow-hidden mb-4">
           <div
@@ -448,7 +515,7 @@ export default function DemoPresentation() {
           />
         </div>
 
-        <div className="flex items-center justify-between px-6 pb-5">
+        <div className="flex items-center justify-between px-6 pb-5 pointer-events-auto">
           {/* Left: back + slide info */}
           <div className="flex items-center gap-4">
             <button
