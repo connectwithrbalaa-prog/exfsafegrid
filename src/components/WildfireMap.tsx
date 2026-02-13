@@ -4,7 +4,6 @@ import { Flame, RefreshCw, AlertTriangle, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip } from "react-leaflet";
-import MarkerClusterGroup from "react-leaflet-cluster";
 import "leaflet/dist/leaflet.css";
 
 interface FirePoint {
@@ -75,7 +74,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
     ? fires.filter(() => true) // Show all CA fires for now
     : fires;
 
-  const useClustering = nearbyFires.length > 1000;
+  const displayFires = nearbyFires.length > 1000 ? nearbyFires.slice(0, 1000) : nearbyFires;
 
   const mapCenter = useMemo<[number, number]>(() => {
     if (nearbyFires.length === 0) return [37.5, -120];
@@ -85,7 +84,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
   }, [nearbyFires]);
 
   const markers = useMemo(() => {
-    return nearbyFires.map((f, i) => (
+    return displayFires.map((f, i) => (
       <CircleMarker
         key={i}
         center={[f.latitude, f.longitude]}
@@ -109,7 +108,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
         </LeafletTooltip>
       </CircleMarker>
     ));
-  }, [nearbyFires]);
+  }, [displayFires]);
 
   return (
     <TooltipProvider>
@@ -163,13 +162,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
                 attribution='&copy; Esri'
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               />
-              {useClustering ? (
-                <MarkerClusterGroup chunkedLoading>
-                  {markers}
-                </MarkerClusterGroup>
-              ) : (
-                markers
-              )}
+              {markers}
             </MapContainer>
             {/* Legend */}
             <div className="absolute bottom-3 left-3 z-[1000] bg-background/90 border border-border rounded-md px-3 py-2 text-[10px] space-y-1">
