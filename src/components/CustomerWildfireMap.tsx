@@ -50,10 +50,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function getRisk(frp: number): RiskLevel {
-  if (frp > 3) return "High";
-  if (frp >= 1) return "Medium";
-  return "Low";
+function getRisk(distanceKm: number, frp: number): RiskLevel {
+  if (distanceKm <= 10 && frp > 1) return "High";
+  if (distanceKm <= 30 && frp > 0.5) return "Medium";
+  if (distanceKm <= 50) return "Low";
+  return "Low"; // Fires > 50km still classified as Low for display, but filtered out elsewhere
 }
 
 function formatLocalTime(acq_date: string, acq_time: string): string {
@@ -162,7 +163,7 @@ export default function CustomerWildfireMap({
         const distanceKm = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
         return {
           fire: f,
-          risk: getRisk(f.frp),
+          risk: getRisk(distanceKm, f.frp),
           distanceKm,
           distanceMi: Math.round(distanceKm * 0.621371),
           localTime: formatLocalTime(f.acq_date, f.acq_time),
@@ -240,7 +241,7 @@ export default function CustomerWildfireMap({
         type: "FeatureCollection",
         features: fires.slice(0, 5000).map((f) => {
           const dist = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
-          const risk = getRisk(f.frp);
+          const risk = getRisk(dist, f.frp);
           return {
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [f.longitude, f.latitude] },
