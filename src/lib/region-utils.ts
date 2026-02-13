@@ -12,11 +12,11 @@ export type Region = (typeof REGIONS)[number];
 
 /** Map agent emails to their assigned region */
 export const AGENT_REGIONS: Record<string, Region> = {
-  "agent.smith@gridguard.com": "Bay Area",
-  "agent.rivera@gridguard.com": "North Coast",
-  "agent.chen@gridguard.com": "Central Valley",
-  "agent.williams@gridguard.com": "North Valley/Sierra",
-  "agent.lopez@gridguard.com": "Central Coast",
+  "agent.smith@exfsafegrid.com": "Bay Area",
+  "agent.rivera@exfsafegrid.com": "North Coast",
+  "agent.chen@exfsafegrid.com": "Central Valley",
+  "agent.williams@exfsafegrid.com": "North Valley/Sierra",
+  "agent.lopez@exfsafegrid.com": "Central Coast",
 };
 
 export type PriorityLevel = 1 | 2 | 3 | 0;

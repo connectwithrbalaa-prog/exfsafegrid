@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// NWS zone IDs mapped to GridGuard regions (California)
+// NWS zone IDs mapped to ExfSafeGrid regions (California)
 const REGION_ZONES: Record<string, string[]> = {
   "North Coast": ["CAZ006", "CAZ001", "CAZ002"],
   "North Valley/Sierra": ["CAZ015", "CAZ016", "CAZ069"],
@@ -25,7 +25,7 @@ serve(async (req) => {
     // Check NWS alerts for Red Flag Warnings across all regions
     const nwsUrl = "https://api.weather.gov/alerts/active?area=CA&event=Red%20Flag%20Warning";
     const nwsRes = await fetch(nwsUrl, {
-      headers: { "User-Agent": "GridGuard/1.0 (gridguard-demo)" },
+      headers: { "User-Agent": "ExfSafeGrid/1.0 (exfsafegrid-demo)" },
     });
 
     let activeZones: Set<string> = new Set();

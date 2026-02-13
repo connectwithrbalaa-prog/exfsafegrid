@@ -73,7 +73,7 @@ export default function Login() {
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
             <Zap className="w-6 h-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">GridGuard</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">ExfSafeGrid</h1>
           <p className="text-sm text-muted-foreground">Sign in to your dashboard</p>
         </div>
 
@@ -107,7 +107,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={tab === "customer" ? "e.g. maria.gonzalez@example.com" : "e.g. agent.smith@gridguard.com"}
+              placeholder={tab === "customer" ? "e.g. maria.gonzalez@example.com" : "e.g. agent.smith@exfsafegrid.com"}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
             />

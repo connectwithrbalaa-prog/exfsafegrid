@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import type { Customer } from "@/lib/customer-types";
 
-const STORAGE_KEY = "gridguard_customer";
-const ROLE_KEY = "gridguard_role";
-const AGENT_EMAIL_KEY = "gridguard_agent_email";
+const STORAGE_KEY = "exfsafegrid_customer";
+const ROLE_KEY = "exfsafegrid_role";
+const AGENT_EMAIL_KEY = "exfsafegrid_agent_email";
 
 export type UserRole = "customer" | "agent";
 
