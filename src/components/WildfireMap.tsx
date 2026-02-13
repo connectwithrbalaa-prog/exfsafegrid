@@ -47,8 +47,6 @@ function getFrpRadius(frp: number): number {
 function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boolean }) {
   const [open, setOpen] = useState(false);
   const displayed = fires.slice(0, compact ? 10 : 30);
-  const intensityLabel = (frp: number) => frp > 3 ? "High" : frp >= 1 ? "Moderate" : "Low";
-  const intensityColor = (frp: number) => frp > 3 ? "text-destructive" : frp >= 1 ? "text-warning" : "text-success";
 
   return (
     <div>
@@ -66,7 +64,8 @@ function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boo
               <tr className="text-left text-muted-foreground">
                 <th className="px-3 py-1.5 font-medium">Date</th>
                 <th className="px-3 py-1.5 font-medium">Time</th>
-                <th className="px-3 py-1.5 font-medium">Intensity</th>
+                <th className="px-3 py-1.5 font-medium">Confidence</th>
+                <th className="px-3 py-1.5 font-medium">FRP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -75,8 +74,9 @@ function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boo
                   <td className="px-3 py-1.5 text-muted-foreground">{f.acq_date}</td>
                   <td className="px-3 py-1.5 text-muted-foreground">{formatTime(f.acq_time)}</td>
                   <td className="px-3 py-1.5">
-                    <span className={`font-medium ${intensityColor(f.frp)}`}>{intensityLabel(f.frp)}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">{f.confidence}</span>
                   </td>
+                  <td className="px-3 py-1.5 text-card-foreground font-medium">{f.frp.toFixed(1)}</td>
                 </tr>
               ))}
             </tbody>
@@ -251,18 +251,18 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
             </div>
           )}
           <div className="absolute bottom-3 left-3 z-[1000] bg-background/90 border border-border rounded-md px-3 py-2 text-[10px] space-y-1">
-            <div className="font-semibold text-card-foreground mb-1">Intensity</div>
+            <div className="font-semibold text-card-foreground mb-1">FRP (MW)</div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FFD700" }} />
-              <span className="text-muted-foreground">Low</span>
+              <span className="text-muted-foreground">&lt; 1</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF8C00" }} />
-              <span className="text-muted-foreground">Moderate</span>
+              <span className="text-muted-foreground">1 – 3</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF0000" }} />
-              <span className="text-muted-foreground">High</span>
+              <span className="text-muted-foreground">&gt; 3</span>
             </div>
           </div>
         </div>
