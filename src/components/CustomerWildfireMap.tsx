@@ -227,15 +227,14 @@ export default function CustomerWildfireMap({
       // Substation markers
       SUBSTATIONS.forEach((ss) => {
         const el = document.createElement("div");
-        el.style.cssText = "width:28px;height:28px;background:#6366F1;border:2.5px solid #fff;border-radius:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;";
-        el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`;
+        el.style.cssText = "width:12px;height:12px;background:#3B82F6;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);cursor:pointer;";
 
         new mapboxgl.Marker({ element: el })
           .setLngLat([ss.longitude, ss.latitude])
           .setPopup(
-            new mapboxgl.Popup({ offset: 16, maxWidth: "220px" }).setHTML(
+            new mapboxgl.Popup({ offset: 14, maxWidth: "220px" }).setHTML(
               `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
-                <div style="font-weight:700;font-size:14px;color:#6366F1">${ss.name}</div>
+                <div style="font-weight:700;font-size:14px;color:#3B82F6">${ss.name}</div>
                 <div style="color:#555;font-size:12px">ID: ${ss.id}<br/>Voltage: ${ss.voltage}</div>
               </div>`
             )
@@ -555,7 +554,7 @@ export default function CustomerWildfireMap({
             <div className="border-t border-border pt-1.5 mt-1.5">
               <div className="font-semibold text-card-foreground mb-1">Assets</div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-3 h-3 rounded-sm" style={{ background: "#6366F1" }} />
+                <span className="w-3 h-3 rounded-full" style={{ background: "#3B82F6", border: "1.5px solid white" }} />
                 <span className="text-muted-foreground">Substation</span>
               </div>
               <div className="flex items-center gap-2">
