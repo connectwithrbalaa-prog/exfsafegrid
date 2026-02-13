@@ -14,6 +14,7 @@ import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
+import WildfireMap from "@/components/WildfireMap";
 
 import { toast } from "sonner";
 
@@ -189,6 +190,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           </p>
         </div>
       )}
+
+      {/* Wildfire Map — full width */}
+      <WildfireMap />
 
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
         {/* LEFT COLUMN — 70% */}

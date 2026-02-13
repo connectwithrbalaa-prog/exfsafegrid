@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
+import WildfireMap from "@/components/WildfireMap";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -164,6 +165,9 @@ const Index = () => {
             </div>
           ))}
         </div>
+
+        {/* Wildfire Map */}
+        <WildfireMap customerZip={customer!.zip_code} compact />
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2 space-y-4">
