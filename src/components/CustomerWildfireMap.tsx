@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle, MapPin, Clock, Activity,
+  ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle, MapPin, Clock, Activity, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
@@ -578,36 +578,8 @@ export default function CustomerWildfireMap({
             </div>
           )}
 
-          {/* Legend */}
-          <div className="absolute bottom-3 left-3 z-[1000] bg-background/95 border border-border rounded-lg px-3.5 py-2.5 text-[11px] space-y-1.5 shadow-sm">
-            <div className="font-semibold text-card-foreground mb-1.5 text-xs">Risk Level</div>
-            {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
-              <div key={r} className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full border border-white/50" style={{ background: RISK_COLORS[r] }} />
-                <span className="text-muted-foreground">{r}</span>
-              </div>
-            ))}
-            <div className="border-t border-border pt-1.5 mt-1.5">
-              <div className="font-semibold text-card-foreground mb-1">Assets</div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-3 h-3 rounded-full" style={{ background: "#3B82F6", border: "1.5px solid white" }} />
-                <span className="text-muted-foreground">Substation</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-0.5 h-3 rounded" style={{ background: "#06B6D4", opacity: 0.8 }} />
-                <span className="text-muted-foreground">Transmission Line</span>
-              </div>
-            </div>
-            <div className="border-t border-border pt-1.5 mt-1.5">
-              <div className="font-semibold text-card-foreground mb-1">Zones</div>
-              {ZONES.slice().reverse().map((z) => (
-                <div key={z.km} className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 rounded" style={{ background: z.border }} />
-                  <span className="text-muted-foreground">{z.km} km – {z.label.replace(" Zone", "")}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Collapsible Legend */}
+          <LegendPanel />
 
           {/* Asset pin label */}
           <div className="absolute top-3 left-3 z-[1000] bg-blue-600 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow flex items-center gap-1.5">
@@ -729,6 +701,54 @@ function RiskBadge({ risk, approaching }: { risk: RiskLevel; approaching?: boole
       {approaching && <span className="mr-1">🔴</span>}
       {risk}
     </span>
+  );
+}
+
+/* ── Collapsible Legend ──────────────────────────────────────── */
+
+function LegendPanel() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-1.5">
+      {open && (
+        <div className="bg-background/95 backdrop-blur border border-border rounded-lg px-3 py-2 text-[11px] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 w-44">
+          <div className="font-semibold text-card-foreground mb-1.5 text-xs">Risk Level</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+            {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
+              <div key={r} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full border border-white/50" style={{ background: RISK_COLORS[r] }} />
+                <span className="text-muted-foreground">{r}</span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border pt-1.5 mt-1">
+            <div className="font-semibold text-card-foreground mb-1 text-[10px]">Assets & Zones</div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#3B82F6", border: "1.5px solid white" }} />
+              <span className="text-muted-foreground">Substation</span>
+            </div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-3 h-0.5 rounded" style={{ background: "#06B6D4", opacity: 0.8 }} />
+              <span className="text-muted-foreground">Transmission Line</span>
+            </div>
+            {ZONES.slice().reverse().map((z) => (
+              <div key={z.km} className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 rounded" style={{ background: z.border }} />
+                <span className="text-muted-foreground">{z.km}km</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(!open)}
+        className="bg-background/95 backdrop-blur border border-border rounded-lg p-2 shadow-md hover:bg-muted transition-colors"
+        title="Toggle legend"
+      >
+        <Layers className="w-4 h-4 text-muted-foreground" />
+      </button>
+    </div>
   );
 }
 
