@@ -20,7 +20,7 @@ interface Props {
   compact?: boolean;
 }
 
-const GOOGLE_MAPS_KEY = "27c29fd1d2899b4472234d2c3609b3ea";
+const GOOGLE_MAPS_KEY = "";
 
 function buildStaticMapUrl(fires: FirePoint[], center?: { lat: number; lng: number }) {
   const c = center || { lat: 37.5, lng: -120 };
@@ -122,12 +122,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
         </div>
       )}
 
-      {!GOOGLE_MAPS_KEY && !loading && (
-        <div className="p-4 text-center text-xs text-muted-foreground">
-          <MapPin className="w-5 h-5 mx-auto mb-1" />
-          Map unavailable — Google Maps key not configured
-        </div>
-      )}
+      {!GOOGLE_MAPS_KEY && !loading && !error && nearbyFires.length > 0 && null}
 
       {error && (
         <div className="p-3 text-xs text-destructive flex items-center gap-1.5">
