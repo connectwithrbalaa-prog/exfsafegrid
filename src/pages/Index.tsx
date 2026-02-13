@@ -57,13 +57,22 @@ const Index = () => {
               <span className="text-lg font-bold text-foreground tracking-tight">ExfSafeGrid</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             </div>
-            <button
-              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate("/command-center")}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                Command Center
+              </button>
+              <button
+                onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
