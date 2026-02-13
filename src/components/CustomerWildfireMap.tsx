@@ -258,8 +258,9 @@ export default function CustomerWildfireMap({
         type: "line",
         source: "transmission-lines",
         paint: {
-          "line-color": "#9333EA",
-          "line-width": 3,
+          "line-color": "#06B6D4",
+          "line-width": 2,
+          "line-opacity": 0.8,
           "line-dasharray": [3, 2],
         },
       });
@@ -281,7 +282,7 @@ export default function CustomerWildfireMap({
           .setLngLat(coords)
           .setHTML(
             `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
-              <div style="font-weight:700;font-size:14px;color:#9333EA">${p.name}</div>
+              <div style="font-weight:700;font-size:14px;color:#06B6D4">${p.name}</div>
               <div style="color:#555;font-size:12px">ID: ${p.id}<br/>Voltage: ${p.voltage}</div>
             </div>`
           )
@@ -558,7 +559,7 @@ export default function CustomerWildfireMap({
                 <span className="text-muted-foreground">Substation</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-0.5 h-3 rounded" style={{ background: "#9333EA" }} />
+                <span className="w-0.5 h-3 rounded" style={{ background: "#06B6D4", opacity: 0.8 }} />
                 <span className="text-muted-foreground">Transmission Line</span>
               </div>
             </div>
