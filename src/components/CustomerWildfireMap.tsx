@@ -121,8 +121,8 @@ interface Props {
 
 export default function CustomerWildfireMap({
   customerZip,
-  assetLat = 37.7749,
-  assetLng = -122.2,
+  assetLat = 37.20,
+  assetLng = -119.30,
 }: Props) {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
