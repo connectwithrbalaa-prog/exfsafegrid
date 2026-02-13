@@ -73,7 +73,7 @@ export default function ChatPanel({ customerContext }: ChatPanelProps) {
           <Bot className="w-4 h-4 text-primary-foreground" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-accent-foreground">GridGuard Assistant</h3>
+          <h3 className="text-sm font-semibold text-accent-foreground">ExfSafeGrid Assistant</h3>
           <p className="text-xs text-muted-foreground">Ask about outages, billing, safety & more</p>
         </div>
       </div>
