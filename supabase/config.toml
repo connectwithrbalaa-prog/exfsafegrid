@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.red-flag-status]
 verify_jwt = false
+
+[functions.firms-fires]
+verify_jwt = false
