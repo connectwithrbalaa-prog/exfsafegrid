@@ -34,6 +34,8 @@ interface EnrichedFire {
   distanceMi: number;
   localTime: string;
   status: string;
+  isApproaching: boolean;
+  previousDistanceKm?: number;
 }
 
 /* ── Helpers ──────────────────────────────────────────────────── */
@@ -55,6 +57,14 @@ function getRisk(distanceKm: number, frp: number): RiskLevel {
   if (distanceKm <= 30 && frp > 0.5) return "Medium";
   if (distanceKm <= 50) return "Low";
   return "Low"; // Fires > 50km still classified as Low for display, but filtered out elsewhere
+}
+
+function createFireKey(fire: FirePoint): string {
+  return `${fire.latitude.toFixed(3)}-${fire.longitude.toFixed(3)}-${fire.acq_date}`;
+}
+
+function isApproaching(previousDistance: number | undefined, currentDistance: number): boolean {
+  return previousDistance !== undefined && currentDistance < previousDistance;
 }
 
 function formatLocalTime(acq_date: string, acq_time: string): string {
@@ -149,6 +159,7 @@ export default function CustomerWildfireMap({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const fireHistoryRef = useRef<Map<string, number>>(new Map()); // Track previous distances
 
   /* ── Fetch ──────────────────────────────────────────────── */
 
@@ -179,6 +190,13 @@ export default function CustomerWildfireMap({
     return fires
       .map((f) => {
         const distanceKm = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
+        const fireKey = createFireKey(f);
+        const previousDistance = fireHistoryRef.current.get(fireKey);
+        const approaching = isApproaching(previousDistance, distanceKm);
+        
+        // Update history with current distance
+        fireHistoryRef.current.set(fireKey, distanceKm);
+        
         return {
           fire: f,
           risk: getRisk(distanceKm, f.frp),
@@ -186,6 +204,8 @@ export default function CustomerWildfireMap({
           distanceMi: Math.round(distanceKm * 0.621371),
           localTime: formatLocalTime(f.acq_date, f.acq_time),
           status: f.frp > 1.5 ? "Action Recommended" : "Monitoring",
+          isApproaching: approaching,
+          previousDistanceKm: previousDistance,
         };
       })
       .filter((f) => f.distanceKm <= 50) // Only include fires within monitoring zone
@@ -321,10 +341,13 @@ export default function CustomerWildfireMap({
     if (!map) return;
 
     const updateData = () => {
-      const geojson: GeoJSON.FeatureCollection = {
+        const geojson: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
         features: fires.slice(0, 5000).map((f) => {
           const dist = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
+          const fireKey = createFireKey(f);
+          const previousDistance = fireHistoryRef.current.get(fireKey);
+          const approaching = isApproaching(previousDistance, dist);
           const risk = getRisk(dist, f.frp);
           return {
             type: "Feature" as const,
@@ -332,6 +355,7 @@ export default function CustomerWildfireMap({
             properties: {
               frp: f.frp,
               risk,
+              approaching,
               riskNum: risk === "High" ? 3 : risk === "Medium" ? 2 : 1,
               distKm: Math.round(dist * 10) / 10,
               distMi: Math.round(dist * 0.621371),
@@ -615,9 +639,9 @@ export default function CustomerWildfireMap({
                 {tableData.map((e, i) => (
                   <tr key={i} className="hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-2.5 text-card-foreground">{e.localTime}</td>
-                    <td className="px-4 py-2.5 text-card-foreground font-medium">{e.distanceMi} mi</td>
+                    <td className="px-4 py-2.5 text-card-foreground font-medium">{e.distanceMi} mi {e.isApproaching && <span className="text-red-600 font-bold ml-1">⬆</span>}</td>
                     <td className="px-4 py-2.5">
-                      <RiskBadge risk={e.risk} />
+                      <RiskBadge risk={e.risk} approaching={e.isApproaching} />
                     </td>
                     <td className="px-4 py-2.5">
                       <span className={`text-xs font-medium ${
@@ -680,7 +704,7 @@ function SummaryCard({
   );
 }
 
-function RiskBadge({ risk }: { risk: RiskLevel }) {
+function RiskBadge({ risk, approaching }: { risk: RiskLevel; approaching?: boolean }) {
   const cls =
     risk === "High"
       ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -689,6 +713,7 @@ function RiskBadge({ risk }: { risk: RiskLevel }) {
       : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cls}`}>
+      {approaching && <span className="mr-1">🔴</span>}
       {risk}
     </span>
   );
