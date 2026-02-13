@@ -194,9 +194,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
       {/* Wildfire Map — full width */}
       <WildfireMap />
 
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        {/* LEFT COLUMN — 70% */}
-        <div className="lg:col-span-7 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* LEFT COLUMN — customer selector + details */}
+        <div className="lg:col-span-5 space-y-5">
           {/* Customer selector */}
           <div className="p-5 rounded-lg border border-border bg-card space-y-4">
             <label htmlFor="agent-customer-select" className="text-sm font-semibold text-card-foreground">
@@ -224,16 +224,15 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           {/* Selected customer detail cards */}
           {selected ? (
             <div className="space-y-4">
-              {/* Priority banner when Red Flag active */}
               {redFlagActive && priority > 0 && (
-                <div className={`flex items-center gap-2 p-3 rounded-lg border border-border bg-card`}>
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-card">
                   <AlertTriangle className={`w-4 h-4 ${getPriorityColor(priority)}`} />
                   <span className={`text-sm font-bold ${getPriorityColor(priority)}`}>
                     {getPriorityLabel(priority)}
                   </span>
                 </div>
               )}
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <DetailCard icon={User} label="Name" value={selected.name} />
                 <DetailCard icon={Zap} label="ZIP Code" value={selected.zip_code} />
                 <DetailCard icon={MapPin} label="Region" value={selected.region} />
@@ -244,6 +243,26 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 <DetailCard icon={AlertTriangle} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
                 <DetailCard icon={Zap} label="Bill Trend" value={selected.bill_trend} />
               </div>
+
+              {/* Agent Notes — inline with details */}
+              <div className="p-5 rounded-lg border border-border bg-card space-y-3">
+                <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
+                <textarea
+                  ref={notesRef}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  disabled={!selected}
+                  placeholder="Add notes about this customer..."
+                  className="w-full h-24 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
+                />
+                <button
+                  onClick={saveNotes}
+                  disabled={!selected || savingNotes}
+                  className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {savingNotes ? "Saving…" : "Save Notes"}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-40 rounded-lg border border-dashed border-border text-sm text-muted-foreground">
@@ -252,81 +271,49 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           )}
         </div>
 
-        {/* RIGHT COLUMN — 30% */}
-        <div className="lg:col-span-3 space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Agent Actions</h2>
-
-          {/* Compact Customer Summary Bar */}
+        {/* MIDDLE COLUMN — Safety modules (tabbed) + Quick Actions */}
+        <div className="lg:col-span-4 space-y-4">
           {selected && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-              <User className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="text-sm font-semibold text-card-foreground truncate">{selected.name}</span>
-              <span className="text-xs text-muted-foreground">ZIP {selected.zip_code}</span>
-              <span className={`text-xs font-medium ml-auto ${riskColor(selected.wildfire_risk)}`}>
-                🔥 {selected.wildfire_risk}
-              </span>
-            </div>
-          )}
+            <>
+              {/* Compact Customer Summary Bar */}
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
+                <User className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-sm font-semibold text-card-foreground truncate">{selected.name}</span>
+                <span className={`text-xs font-medium ml-auto ${riskColor(selected.wildfire_risk)}`}>
+                  🔥 {selected.wildfire_risk}
+                </span>
+              </div>
 
-          {/* Medical Priority Badge — HIGHEST PRIORITY, sticky */}
-          {selected?.medical_baseline && (
-            <div className="p-4 rounded-lg border-2 border-destructive bg-destructive/10 space-y-2 shadow-md shadow-destructive/10">
-              <div className="flex items-center gap-2">
-                <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
-                <span className="text-sm font-bold text-destructive">🚨 MEDICAL BASELINE CUSTOMER</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => {
-                    toast.success(`Doorbell verification dispatched for ${selected.name}`, {
-                      description: "Field crew notified for in-person check",
-                    });
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
-                >
-                  🔔 Doorbell Ring Required
-                </button>
-                <button
-                  onClick={() => {
-                    toast.success(`Priority restoration flagged for ${selected.name}`, {
-                      description: "Added to priority restoration queue",
-                    });
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
-                >
-                  ⚡ Priority Restoration
-                </button>
-                <button
-                  onClick={() => {
-                    const assets = [
-                      selected.has_portable_battery ? "✅ PBP" : "❌ PBP",
-                      selected.has_transfer_meter ? "✅ Transfer Meter" : "❌ Transfer Meter",
-                      `🔋 ${selected.has_permanent_battery}`,
-                    ].join(" · ");
-                    toast.info(`Backup Assets: ${assets}`, {
-                      description: selected.has_portable_battery || selected.has_transfer_meter
-                        ? "Assets available — verify charge levels"
-                        : "No backup assets — recommend PBP enrollment",
-                    });
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors cursor-pointer"
-                >
-                  🔋 Backup Assets OK?
-                </button>
-              </div>
-              {selected.current_outage_status === "PSPS Active" && (
-                <div className="mt-2 px-3 py-2 rounded-md bg-destructive/20 border border-destructive/40 animate-pulse">
-                  <p className="text-xs font-bold text-destructive">⚠️ URGENT: Doorbell verification needed</p>
-                  <p className="text-xs text-destructive/80 mt-0.5">No digital acknowledgment received. In-person check required.</p>
+              {/* Medical Priority Badge */}
+              {selected.medical_baseline && (
+                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10 shadow-md shadow-destructive/10">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
+                    <span className="text-xs font-bold text-destructive">🚨 MEDICAL BASELINE</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <button
+                      onClick={() => toast.success(`Doorbell verification dispatched for ${selected.name}`)}
+                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
+                    >
+                      🔔 Doorbell Ring
+                    </button>
+                    <button
+                      onClick={() => toast.success(`Priority restoration flagged for ${selected.name}`)}
+                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
+                    >
+                      ⚡ Priority Restore
+                    </button>
+                  </div>
                 </div>
               )}
-            </div>
+
+              {/* Tabbed Safety Modules */}
+              <SafetyModules customer={selected} />
+            </>
           )}
 
-          {/* Safety Modules */}
-          {selected && <SafetyModules customer={selected} />}
-
-          {/* Quick Actions card */}
+          {/* Quick Actions */}
           <div className="p-5 rounded-lg border border-border bg-card space-y-3">
             <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
@@ -356,48 +343,27 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
               })}
             </div>
           </div>
+        </div>
 
-          {/* Agent Notes */}
-          <div className="p-5 rounded-lg border border-border bg-card space-y-3">
-            <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
-            <textarea
-              ref={notesRef}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={!selected}
-              placeholder={selected ? "Add notes about this customer..." : "Select a customer first"}
-              className="w-full h-28 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
-            />
-            <button
-              onClick={saveNotes}
-              disabled={!selected || savingNotes}
-              className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-            >
-              {savingNotes ? "Saving…" : "Save Notes"}
-            </button>
-          </div>
-
-          {/* AI Assistant Chat */}
+        {/* RIGHT COLUMN — AI Chat + Requests + Hazard */}
+        <div className="lg:col-span-3 space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-card-foreground">AI Assistant Chat</h3>
+              <h3 className="text-sm font-semibold text-card-foreground">AI Assistant</h3>
             </div>
             {selected ? (
               <div className="h-[400px]">
                 <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
               </div>
             ) : (
-              <div className="h-[360px] flex items-center justify-center">
+              <div className="h-[300px] flex items-center justify-center">
                 <p className="text-xs text-muted-foreground">Select a customer to start chatting</p>
               </div>
             )}
           </div>
 
-          {/* Customer Requests Inbox */}
           <AgentRequestsPanel />
-
-          {/* Report It Hazard Tool */}
           <ReportHazard customerName={selected?.name} />
         </div>
       </div>
