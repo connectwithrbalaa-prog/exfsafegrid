@@ -46,7 +46,7 @@ const Index = () => {
   // Agent view — no customer needed
   if (role === "agent") {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pt-[72px]">
         <PspsStatusHeader />
         <header className="border-b border-border bg-card">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
