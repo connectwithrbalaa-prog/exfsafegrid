@@ -111,6 +111,17 @@ const SUBSTATIONS = [
   { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV" },
 ];
 
+/* ── Transmission Lines ──────────────────────────────────────── */
+
+const TRANSMISSION_LINES = [
+  {
+    id: "TL-01",
+    name: "North–Valley Line",
+    coordinates: [[-119.28, 37.25], [-119.35, 37.18]],
+    voltage: "220kV",
+  },
+];
+
 /* ── Radius zone definitions (km → meters) ─────────────────── */
 
 const ZONES = [
@@ -228,6 +239,52 @@ export default function CustomerWildfireMap({
                 <div style="color:#555;font-size:12px">ID: ${ss.id}<br/>Voltage: ${ss.voltage}</div>
               </div>`
             )
+          )
+          .addTo(map);
+      });
+
+      // Transmission lines
+      const tlGeoJSON: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: TRANSMISSION_LINES.map((tl) => ({
+          type: "Feature" as const,
+          geometry: { type: "LineString" as const, coordinates: tl.coordinates },
+          properties: { id: tl.id, name: tl.name, voltage: tl.voltage },
+        })),
+      };
+
+      map.addSource("transmission-lines", { type: "geojson", data: tlGeoJSON });
+      map.addLayer({
+        id: "transmission-lines-layer",
+        type: "line",
+        source: "transmission-lines",
+        paint: {
+          "line-color": "#9333EA",
+          "line-width": 3,
+          "line-dasharray": [3, 2],
+        },
+      });
+
+      // Transmission line hover tooltip
+      map.on("mouseenter", "transmission-lines-layer", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "transmission-lines-layer", () => {
+        map.getCanvas().style.cursor = "";
+      });
+      map.on("click", "transmission-lines-layer", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const coords = (f.geometry as any).coordinates[0];
+        const p = f.properties!;
+        popupRef.current?.remove();
+        popupRef.current = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: "220px" })
+          .setLngLat(coords)
+          .setHTML(
+            `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
+              <div style="font-weight:700;font-size:14px;color:#9333EA">${p.name}</div>
+              <div style="color:#555;font-size:12px">ID: ${p.id}<br/>Voltage: ${p.voltage}</div>
+            </div>`
           )
           .addTo(map);
       });
@@ -497,9 +554,13 @@ export default function CustomerWildfireMap({
             ))}
             <div className="border-t border-border pt-1.5 mt-1.5">
               <div className="font-semibold text-card-foreground mb-1">Assets</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="w-3 h-3 rounded-sm" style={{ background: "#6366F1" }} />
                 <span className="text-muted-foreground">Substation</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-0.5 h-3 rounded" style={{ background: "#9333EA" }} />
+                <span className="text-muted-foreground">Transmission Line</span>
               </div>
             </div>
             <div className="border-t border-border pt-1.5 mt-1.5">
