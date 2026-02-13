@@ -1,14 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ShieldAlert, RefreshCw, AlertTriangle, MapPin } from "lucide-react";
+import {
+  ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle, MapPin, Clock, Activity,
+} from "lucide-react";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+const MAPBOX_TOKEN =
+  "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
 
-// Approximate ZIP code center for California ZIPs (fallback)
-const DEFAULT_CENTER: [number, number] = [-120, 37.5];
+/* ── Types ────────────────────────────────────────────────────── */
 
 interface FirePoint {
   latitude: number;
@@ -22,78 +24,114 @@ interface FirePoint {
   daynight: string;
 }
 
-type RiskLevel = "Low" | "Medium" | "High";
+type RiskLevel = "High" | "Medium" | "Low";
+type OverallStatus = "no-threat" | "monitoring" | "immediate-risk";
 
-function getRiskLevel(frp: number): RiskLevel {
+interface EnrichedFire {
+  fire: FirePoint;
+  risk: RiskLevel;
+  distanceKm: number;
+  distanceMi: number;
+  localTime: string;
+  status: string;
+}
+
+/* ── Helpers ──────────────────────────────────────────────────── */
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getRisk(frp: number): RiskLevel {
   if (frp > 3) return "High";
   if (frp >= 1) return "Medium";
   return "Low";
 }
 
-function getRiskColor(risk: RiskLevel): string {
-  if (risk === "High") return "hsl(0, 80%, 50%)";
-  if (risk === "Medium") return "hsl(30, 90%, 55%)";
-  return "hsl(45, 90%, 55%)";
-}
-
-function getRiskBg(risk: RiskLevel): string {
-  if (risk === "High") return "bg-destructive/15 text-destructive";
-  if (risk === "Medium") return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-  return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
-}
-
-function getRiskRadius(frp: number): number {
-  if (frp <= 0) return 6;
-  if (frp <= 3) return 8;
-  if (frp <= 10) return 12;
-  return 16;
-}
-
 function formatLocalTime(acq_date: string, acq_time: string): string {
-  if (!acq_date || !acq_time) return "Recently";
-  const padded = acq_time.padStart(4, "0");
-  const h = parseInt(padded.slice(0, 2));
-  const m = padded.slice(2);
+  if (!acq_date) return "Recently";
+  const padded = (acq_time || "0000").padStart(4, "0");
   try {
-    const d = new Date(`${acq_date}T${padded.slice(0, 2)}:${m}:00Z`);
+    const d = new Date(`${acq_date}T${padded.slice(0, 2)}:${padded.slice(2)}:00Z`);
     return d.toLocaleString(undefined, {
-      month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
     });
   } catch {
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${acq_date}, ${h12}:${m} ${ampm} UTC`;
+    return acq_date;
   }
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function getOverallStatus(enriched: EnrichedFire[]): OverallStatus {
+  const within50 = enriched.filter((e) => e.distanceKm <= 50);
+  if (within50.some((e) => e.risk === "High" && e.distanceKm <= 10)) return "immediate-risk";
+  if (within50.length > 0) return "monitoring";
+  return "no-threat";
 }
 
-function formatDistance(km: number): string {
-  const mi = km * 0.621371;
-  if (mi < 1) return "Less than 1 mile away";
-  return `${Math.round(mi)} miles away`;
-}
+const STATUS_CONFIG: Record<OverallStatus, { label: string; color: string; bg: string; icon: typeof ShieldCheck }> = {
+  "no-threat": {
+    label: "No Threat",
+    color: "text-green-700 dark:text-green-400",
+    bg: "bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800",
+    icon: ShieldCheck,
+  },
+  monitoring: {
+    label: "Monitoring",
+    color: "text-amber-700 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
+    icon: ShieldAlert,
+  },
+  "immediate-risk": {
+    label: "Immediate Risk",
+    color: "text-red-700 dark:text-red-300",
+    bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+    icon: ShieldOff,
+  },
+};
+
+const RISK_COLORS: Record<RiskLevel, string> = { High: "#EF4444", Medium: "#F97316", Low: "#EAB308" };
+
+/* ── Radius zone definitions (km → meters) ─────────────────── */
+
+const ZONES = [
+  { km: 50, label: "Monitoring Zone", color: "rgba(234,179,8,0.08)", border: "rgba(234,179,8,0.35)" },
+  { km: 30, label: "Medium Risk Zone", color: "rgba(249,115,22,0.10)", border: "rgba(249,115,22,0.45)" },
+  { km: 10, label: "High Risk Zone", color: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.55)" },
+];
+
+/* ── Component ────────────────────────────────────────────────── */
 
 interface Props {
   customerZip?: string;
+  assetLat?: number;
+  assetLng?: number;
 }
 
-export default function CustomerWildfireMap({ customerZip }: Props) {
+export default function CustomerWildfireMap({
+  customerZip,
+  assetLat = 37.7749,
+  assetLng = -122.2,
+}: Props) {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
 
-  // Use center of fire data or default
-  const centerRef = useRef<[number, number]>(DEFAULT_CENTER);
+  /* ── Fetch ──────────────────────────────────────────────── */
 
   const fetchFires = useCallback(async () => {
     setLoading(true);
@@ -106,187 +144,495 @@ export default function CustomerWildfireMap({ customerZip }: Props) {
     } catch (e: any) {
       console.error("Failed to fetch fire data:", e);
       setError(e.message || "Failed to load fire data");
-      toast.error("Failed to load fire activity");
+      toast.error("Failed to load wildfire data");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchFires(); }, [fetchFires]);
+  useEffect(() => {
+    fetchFires();
+  }, [fetchFires]);
 
-  // Initialize map
+  /* ── Enrich fires ───────────────────────────────────────── */
+
+  const enriched = useMemo<EnrichedFire[]>(() => {
+    return fires
+      .map((f) => {
+        const distanceKm = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
+        return {
+          fire: f,
+          risk: getRisk(f.frp),
+          distanceKm,
+          distanceMi: Math.round(distanceKm * 0.621371),
+          localTime: formatLocalTime(f.acq_date, f.acq_time),
+          status: f.frp > 1.5 ? "Action Recommended" : "Monitoring",
+        };
+      })
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+  }, [fires, assetLat, assetLng]);
+
+  const within50 = useMemo(() => enriched.filter((e) => e.distanceKm <= 50), [enriched]);
+  const highRiskCount = useMemo(() => within50.filter((e) => e.risk === "High").length, [within50]);
+  const closestDist = within50.length > 0 ? within50[0].distanceMi : null;
+  const overallStatus = useMemo(() => getOverallStatus(enriched), [enriched]);
+  const statusCfg = STATUS_CONFIG[overallStatus];
+  const StatusIcon = statusCfg.icon;
+
+  /* ── Map init ───────────────────────────────────────────── */
+
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     mapboxgl.accessToken = MAPBOX_TOKEN;
+
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      center: centerRef.current,
-      zoom: 7,
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      center: [assetLng, assetLat],
+      zoom: 8,
     });
+
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
-  }, []);
 
-  // Update markers
-  useEffect(() => {
-    if (!mapRef.current) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+    map.on("load", () => {
+      // Asset marker
+      new mapboxgl.Marker({ color: "#3B82F6" })
+        .setLngLat([assetLng, assetLat])
+        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
+          `<div style="font-size:13px;font-family:system-ui"><b>Your Asset Location</b></div>`
+        ))
+        .addTo(map);
 
-    const display = fires.length > 500 ? fires.slice(0, 500) : fires;
-
-    // Compute center for distance calculations
-    const avgLat = display.length > 0 ? display.reduce((s, f) => s + f.latitude, 0) / display.length : centerRef.current[1];
-    const avgLng = display.length > 0 ? display.reduce((s, f) => s + f.longitude, 0) / display.length : centerRef.current[0];
-    centerRef.current = [avgLng, avgLat];
-
-    display.forEach((f) => {
-      const risk = getRiskLevel(f.frp);
-      const color = getRiskColor(risk);
-      const r = getRiskRadius(f.frp);
-      const dist = haversineKm(avgLat, avgLng, f.latitude, f.longitude);
-
-      const el = document.createElement("div");
-      el.style.width = `${r * 2}px`;
-      el.style.height = `${r * 2}px`;
-      el.style.borderRadius = "50%";
-      el.style.backgroundColor = color;
-      el.style.opacity = "0.8";
-      el.style.border = `2px solid ${color}`;
-      el.style.cursor = "pointer";
-      el.style.boxShadow = risk === "High" ? `0 0 8px ${color}` : "none";
-
-      const popup = new mapboxgl.Popup({ offset: 12, closeButton: true, maxWidth: "220px" }).setHTML(
-        `<div style="font-size:13px;line-height:1.6;color:#333;font-family:system-ui">
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px;color:${color}">
-            ${risk} Risk
-          </div>
-          <div style="color:#666;font-size:12px">
-            📍 ${formatDistance(dist)}<br/>
-            🕐 ${formatLocalTime(f.acq_date, f.acq_time)}<br/>
-            Status: <b>${f.frp > 0.5 ? "Active" : "Monitoring"}</b>
-          </div>
-        </div>`
-      );
-
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([f.longitude, f.latitude])
-        .setPopup(popup)
-        .addTo(mapRef.current!);
-      markersRef.current.push(marker);
+      // Radius zones
+      ZONES.forEach((z) => {
+        const circle = createGeoJSONCircle([assetLng, assetLat], z.km);
+        map.addSource(`zone-${z.km}`, { type: "geojson", data: circle });
+        map.addLayer({
+          id: `zone-fill-${z.km}`,
+          type: "fill",
+          source: `zone-${z.km}`,
+          paint: { "fill-color": z.color },
+        });
+        map.addLayer({
+          id: `zone-line-${z.km}`,
+          type: "line",
+          source: `zone-${z.km}`,
+          paint: { "line-color": z.border, "line-width": 1.5, "line-dasharray": [4, 3] },
+        });
+      });
     });
 
-    if (display.length > 0) {
-      mapRef.current.flyTo({ center: [avgLng, avgLat], zoom: 7 });
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [assetLat, assetLng]);
+
+  /* ── Update fire data on map (clustered GeoJSON) ────────── */
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const updateData = () => {
+      const geojson: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: fires.slice(0, 5000).map((f) => {
+          const dist = haversineKm(assetLat, assetLng, f.latitude, f.longitude);
+          const risk = getRisk(f.frp);
+          return {
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [f.longitude, f.latitude] },
+            properties: {
+              frp: f.frp,
+              risk,
+              riskNum: risk === "High" ? 3 : risk === "Medium" ? 2 : 1,
+              distKm: Math.round(dist * 10) / 10,
+              distMi: Math.round(dist * 0.621371),
+              localTime: formatLocalTime(f.acq_date, f.acq_time),
+              status: f.frp > 1.5 ? "Action Recommended" : "Monitoring",
+            },
+          };
+        }),
+      };
+
+      if (map.getSource("fires")) {
+        (map.getSource("fires") as mapboxgl.GeoJSONSource).setData(geojson);
+        return;
+      }
+
+      map.addSource("fires", {
+        type: "geojson",
+        data: geojson,
+        cluster: true,
+        clusterMaxZoom: 12,
+        clusterRadius: 50,
+        clusterProperties: {
+          maxRisk: ["max", ["get", "riskNum"]],
+        },
+      });
+
+      // Cluster circles
+      map.addLayer({
+        id: "fire-clusters",
+        type: "circle",
+        source: "fires",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": [
+            "case",
+            [">=", ["get", "maxRisk"], 3], RISK_COLORS.High,
+            [">=", ["get", "maxRisk"], 2], RISK_COLORS.Medium,
+            RISK_COLORS.Low,
+          ],
+          "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 50, 30],
+          "circle-opacity": 0.8,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+          "circle-stroke-opacity": 0.6,
+        },
+      });
+
+      // Cluster count
+      map.addLayer({
+        id: "fire-cluster-count",
+        type: "symbol",
+        source: "fires",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"],
+          "text-size": 12,
+        },
+        paint: { "text-color": "#fff" },
+      });
+
+      // Individual fire points
+      map.addLayer({
+        id: "fire-points",
+        type: "circle",
+        source: "fires",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": [
+            "case",
+            ["==", ["get", "risk"], "High"], RISK_COLORS.High,
+            ["==", ["get", "risk"], "Medium"], RISK_COLORS.Medium,
+            RISK_COLORS.Low,
+          ],
+          "circle-radius": [
+            "interpolate", ["linear"], ["get", "frp"],
+            0, 5, 3, 8, 10, 14, 20, 18,
+          ],
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#fff",
+          "circle-stroke-opacity": 0.5,
+        },
+      });
+
+      // Click on cluster → zoom in
+      map.on("click", "fire-clusters", (e) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: ["fire-clusters"] });
+        if (!features.length) return;
+        const clusterId = features[0].properties?.cluster_id;
+        (map.getSource("fires") as mapboxgl.GeoJSONSource).getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err || zoom == null) return;
+          map.easeTo({ center: (features[0].geometry as any).coordinates, zoom });
+        });
+      });
+
+      // Click on point → popup
+      map.on("click", "fire-points", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const coords = (f.geometry as any).coordinates.slice();
+        const p = f.properties!;
+        popupRef.current?.remove();
+        popupRef.current = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: "240px" })
+          .setLngLat(coords)
+          .setHTML(
+            `<div style="font-family:system-ui;font-size:13px;line-height:1.7;color:#222">
+              <div style="font-weight:700;font-size:15px;margin-bottom:2px;color:${RISK_COLORS[p.risk as RiskLevel] || "#666"}">
+                ${p.risk} Risk
+              </div>
+              <div style="color:#555;font-size:12px">
+                📍 ${p.distMi} miles from your asset<br/>
+                🕐 ${p.localTime}<br/>
+                Status: <b>${p.status}</b>
+              </div>
+            </div>`
+          )
+          .addTo(map);
+      });
+
+      // Cursors
+      map.on("mouseenter", "fire-clusters", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "fire-clusters", () => { map.getCanvas().style.cursor = ""; });
+      map.on("mouseenter", "fire-points", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "fire-points", () => { map.getCanvas().style.cursor = ""; });
+    };
+
+    if (map.isStyleLoaded()) {
+      updateData();
+    } else {
+      map.on("load", updateData);
     }
-  }, [fires]);
+  }, [fires, assetLat, assetLng]);
 
-  // Compute summary stats
-  const highCount = fires.filter(f => f.frp > 3).length;
-  const medCount = fires.filter(f => f.frp >= 1 && f.frp <= 3).length;
-  const nearbyCount = fires.length; // all are CA fires
+  /* ── Alert table data (within 50 km, top 25) ────────────── */
 
-  // Build alert message
-  const alertMessage = (() => {
-    if (loading) return null;
-    if (fires.length === 0) return { text: "No immediate wildfire threat detected in your area.", level: "safe" as const };
-    if (highCount > 0) return { text: `${highCount} high-risk ${highCount === 1 ? "fire" : "fires"} detected in your service region.`, level: "high" as const };
-    if (medCount > 0) return { text: `${medCount} moderate ${medCount === 1 ? "fire" : "fires"} being monitored near your area.`, level: "medium" as const };
-    return { text: `${nearbyCount} low-risk ${nearbyCount === 1 ? "detection" : "detections"} in your region. No immediate concern.`, level: "low" as const };
-  })();
+  const tableData = useMemo(() => within50.slice(0, 25), [within50]);
 
-  const alertStyles = {
-    safe: "bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300",
-    high: "bg-destructive/10 border-destructive/30 text-destructive",
-    medium: "bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300",
-    low: "bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-300",
+  const riskBadge = (risk: RiskLevel) => {
+    const cls =
+      risk === "High"
+        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        : risk === "Medium"
+        ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+    return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cls}">${risk}</span>`;
   };
 
+  /* ── Render ─────────────────────────────────────────────── */
+
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-destructive" />
-          <h3 className="text-sm font-semibold text-card-foreground">Wildfire Activity Near You</h3>
+    <div className="space-y-4">
+      {/* ── Risk Summary Cards ─────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Active fires within 50km */}
+        <SummaryCard
+          icon={<Activity className="w-5 h-5 text-orange-500" />}
+          label="Active Fires within 50 km"
+          value={loading ? "…" : String(within50.length)}
+          loading={loading}
+        />
+        {/* High risk fires */}
+        <SummaryCard
+          icon={<AlertTriangle className="w-5 h-5 text-destructive" />}
+          label="High Risk Fires"
+          value={loading ? "…" : String(highRiskCount)}
+          loading={loading}
+          highlight={highRiskCount > 0}
+        />
+        {/* Closest fire */}
+        <SummaryCard
+          icon={<MapPin className="w-5 h-5 text-blue-500" />}
+          label="Closest Fire Distance"
+          value={loading ? "…" : closestDist !== null ? `${closestDist} mi` : "None"}
+          loading={loading}
+        />
+        {/* Overall status */}
+        <div className={`rounded-lg border p-4 flex flex-col justify-between ${statusCfg.bg}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <StatusIcon className={`w-5 h-5 ${statusCfg.color}`} />
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Overall Status</span>
+          </div>
+          <span className={`text-lg font-bold ${statusCfg.color}`}>{loading ? "…" : statusCfg.label}</span>
         </div>
-        <button onClick={fetchFires} disabled={loading} className="p-1 rounded hover:bg-muted transition-colors disabled:opacity-50" title="Refresh">
-          <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
-        </button>
       </div>
 
-      {/* Alert Banner */}
-      {alertMessage && (
-        <div className={`mx-3 mt-3 p-3 rounded-md border text-sm font-medium flex items-start gap-2 ${alertStyles[alertMessage.level]}`}>
-          {alertMessage.level === "safe" ? (
-            <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-          ) : (
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          )}
-          {alertMessage.text}
+      {/* ── Risk Map ───────────────────────────────────────── */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+          <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-destructive" />
+            Wildfire Risk Map
+          </h3>
+          <button
+            onClick={fetchFires}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
-      )}
 
-      {/* Summary Badges */}
-      {!loading && fires.length > 0 && (
-        <div className="flex gap-2 px-3 pt-3 flex-wrap">
-          {highCount > 0 && (
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getRiskBg("High")}`}>
-              {highCount} High Risk
-            </span>
+        <div style={{ height: 480 }} className="relative w-full">
+          <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
+          {loading && (
+            <div className="absolute inset-0 z-[1000] bg-background/60 flex items-center justify-center">
+              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
           )}
-          {medCount > 0 && (
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getRiskBg("Medium")}`}>
-              {medCount} Medium Risk
-            </span>
-          )}
-          {fires.length - highCount - medCount > 0 && (
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getRiskBg("Low")}`}>
-              {fires.length - highCount - medCount} Low Risk
-            </span>
-          )}
+
+          {/* Legend */}
+          <div className="absolute bottom-3 left-3 z-[1000] bg-background/95 border border-border rounded-lg px-3.5 py-2.5 text-[11px] space-y-1.5 shadow-sm">
+            <div className="font-semibold text-card-foreground mb-1.5 text-xs">Risk Level</div>
+            {(["High", "Medium", "Low"] as RiskLevel[]).map((r) => (
+              <div key={r} className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full border border-white/50" style={{ background: RISK_COLORS[r] }} />
+                <span className="text-muted-foreground">{r}</span>
+              </div>
+            ))}
+            <div className="border-t border-border pt-1.5 mt-1.5">
+              <div className="font-semibold text-card-foreground mb-1">Zones</div>
+              {ZONES.slice().reverse().map((z) => (
+                <div key={z.km} className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 rounded" style={{ background: z.border }} />
+                  <span className="text-muted-foreground">{z.km} km – {z.label.replace(" Zone", "")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Asset pin label */}
+          <div className="absolute top-3 left-3 z-[1000] bg-blue-600 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow flex items-center gap-1.5">
+            <MapPin className="w-3 h-3" /> Your Asset
+          </div>
         </div>
-      )}
 
-      {/* Map */}
-      <div style={{ height: 380 }} className="relative w-full mt-3">
-        <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
-        {loading && (
-          <div className="absolute inset-0 z-[1000] bg-background/60 flex items-center justify-center">
-            <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+        {error && (
+          <div className="p-3 text-xs text-destructive flex items-center gap-1.5 border-t border-border">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            {error}
           </div>
         )}
-        {/* Legend */}
-        <div className="absolute bottom-3 left-3 z-[1000] bg-background/90 border border-border rounded-md px-3 py-2 text-[11px] space-y-1.5">
-          <div className="font-semibold text-card-foreground mb-1">Risk Level</div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{ background: getRiskColor("Low") }} />
-            <span className="text-muted-foreground">Low</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{ background: getRiskColor("Medium") }} />
-            <span className="text-muted-foreground">Medium</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{ background: getRiskColor("High") }} />
-            <span className="text-muted-foreground">High</span>
-          </div>
-        </div>
       </div>
 
-      {error && (
-        <div className="p-3 text-xs text-destructive flex items-center gap-1.5">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          {error}
+      {/* ── Alert List ─────────────────────────────────────── */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            Fire Alerts Near Your Assets
+          </h3>
+          {within50.length > 0 && (
+            <span className="text-[11px] text-muted-foreground">{within50.length} detected within 50 km</span>
+          )}
         </div>
-      )}
 
-      {/* Footer */}
-      <div className="px-3 py-2 border-t border-border bg-muted/30 text-[10px] text-muted-foreground">
-        Tap a fire marker for details · Updated automatically
+        {!loading && tableData.length > 0 ? (
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10">
+                <tr className="text-left text-muted-foreground text-xs">
+                  <th className="px-4 py-2 font-medium">Detection Time</th>
+                  <th className="px-4 py-2 font-medium">Distance from Asset</th>
+                  <th className="px-4 py-2 font-medium">Risk Level</th>
+                  <th className="px-4 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {tableData.map((e, i) => (
+                  <tr key={i} className="hover:bg-muted/40 transition-colors">
+                    <td className="px-4 py-2.5 text-card-foreground">{e.localTime}</td>
+                    <td className="px-4 py-2.5 text-card-foreground font-medium">{e.distanceMi} mi</td>
+                    <td className="px-4 py-2.5">
+                      <RiskBadge risk={e.risk} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`text-xs font-medium ${
+                        e.status === "Action Recommended"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                      }`}>
+                        {e.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : !loading ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-green-500" />
+            No fires detected within 50 km of your asset.
+          </div>
+        ) : (
+          <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>
+        )}
+
+        <div className="px-4 py-2 border-t border-border bg-muted/30 text-[10px] text-muted-foreground">
+          Data refreshed automatically · Tap a marker on the map for details
+        </div>
       </div>
     </div>
   );
+}
+
+/* ── Sub-components ──────────────────────────────────────────── */
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  loading,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  loading: boolean;
+  highlight?: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border bg-card p-4 flex flex-col justify-between ${
+      highlight ? "border-destructive/40 bg-destructive/5" : "border-border"
+    }`}>
+      <div className="flex items-center gap-2 mb-1">
+        {icon}
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
+      </div>
+      <span className={`text-2xl font-bold ${highlight ? "text-destructive" : "text-card-foreground"}`}>
+        {loading ? "…" : value}
+      </span>
+    </div>
+  );
+}
+
+function RiskBadge({ risk }: { risk: RiskLevel }) {
+  const cls =
+    risk === "High"
+      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      : risk === "Medium"
+      ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+      : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${cls}`}>
+      {risk}
+    </span>
+  );
+}
+
+/* ── GeoJSON circle helper ──────────────────────────────────── */
+
+function createGeoJSONCircle(
+  center: [number, number],
+  radiusKm: number,
+  points = 64
+): GeoJSON.FeatureCollection {
+  const coords: [number, number][] = [];
+  const distRadians = radiusKm / 6371;
+  const centerLat = (center[1] * Math.PI) / 180;
+  const centerLng = (center[0] * Math.PI) / 180;
+
+  for (let i = 0; i <= points; i++) {
+    const angle = (i * 2 * Math.PI) / points;
+    const lat = Math.asin(
+      Math.sin(centerLat) * Math.cos(distRadians) +
+        Math.cos(centerLat) * Math.sin(distRadians) * Math.cos(angle)
+    );
+    const lng =
+      centerLng +
+      Math.atan2(
+        Math.sin(angle) * Math.sin(distRadians) * Math.cos(centerLat),
+        Math.cos(distRadians) - Math.sin(centerLat) * Math.sin(lat)
+      );
+    coords.push([(lng * 180) / Math.PI, (lat * 180) / Math.PI]);
+  }
+
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [coords] },
+        properties: {},
+      },
+    ],
+  };
 }
