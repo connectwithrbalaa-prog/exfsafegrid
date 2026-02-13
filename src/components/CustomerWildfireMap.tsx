@@ -104,6 +104,13 @@ const STATUS_CONFIG: Record<OverallStatus, { label: string; color: string; bg: s
 
 const RISK_COLORS: Record<RiskLevel, string> = { High: "#EF4444", Medium: "#F97316", Low: "#EAB308" };
 
+/* ── Substations ─────────────────────────────────────────────── */
+
+const SUBSTATIONS = [
+  { id: "SS-101", name: "North Substation", latitude: 37.25, longitude: -119.28, voltage: "220kV" },
+  { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV" },
+];
+
 /* ── Radius zone definitions (km → meters) ─────────────────── */
 
 const ZONES = [
@@ -205,6 +212,25 @@ export default function CustomerWildfireMap({
           `<div style="font-size:13px;font-family:system-ui"><b>Your Asset Location</b></div>`
         ))
         .addTo(map);
+
+      // Substation markers
+      SUBSTATIONS.forEach((ss) => {
+        const el = document.createElement("div");
+        el.style.cssText = "width:28px;height:28px;background:#6366F1;border:2.5px solid #fff;border-radius:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;";
+        el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`;
+
+        new mapboxgl.Marker({ element: el })
+          .setLngLat([ss.longitude, ss.latitude])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 16, maxWidth: "220px" }).setHTML(
+              `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
+                <div style="font-weight:700;font-size:14px;color:#6366F1">${ss.name}</div>
+                <div style="color:#555;font-size:12px">ID: ${ss.id}<br/>Voltage: ${ss.voltage}</div>
+              </div>`
+            )
+          )
+          .addTo(map);
+      });
 
       // Radius zones
       ZONES.forEach((z) => {
@@ -469,6 +495,13 @@ export default function CustomerWildfireMap({
                 <span className="text-muted-foreground">{r}</span>
               </div>
             ))}
+            <div className="border-t border-border pt-1.5 mt-1.5">
+              <div className="font-semibold text-card-foreground mb-1">Assets</div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm" style={{ background: "#6366F1" }} />
+                <span className="text-muted-foreground">Substation</span>
+              </div>
+            </div>
             <div className="border-t border-border pt-1.5 mt-1.5">
               <div className="font-semibold text-card-foreground mb-1">Zones</div>
               {ZONES.slice().reverse().map((z) => (
