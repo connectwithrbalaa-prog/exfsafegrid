@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Flame, RefreshCw, AlertTriangle, HelpCircle } from "lucide-react";
+import { Flame, RefreshCw, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
@@ -42,6 +42,49 @@ function getFrpRadius(frp: number): number {
   if (frp <= 3) return 4 + (frp / 3) * 6; // 4→10 linearly
   if (frp <= 10) return 10 + ((frp - 3) / 7) * 10; // 10→20 linearly
   return 20;
+}
+
+function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boolean }) {
+  const [open, setOpen] = useState(false);
+  const displayed = fires.slice(0, compact ? 10 : 30);
+  const intensityLabel = (frp: number) => frp > 3 ? "High" : frp >= 1 ? "Moderate" : "Low";
+  const intensityColor = (frp: number) => frp > 3 ? "text-destructive" : frp >= 1 ? "text-warning" : "text-success";
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30 hover:bg-muted/50 transition-colors text-xs font-medium text-muted-foreground"
+      >
+        <span>Fire Detections ({fires.length})</span>
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      </button>
+      {open && (
+        <div className={`${compact ? "max-h-40" : "max-h-56"} overflow-y-auto`}>
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+              <tr className="text-left text-muted-foreground">
+                <th className="px-3 py-1.5 font-medium">Date</th>
+                <th className="px-3 py-1.5 font-medium">Time</th>
+                <th className="px-3 py-1.5 font-medium">Intensity</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {displayed.map((f, i) => (
+                <tr key={i} className="hover:bg-muted/40 transition-colors">
+                  <td className="px-3 py-1.5 text-muted-foreground">{f.acq_date}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{formatTime(f.acq_time)}</td>
+                  <td className="px-3 py-1.5">
+                    <span className={`font-medium ${intensityColor(f.frp)}`}>{intensityLabel(f.frp)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function WildfireMap({ customerZip, compact = false }: Props) {
@@ -207,20 +250,19 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
               <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           )}
-          {/* Legend */}
           <div className="absolute bottom-3 left-3 z-[1000] bg-background/90 border border-border rounded-md px-3 py-2 text-[10px] space-y-1">
-            <div className="font-semibold text-card-foreground mb-1">FRP (MW)</div>
+            <div className="font-semibold text-card-foreground mb-1">Intensity</div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FFD700" }} />
-              <span className="text-muted-foreground">&lt; 1</span>
+              <span className="text-muted-foreground">Low</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF8C00" }} />
-              <span className="text-muted-foreground">1 – 3</span>
+              <span className="text-muted-foreground">Moderate</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF0000" }} />
-              <span className="text-muted-foreground">&gt; 3</span>
+              <span className="text-muted-foreground">High</span>
             </div>
           </div>
         </div>
@@ -232,32 +274,9 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
           </div>
         )}
 
-        {/* Table */}
+        {/* Collapsible Table */}
         {!loading && !error && nearbyFires.length > 0 && (
-          <div className={`${compact ? "max-h-40" : "max-h-56"} overflow-y-auto`}>
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-muted/80 backdrop-blur">
-                <tr className="text-left text-muted-foreground">
-                  <th className="px-3 py-1.5 font-medium">Date</th>
-                  <th className="px-3 py-1.5 font-medium">Time</th>
-                  <th className="px-3 py-1.5 font-medium">Confidence</th>
-                  <th className="px-3 py-1.5 font-medium">FRP</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {nearbyFires.slice(0, compact ? 10 : 30).map((f, i) => (
-                  <tr key={i} className="hover:bg-muted/40 transition-colors">
-                    <td className="px-3 py-1.5 text-muted-foreground">{f.acq_date}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{formatTime(f.acq_time)}</td>
-                    <td className="px-3 py-1.5">
-                      <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">{f.confidence}</span>
-                    </td>
-                    <td className="px-3 py-1.5 text-card-foreground font-medium">{f.frp.toFixed(1)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CollapsibleTable fires={nearbyFires} compact={compact} />
         )}
 
         {!loading && !error && nearbyFires.length === 0 && (
