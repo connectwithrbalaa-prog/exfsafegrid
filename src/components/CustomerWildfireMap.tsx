@@ -24,8 +24,8 @@ interface FirePoint {
   daynight: string;
 }
 
-type RiskLevel = "High" | "Medium" | "Low";
-type OverallStatus = "no-threat" | "monitoring" | "immediate-risk";
+type RiskLevel = "Critical" | "High" | "Medium" | "Low";
+type OverallStatus = "no-threat" | "monitoring" | "immediate-risk" | "critical";
 
 interface EnrichedFire {
   fire: FirePoint;
@@ -52,11 +52,11 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function getRisk(distanceKm: number, frp: number): RiskLevel {
-  if (distanceKm <= 10 && frp > 1) return "High";
-  if (distanceKm <= 30 && frp > 0.5) return "Medium";
-  if (distanceKm <= 50) return "Low";
-  return "Low"; // Fires > 50km still classified as Low for display, but filtered out elsewhere
+function getRisk(distanceKm: number, frp: number, approaching: boolean = false): RiskLevel {
+  if (distanceKm <= 5 && frp > 1) return "Critical";
+  if (distanceKm <= 10 && approaching) return "High";
+  if (distanceKm <= 30) return "Medium";
+  return "Low";
 }
 
 function createFireKey(fire: FirePoint): string {
@@ -86,6 +86,7 @@ function formatLocalTime(acq_date: string, acq_time: string): string {
 
 function getOverallStatus(enriched: EnrichedFire[]): OverallStatus {
   const within50 = enriched.filter((e) => e.distanceKm <= 50);
+  if (within50.some((e) => e.risk === "Critical")) return "critical";
   if (within50.some((e) => e.risk === "High" && e.distanceKm <= 10)) return "immediate-risk";
   if (within50.length > 0) return "monitoring";
   return "no-threat";
@@ -110,9 +111,15 @@ const STATUS_CONFIG: Record<OverallStatus, { label: string; color: string; bg: s
     bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
     icon: ShieldOff,
   },
+  critical: {
+    label: "CRITICAL",
+    color: "text-red-50 dark:text-red-100",
+    bg: "bg-red-700 dark:bg-red-800 border-red-800 dark:border-red-900",
+    icon: ShieldOff,
+  },
 };
 
-const RISK_COLORS: Record<RiskLevel, string> = { High: "#EF4444", Medium: "#F97316", Low: "#EAB308" };
+const RISK_COLORS: Record<RiskLevel, string> = { Critical: "#DC2626", High: "#EF4444", Medium: "#F97316", Low: "#EAB308" };
 
 /* ── Substations ─────────────────────────────────────────────── */
 
@@ -199,7 +206,7 @@ export default function CustomerWildfireMap({
         
         return {
           fire: f,
-          risk: getRisk(distanceKm, f.frp),
+          risk: getRisk(distanceKm, f.frp, approaching),
           distanceKm,
           distanceMi: Math.round(distanceKm * 0.621371),
           localTime: formatLocalTime(f.acq_date, f.acq_time),
@@ -213,7 +220,7 @@ export default function CustomerWildfireMap({
   }, [fires, assetLat, assetLng]);
 
   const within50 = useMemo(() => enriched.filter((e) => e.distanceKm <= 50), [enriched]);
-  const highRiskCount = useMemo(() => within50.filter((e) => e.risk === "High").length, [within50]);
+  const criticalCount = useMemo(() => within50.filter((e) => e.risk === "Critical").length, [within50]);
   const closestDist = within50.length > 0 ? within50[0].distanceMi : null;
   const overallStatus = useMemo(() => getOverallStatus(enriched), [enriched]);
   const statusCfg = STATUS_CONFIG[overallStatus];
@@ -348,7 +355,7 @@ export default function CustomerWildfireMap({
           const fireKey = createFireKey(f);
           const previousDistance = fireHistoryRef.current.get(fireKey);
           const approaching = isApproaching(previousDistance, dist);
-          const risk = getRisk(dist, f.frp);
+          const risk = getRisk(dist, f.frp, approaching);
           return {
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [f.longitude, f.latitude] },
@@ -356,7 +363,7 @@ export default function CustomerWildfireMap({
               frp: f.frp,
               risk,
               approaching,
-              riskNum: risk === "High" ? 3 : risk === "Medium" ? 2 : 1,
+              riskNum: risk === "Critical" ? 4 : risk === "High" ? 3 : risk === "Medium" ? 2 : 1,
               distKm: Math.round(dist * 10) / 10,
               distMi: Math.round(dist * 0.621371),
               localTime: formatLocalTime(f.acq_date, f.acq_time),
@@ -391,6 +398,7 @@ export default function CustomerWildfireMap({
         paint: {
           "circle-color": [
             "case",
+            [">=", ["get", "maxRisk"], 4], RISK_COLORS.Critical,
             [">=", ["get", "maxRisk"], 3], RISK_COLORS.High,
             [">=", ["get", "maxRisk"], 2], RISK_COLORS.Medium,
             RISK_COLORS.Low,
@@ -426,6 +434,7 @@ export default function CustomerWildfireMap({
         paint: {
           "circle-color": [
             "case",
+            ["==", ["get", "risk"], "Critical"], RISK_COLORS.Critical,
             ["==", ["get", "risk"], "High"], RISK_COLORS.High,
             ["==", ["get", "risk"], "Medium"], RISK_COLORS.Medium,
             RISK_COLORS.Low,
@@ -496,7 +505,9 @@ export default function CustomerWildfireMap({
 
   const riskBadge = (risk: RiskLevel) => {
     const cls =
-      risk === "High"
+      risk === "Critical"
+        ? "bg-red-200 text-red-900 dark:bg-red-800/40 dark:text-red-300"
+        : risk === "High"
         ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
         : risk === "Medium"
         ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
@@ -517,13 +528,13 @@ export default function CustomerWildfireMap({
           value={loading ? "…" : String(within50.length)}
           loading={loading}
         />
-        {/* High risk fires */}
+        {/* Critical risk fires */}
         <SummaryCard
           icon={<AlertTriangle className="w-5 h-5 text-destructive" />}
-          label="High Risk Fires"
-          value={loading ? "…" : String(highRiskCount)}
+          label="Critical Risk Fires"
+          value={loading ? "…" : String(criticalCount)}
           loading={loading}
-          highlight={highRiskCount > 0}
+          highlight={criticalCount > 0}
         />
         {/* Closest fire */}
         <SummaryCard
@@ -570,7 +581,7 @@ export default function CustomerWildfireMap({
           {/* Legend */}
           <div className="absolute bottom-3 left-3 z-[1000] bg-background/95 border border-border rounded-lg px-3.5 py-2.5 text-[11px] space-y-1.5 shadow-sm">
             <div className="font-semibold text-card-foreground mb-1.5 text-xs">Risk Level</div>
-            {(["High", "Medium", "Low"] as RiskLevel[]).map((r) => (
+            {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
               <div key={r} className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full border border-white/50" style={{ background: RISK_COLORS[r] }} />
                 <span className="text-muted-foreground">{r}</span>
@@ -706,7 +717,9 @@ function SummaryCard({
 
 function RiskBadge({ risk, approaching }: { risk: RiskLevel; approaching?: boolean }) {
   const cls =
-    risk === "High"
+    risk === "Critical"
+      ? "bg-red-200 text-red-900 dark:bg-red-800/40 dark:text-red-300 ring-1 ring-red-500"
+      : risk === "High"
       ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
       : risk === "Medium"
       ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
