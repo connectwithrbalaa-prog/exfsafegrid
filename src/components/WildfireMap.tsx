@@ -20,7 +20,7 @@ interface Props {
   compact?: boolean;
 }
 
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_MAPS_KEY = "27c29fd1d2899b4472234d2c3609b3ea";
 
 function buildStaticMapUrl(fires: FirePoint[], center?: { lat: number; lng: number }) {
   const c = center || { lat: 37.5, lng: -120 };
