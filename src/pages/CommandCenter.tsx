@@ -412,6 +412,18 @@ export default function CommandCenter() {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-6 py-5 space-y-5">
+        {/* ── Breadcrumb Navigation ───────────────────────── */}
+        <nav className="flex items-center gap-2 text-xs text-white/50 mb-2">
+          <button
+            onClick={() => navigate("/")}
+            className="hover:text-white/80 transition-colors"
+          >
+            Dashboard
+          </button>
+          <span className="text-white/30">/</span>
+          <span className="text-white/70">Command Center</span>
+        </nav>
+
         {/* ── Executive Summary Cards ───────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <ExecCard
