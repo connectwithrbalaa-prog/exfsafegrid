@@ -71,7 +71,8 @@ export default function PspsStatusHeader() {
 
   return (
     <TooltipProvider>
-      <div className="fixed top-0 left-0 right-0 z-50 border-b border-destructive/30 bg-destructive/5 backdrop-blur-sm">
+      <div className="fixed top-0 left-0 right-0 z-50 border-b border-destructive/30 bg-background shadow-md">
+        <div className="absolute inset-0 bg-destructive/5" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-1">
           {/* Row 1 — headline stats */}
           <div className="flex items-center gap-3 flex-wrap">
