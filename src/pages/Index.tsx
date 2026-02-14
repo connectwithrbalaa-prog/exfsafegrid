@@ -46,43 +46,43 @@ const Index = () => {
   // Agent view — no customer needed
   if (role === "agent") {
     return (
-      <div className="min-h-screen bg-background pt-[72px]">
+      <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
         <PspsStatusHeader />
         <header className="border-b border-border bg-card">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 flex items-center justify-between h-12 md:h-14">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Zap className="w-4 h-4 text-primary-foreground" />
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary flex items-center justify-center">
+                <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-bold tracking-tight"><span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span></span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
+              <span className="text-base md:text-lg font-bold tracking-tight"><span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span></span>
+              <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => navigate("/demo")}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Presentation className="w-3.5 h-3.5" />
-                Demo Deck
+                <Presentation className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Demo Deck</span>
               </button>
               <button
                 onClick={() => navigate("/command-center")}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Flame className="w-3.5 h-3.5" />
-                Command Center
+                <Flame className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Command Center</span>
               </button>
               <button
                 onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign Out
+                <LogOut className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
             </div>
           </div>
         </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 md:py-6">
           <AgentView agentEmail={agentEmail || undefined} />
         </main>
       </div>
