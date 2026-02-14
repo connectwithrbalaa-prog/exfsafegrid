@@ -121,24 +121,6 @@ const STATUS_CONFIG: Record<OverallStatus, { label: string; color: string; bg: s
 
 const RISK_COLORS: Record<RiskLevel, string> = { Critical: "#DC2626", High: "#EF4444", Medium: "#F97316", Low: "#EAB308" };
 
-/* ── Substations ─────────────────────────────────────────────── */
-
-const SUBSTATIONS = [
-  { id: "SS-101", name: "North Substation", latitude: 37.25, longitude: -119.28, voltage: "220kV" },
-  { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV" },
-];
-
-/* ── Transmission Lines ──────────────────────────────────────── */
-
-const TRANSMISSION_LINES = [
-  {
-    id: "TL-01",
-    name: "North–Valley Line",
-    coordinates: [[-119.28, 37.25], [-119.35, 37.18]],
-    voltage: "220kV",
-  },
-];
-
 /* ── Radius zone definitions (km → meters) ─────────────────── */
 
 const ZONES = [
@@ -250,71 +232,6 @@ export default function CustomerWildfireMap({
           `<div style="font-size:13px;font-family:system-ui"><b>Your Asset Location</b></div>`
         ))
         .addTo(map);
-
-      // Substation markers
-      SUBSTATIONS.forEach((ss) => {
-        const el = document.createElement("div");
-        el.style.cssText = "width:12px;height:12px;background:#3B82F6;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);cursor:pointer;";
-
-        new mapboxgl.Marker({ element: el })
-          .setLngLat([ss.longitude, ss.latitude])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 14, maxWidth: "220px" }).setHTML(
-              `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
-                <div style="font-weight:700;font-size:14px;color:#3B82F6">${ss.name}</div>
-                <div style="color:#555;font-size:12px">ID: ${ss.id}<br/>Voltage: ${ss.voltage}</div>
-              </div>`
-            )
-          )
-          .addTo(map);
-      });
-
-      // Transmission lines
-      const tlGeoJSON: GeoJSON.FeatureCollection = {
-        type: "FeatureCollection",
-        features: TRANSMISSION_LINES.map((tl) => ({
-          type: "Feature" as const,
-          geometry: { type: "LineString" as const, coordinates: tl.coordinates },
-          properties: { id: tl.id, name: tl.name, voltage: tl.voltage },
-        })),
-      };
-
-      map.addSource("transmission-lines", { type: "geojson", data: tlGeoJSON });
-      map.addLayer({
-        id: "transmission-lines-layer",
-        type: "line",
-        source: "transmission-lines",
-        paint: {
-          "line-color": "#06B6D4",
-          "line-width": 2,
-          "line-opacity": 0.8,
-          "line-dasharray": [3, 2],
-        },
-      });
-
-      // Transmission line hover tooltip
-      map.on("mouseenter", "transmission-lines-layer", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "transmission-lines-layer", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("click", "transmission-lines-layer", (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        const coords = (f.geometry as any).coordinates[0];
-        const p = f.properties!;
-        popupRef.current?.remove();
-        popupRef.current = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: "220px" })
-          .setLngLat(coords)
-          .setHTML(
-            `<div style="font-family:system-ui;font-size:13px;line-height:1.6;color:#222">
-              <div style="font-weight:700;font-size:14px;color:#06B6D4">${p.name}</div>
-              <div style="color:#555;font-size:12px">ID: ${p.id}<br/>Voltage: ${p.voltage}</div>
-            </div>`
-          )
-          .addTo(map);
-      });
 
       // Radius zones
       ZONES.forEach((z) => {
@@ -723,15 +640,7 @@ function LegendPanel() {
             ))}
           </div>
           <div className="border-t border-border pt-1.5 mt-1">
-            <div className="font-semibold text-card-foreground mb-1 text-[10px]">Assets & Zones</div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#3B82F6", border: "1.5px solid white" }} />
-              <span className="text-muted-foreground">Substation</span>
-            </div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-3 h-0.5 rounded" style={{ background: "#06B6D4", opacity: 0.8 }} />
-              <span className="text-muted-foreground">Transmission Line</span>
-            </div>
+            <div className="font-semibold text-card-foreground mb-1 text-[10px]">Distance Zones</div>
             {ZONES.slice().reverse().map((z) => (
               <div key={z.km} className="flex items-center gap-1.5">
                 <span className="w-3 h-0.5 rounded" style={{ background: z.border }} />
