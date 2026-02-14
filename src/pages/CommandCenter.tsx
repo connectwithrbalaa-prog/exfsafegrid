@@ -507,6 +507,9 @@ export default function CommandCenter() {
                 <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
                   <th className="px-5 py-3 font-medium">Asset Name</th>
                   <th className="px-5 py-3 font-medium">Type</th>
+                  <th className="px-5 py-3 font-medium">Voltage</th>
+                  <th className="px-5 py-3 font-medium">Capacity</th>
+                  <th className="px-5 py-3 font-medium">Zone</th>
                   <th className="px-5 py-3 font-medium">Nearest Fire</th>
                   <th className="px-5 py-3 font-medium">Risk Level</th>
                   <th className="px-5 py-3 font-medium">Trend</th>
@@ -514,29 +517,35 @@ export default function CommandCenter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {assetRisks.map((a) => (
-                  <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="px-5 py-3 font-medium">{a.name}</td>
-                    <td className="px-5 py-3 text-white/50">
-                      <span className="inline-flex items-center gap-1">
-                        {a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}
-                        {a.type}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <RiskBadge risk={a.risk} />
-                    </td>
-                    <td className="px-5 py-3">
-                      <TrendBadge trend={a.trend} />
-                    </td>
-                    <td className="px-5 py-3">
-                      <ActionBadge action={a.action} />
-                    </td>
-                  </tr>
-                ))}
+                {assetRisks.map((a) => {
+                  const ssData = SUBSTATIONS.find((s) => s.id === a.id);
+                  return (
+                    <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-5 py-3 font-medium">{a.name}</td>
+                      <td className="px-5 py-3 text-white/50">
+                        <span className="inline-flex items-center gap-1">
+                          {a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}
+                          {a.type}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
+                      <td className="px-5 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
+                      <td className="px-5 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
+                      <td className="px-5 py-3">
+                        {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <RiskBadge risk={a.risk} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <TrendBadge trend={a.trend} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <ActionBadge action={a.action} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

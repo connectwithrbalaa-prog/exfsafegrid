@@ -20,6 +20,10 @@ export interface Substation {
   latitude: number;
   longitude: number;
   voltage: string;
+  capacityMW: number;
+  zone: string;
+  status: "Online" | "Reduced" | "Offline";
+  servesZips: string[];
 }
 
 export interface TransmissionLine {
@@ -45,8 +49,10 @@ export interface EnrichedFire {
 /* ── Constants ────────────────────────────────────────────────── */
 
 export const SUBSTATIONS: Substation[] = [
-  { id: "SS-101", name: "North Substation", latitude: 37.25, longitude: -119.28, voltage: "220kV" },
-  { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV" },
+  { id: "SS-101", name: "North Substation", latitude: 37.25, longitude: -119.28, voltage: "220kV", capacityMW: 450, zone: "Zone A — North Highlands", status: "Online", servesZips: ["93644", "93614", "93623"] },
+  { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV", capacityMW: 280, zone: "Zone B — Valley Central", status: "Online", servesZips: ["93210", "93242", "93230"] },
+  { id: "SS-103", name: "South Ridge Substation", latitude: 37.12, longitude: -119.40, voltage: "110kV", capacityMW: 320, zone: "Zone C — South Ridge", status: "Reduced", servesZips: ["93637", "93602", "93604"] },
+  { id: "SS-104", name: "Foothill Substation", latitude: 37.30, longitude: -119.22, voltage: "66kV", capacityMW: 150, zone: "Zone D — Foothill East", status: "Online", servesZips: ["93654", "93667", "93651"] },
 ];
 
 export const TRANSMISSION_LINES: TransmissionLine[] = [
@@ -132,6 +138,12 @@ export function getRecommendedAction(risk: RiskLevel, approaching: boolean): str
   if (risk === "High") return "Field Inspection";
   if (risk === "Medium") return "Monitor";
   return "Monitor";
+}
+
+/** Find the substation serving a customer's ZIP code (or fallback to first) */
+export function getSubstationForZip(zip: string): Substation {
+  const match = SUBSTATIONS.find((ss) => ss.servesZips.includes(zip));
+  return match || SUBSTATIONS[0];
 }
 
 export function createGeoJSONCircle(

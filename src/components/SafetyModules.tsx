@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send, ChevronDown, AlertTriangle, HeartPulse, Radio } from "lucide-react";
+import { Battery, BatteryCharging, Gauge, MapPin, Clock, Activity, CheckSquare, Plug, Send, ChevronDown, AlertTriangle, HeartPulse, Radio, Building2 } from "lucide-react";
+import { getSubstationForZip, SUBSTATIONS, TRANSMISSION_LINES } from "@/lib/wildfire-utils";
 import type { Customer } from "@/lib/customer-types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -144,7 +145,7 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
 
       {/* Tabbed Safety Modules */}
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-3 h-9">
+        <TabsList className="w-full grid grid-cols-4 h-9">
           <TabsTrigger value="psps" className="text-xs gap-1.5">
             <Activity className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">PSPS</span> Tracker
@@ -156,6 +157,10 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
           <TabsTrigger value="crc" className="text-xs gap-1.5">
             <MapPin className="w-3.5 h-3.5" />
             CRC
+          </TabsTrigger>
+          <TabsTrigger value="infra" className="text-xs gap-1.5">
+            <Building2 className="w-3.5 h-3.5" />
+            Infra
           </TabsTrigger>
         </TabsList>
 
@@ -437,6 +442,76 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
             </div>
           )}
         </TabsContent>
+        {/* ===== INFRASTRUCTURE TAB ===== */}
+        <TabsContent value="infra" className="mt-3">
+          {(() => {
+            const ss = getSubstationForZip(customer.zip_code);
+            const nearbyTL = TRANSMISSION_LINES.find((tl) =>
+              tl.name.toLowerCase().includes(ss.name.split(" ")[0].toLowerCase()) ||
+              tl.coordinates.some((c) =>
+                Math.abs(c[1] - ss.latitude) < 0.15 && Math.abs(c[0] - ss.longitude) < 0.15
+              )
+            );
+            return (
+              <div className="p-4 rounded-lg border-2 border-border bg-card space-y-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-info" />
+                  <h3 className="text-sm font-bold text-card-foreground">Infrastructure Details</h3>
+                </div>
+
+                {/* Serving Substation */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">⚡ Serving Substation</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <InfraField label="Name" value={ss.name} />
+                    <InfraField label="ID" value={ss.id} mono />
+                    <InfraField label="Voltage" value={ss.voltage} />
+                    <InfraField label="Capacity" value={`${ss.capacityMW} MW`} />
+                    <InfraField label="Zone" value={ss.zone} />
+                    <InfraField
+                      label="Status"
+                      value={`${ss.status === "Online" ? "🟢" : ss.status === "Reduced" ? "🟡" : "🔴"} ${ss.status}`}
+                      color={ss.status === "Online" ? "text-success" : ss.status === "Reduced" ? "text-warning" : "text-destructive"}
+                    />
+                  </div>
+                </div>
+
+                {/* Transmission Line */}
+                {nearbyTL && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">🔗 Connected Transmission Line</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <InfraField label="Name" value={nearbyTL.name} />
+                      <InfraField label="ID" value={nearbyTL.id} mono />
+                      <InfraField label="Voltage" value={nearbyTL.voltage} />
+                      <InfraField label="Segments" value={`${nearbyTL.coordinates.length} points`} />
+                    </div>
+                  </div>
+                )}
+
+                {/* All Substations Overview */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">📊 Region Substations</p>
+                  <div className="space-y-1">
+                    {SUBSTATIONS.map((s) => (
+                      <div key={s.id} className={`flex items-center justify-between text-xs px-2 py-1.5 rounded-md ${s.id === ss.id ? "bg-primary/10 border border-primary/30" : "bg-muted/30"}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.status === "Online" ? "bg-success" : s.status === "Reduced" ? "bg-warning" : "bg-destructive"}`} />
+                          <span className={`font-medium ${s.id === ss.id ? "text-primary" : "text-card-foreground"}`}>{s.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span>{s.voltage}</span>
+                          <span>{s.capacityMW} MW</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </TabsContent>
+
       </Tabs>
     </div>
   );
@@ -482,6 +557,15 @@ function MetricRow({ label, value, detail, color, pct }: { label: string; value:
       </div>
       <span className={`text-xs font-bold tabular-nums ${color}`}>{value}</span>
       <span className="text-[10px] text-muted-foreground">({detail})</span>
+    </div>
+  );
+}
+
+function InfraField({ label, value, mono, color }: { label: string; value: string; mono?: boolean; color?: string }) {
+  return (
+    <div className="px-2 py-1.5 rounded-md bg-muted/30">
+      <span className="text-[10px] text-muted-foreground block">{label}</span>
+      <span className={`text-xs font-semibold ${color || "text-card-foreground"} ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
   );
 }
