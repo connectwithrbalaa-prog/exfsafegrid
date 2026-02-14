@@ -54,7 +54,7 @@ const Index = () => {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <Zap className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="text-lg font-bold text-foreground tracking-tight">ExfSafeGrid</span>
+              <span className="text-lg font-bold tracking-tight"><span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span></span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             </div>
             <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ const Index = () => {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <Zap className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold text-foreground tracking-tight">ExfSafeGrid</span>
+            <span className="text-lg font-bold tracking-tight"><span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span></span>
           </div>
           <div className="flex items-center gap-3">
             <button
