@@ -8,13 +8,14 @@ import {
 } from "@/lib/region-utils";
 import {
   User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle,
-  Shield, HeartPulse, MapPin, Radio,
+  Shield, HeartPulse, MapPin, Radio, Building2,
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
 import WildfireMap from "@/components/WildfireMap";
+import { getSubstationForZip } from "@/lib/wildfire-utils";
 
 import { toast } from "sonner";
 
@@ -243,6 +244,43 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 <DetailCard icon={AlertTriangle} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
                 <DetailCard icon={Zap} label="Bill Trend" value={selected.bill_trend} />
               </div>
+
+              {/* Substation & Zone Summary */}
+              {(() => {
+                const ss = getSubstationForZip(selected.zip_code);
+                return (
+                  <div className="p-4 rounded-lg border border-border bg-card space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-info" />
+                      <h3 className="text-xs font-semibold text-card-foreground">Serving Infrastructure</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Substation</span>
+                        <p className="font-semibold text-card-foreground">{ss.name}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Zone</span>
+                        <p className="font-semibold text-card-foreground">{ss.zone}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Voltage</span>
+                        <p className="font-medium text-card-foreground">{ss.voltage}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Capacity</span>
+                        <p className="font-medium text-card-foreground">{ss.capacityMW} MW</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Status</span>
+                        <p className={`font-semibold ${ss.status === "Online" ? "text-success" : ss.status === "Reduced" ? "text-warning" : "text-destructive"}`}>
+                          {ss.status === "Online" ? "🟢" : ss.status === "Reduced" ? "🟡" : "🔴"} {ss.status}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Agent Notes — inline with details */}
               <div className="p-5 rounded-lg border border-border bg-card space-y-3">
