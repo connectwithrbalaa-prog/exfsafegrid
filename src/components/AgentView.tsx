@@ -195,9 +195,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
       {/* Wildfire Map — full width */}
       <WildfireMap />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* LEFT COLUMN — customer selector + details */}
-        <div className="lg:col-span-5 space-y-5">
+        <div className="md:col-span-1 lg:col-span-5 space-y-4 lg:space-y-5">
           {/* Customer selector */}
           <div className="p-5 rounded-lg border border-border bg-card space-y-4">
             <label htmlFor="agent-customer-select" className="text-sm font-semibold text-card-foreground">
@@ -310,7 +310,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         </div>
 
         {/* MIDDLE COLUMN — Safety modules (tabbed) + Quick Actions */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="md:col-span-1 lg:col-span-4 space-y-4">
           {selected && (
             <>
               {/* Compact Customer Summary Bar */}
@@ -384,7 +384,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         </div>
 
         {/* RIGHT COLUMN — AI Chat + Requests + Hazard */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="md:col-span-2 lg:col-span-3 space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
