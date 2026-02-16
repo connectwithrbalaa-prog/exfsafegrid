@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
+import NvcDashboard from "@/components/NvcDashboard";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -121,7 +122,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -554,6 +555,15 @@ export default function CommandCenter() {
               <MapPin className="w-4 h-4 text-purple-400" />
               HVRA Registry
             </button>
+            <button
+              onClick={() => setActiveTab("nvc")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              NVC Risk Scores
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -610,9 +620,13 @@ export default function CommandCenter() {
                 Risk calculated from fire proximity, intensity (FRP), and approach trend
               </div>
             </>
-          ) : (
+          ) : activeTab === "hvra" ? (
             <div className="p-5">
               <HvraPanel fires={fires} />
+            </div>
+          ) : (
+            <div className="p-5">
+              <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
             </div>
           )}
         </div>
