@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
@@ -11,6 +11,7 @@ import EvacuationPanel from "@/components/EvacuationPanel";
 import ResourceTracker from "@/components/ResourceTracker";
 import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
 import FireHistoryTimeline from "@/components/FireHistoryTimeline";
+import FireBehaviorPanel from "@/components/FireBehaviorPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -129,12 +130,14 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
   const [weatherData, setWeatherData] = useState<any[]>([]);
   const weatherMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const [showSpreadPrediction, setShowSpreadPrediction] = useState(false);
+  const spreadMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -227,6 +230,56 @@ export default function CommandCenter() {
       weatherMarkersRef.current.push(marker);
     });
   }, [showWeather, weatherData]);
+
+  // Spread prediction arrows on map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    spreadMarkersRef.current.forEach((m) => m.remove());
+    spreadMarkersRef.current = [];
+    if (!showSpreadPrediction || fires.length === 0 || weatherData.length === 0) return;
+
+    // Quick Rothermel for each fire near a weather station
+    const seen = new Set<string>();
+    fires.forEach((fire) => {
+      // Find nearest weather
+      let bestW: any = null;
+      let bestD = Infinity;
+      for (const w of weatherData) {
+        const d = haversineKm(fire.latitude, fire.longitude, w.latitude, w.longitude);
+        if (d < bestD) { bestD = d; bestW = w; }
+      }
+      if (!bestW || bestD > 30) return;
+      const cellKey = `${Math.round(fire.latitude * 10)}-${Math.round(fire.longitude * 10)}`;
+      if (seen.has(cellKey)) return;
+      seen.add(cellKey);
+
+      // Simplified direction: wind pushes fire downwind
+      const spreadDir = (bestW.wind_direction_deg + 180) % 360;
+      const speed = bestW.wind_speed_mph;
+      const severity = speed > 15 ? "#DC2626" : speed > 8 ? "#F97316" : "#FBBF24";
+
+      const el = document.createElement("div");
+      el.style.cssText = `width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;`;
+      el.innerHTML = `<svg width="28" height="28" viewBox="0 0 28 28" style="transform:rotate(${spreadDir}deg)">
+        <polygon points="14,2 22,22 14,17 6,22" fill="${severity}" fill-opacity="0.7" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+      </svg>`;
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        .setLngLat([fire.longitude, fire.latitude])
+        .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "200px" }).setHTML(
+          `<div style="font-family:system-ui;font-size:12px;color:#e2e8f0">
+            <div style="font-weight:700;color:${severity}">Spread Direction</div>
+            <div style="color:#94a3b8;font-size:11px;margin-top:2px">
+              Direction: ${spreadDir}° · Wind: ${speed} mph<br/>
+              Station: ${bestW.label}
+            </div>
+          </div>`
+        ))
+        .addTo(map);
+      spreadMarkersRef.current.push(marker);
+    });
+  }, [showSpreadPrediction, fires, weatherData]);
 
   /* ── Enrich fires relative to ALL assets ───────────────── */
 
@@ -662,6 +715,17 @@ export default function CommandCenter() {
                 <Cloud className="w-3 h-3" />
                 Weather
               </button>
+              <button
+                onClick={() => setShowSpreadPrediction(!showSpreadPrediction)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  showSpreadPrediction
+                    ? "bg-rose-500/15 border-rose-500/30 text-rose-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+              >
+                <Flame className="w-3 h-3" />
+                Spread
+              </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
               <span className="flex items-center gap-1.5">
@@ -777,6 +841,15 @@ export default function CommandCenter() {
               <Clock className="w-4 h-4 text-orange-400" />
               Fire History
             </button>
+            <button
+              onClick={() => setActiveTab("behavior")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Flame className="w-4 h-4 text-rose-400" />
+              Fire Behavior
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -853,9 +926,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />
             </div>
-          ) : (
+          ) : activeTab === "history" ? (
             <div className="p-5">
               <FireHistoryTimeline fires={fires} />
+            </div>
+          ) : (
+            <div className="p-5">
+              <FireBehaviorPanel fires={fires} weatherData={weatherData} />
             </div>
           )}
         </div>
