@@ -27,8 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchRole = useCallback(async (userId: string) => {
-    const { data } = await supabase.rpc("get_user_role", { _user_id: userId });
-    setRole((data as AppRole) || "customer");
+    try {
+      const { data } = await supabase.rpc("get_user_role", { _user_id: userId });
+      setRole((data as AppRole) || "customer");
+    } catch (e) {
+      console.error("fetchRole failed:", e);
+      setRole("customer");
+    }
   }, []);
 
   useEffect(() => {
@@ -47,14 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check existing session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        fetchRole(s.user.id);
-      } else {
-        setLoading(false);
+        await fetchRole(s.user.id);
       }
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
