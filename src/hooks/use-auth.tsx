@@ -37,33 +37,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Set up listener FIRST
+    let isMounted = true;
+
+    // Listener for ONGOING auth changes — never await inside this callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
+        if (!isMounted) return;
         setSession(newSession);
         setUser(newSession?.user ?? null);
+
         if (newSession?.user) {
-          await fetchRole(newSession.user.id);
+          // Use setTimeout to avoid Supabase deadlock
+          setTimeout(() => {
+            if (isMounted) fetchRole(newSession.user.id);
+          }, 0);
         } else {
           setRole(null);
         }
-        setLoading(false);
       }
     );
 
-    // THEN check existing session
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        await fetchRole(s.user.id);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    // INITIAL load — controls loading state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (!isMounted) return;
 
-    return () => subscription.unsubscribe();
+        setSession(s);
+        setUser(s?.user ?? null);
+
+        if (s?.user) {
+          await fetchRole(s.user.id);
+        }
+      } catch (e) {
+        console.error("Auth init error:", e);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchRole]);
 
   const signOut = useCallback(async () => {
