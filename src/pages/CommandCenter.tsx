@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
@@ -12,6 +12,7 @@ import ResourceTracker from "@/components/ResourceTracker";
 import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
 import FireHistoryTimeline from "@/components/FireHistoryTimeline";
 import FireBehaviorPanel from "@/components/FireBehaviorPanel";
+import CommunityAlertsPanel from "@/components/CommunityAlertsPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -130,7 +131,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
@@ -850,6 +851,15 @@ export default function CommandCenter() {
               <Flame className="w-4 h-4 text-rose-400" />
               Fire Behavior
             </button>
+            <button
+              onClick={() => setActiveTab("alerts")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Bell className="w-4 h-4 text-yellow-400" />
+              Community Alerts
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -930,9 +940,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <FireHistoryTimeline fires={fires} />
             </div>
-          ) : (
+          ) : activeTab === "behavior" ? (
             <div className="p-5">
               <FireBehaviorPanel fires={fires} weatherData={weatherData} />
+            </div>
+          ) : (
+            <div className="p-5">
+              <CommunityAlertsPanel fires={fires} />
             </div>
           )}
         </div>
