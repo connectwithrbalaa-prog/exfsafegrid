@@ -111,8 +111,8 @@ const Index = () => {
       title: "Wildfire Risk",
       color: "text-destructive",
       details: [
-        { label: "Risk Level", value: customer.wildfire_risk },
-        { label: "ZIP Code", value: customer.zip_code },
+        { label: "Risk Level", value: c.wildfire_risk },
+        { label: "ZIP Code", value: c.zip_code },
         { label: "Recent Outages", value: outages.length > 0 ? outages.join(", ") : "None" },
       ],
     },
@@ -121,9 +121,9 @@ const Index = () => {
       title: "Bill & Assistance",
       color: "text-warning",
       details: [
-        { label: "Bill Trend", value: customer.bill_trend },
-        { label: "Arrears", value: customer.arrears_status === "Yes" ? "Yes" : "No" },
-        { label: "Amount Due", value: customer.arrears_status === "Yes" ? `$${customer.arrears_amount}` : "$0" },
+        { label: "Bill Trend", value: c.bill_trend },
+        { label: "Arrears", value: c.arrears_status === "Yes" ? "Yes" : "No" },
+        { label: "Amount Due", value: c.arrears_status === "Yes" ? `$${c.arrears_amount}` : "$0" },
       ],
     },
     {
@@ -131,8 +131,8 @@ const Index = () => {
       title: "Grid Stress",
       color: "text-info",
       details: [
-        { label: "Stress Level", value: customer.grid_stress_level },
-        { label: "ZIP Code", value: customer.zip_code },
+        { label: "Stress Level", value: c.grid_stress_level },
+        { label: "ZIP Code", value: c.zip_code },
       ],
     },
   ];
