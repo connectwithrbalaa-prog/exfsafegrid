@@ -8,7 +8,7 @@ import { useCustomer } from "@/hooks/use-customer";
 import { buildCustomerContext } from "@/lib/customer-types";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
-import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation } from "lucide-react";
+import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, FileText } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { toast } from "sonner";
@@ -58,6 +58,13 @@ const Index = () => {
               <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
+              <button
+                onClick={() => navigate("/docs")}
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <FileText className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Docs</span>
+              </button>
               <button
                 onClick={() => navigate("/demo")}
                 className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
