@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
 import EvacuationPanel from "@/components/EvacuationPanel";
+import ResourceTracker from "@/components/ResourceTracker";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -126,7 +127,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -673,6 +674,15 @@ export default function CommandCenter() {
               <Route className="w-4 h-4 text-amber-400" />
               Evacuation
             </button>
+            <button
+              onClick={() => setActiveTab("resources")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Shield className="w-4 h-4 text-red-400" />
+              Resources
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -737,9 +747,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
             </div>
-          ) : (
+          ) : activeTab === "evac" ? (
             <div className="p-5">
               <EvacuationPanel />
+            </div>
+          ) : (
+            <div className="p-5">
+              <ResourceTracker />
             </div>
           )}
         </div>
