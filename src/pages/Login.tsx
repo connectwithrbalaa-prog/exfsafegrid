@@ -144,6 +144,33 @@ export default function Login() {
             {mode === "login" ? "Sign up" : "Sign in"}
           </button>
         </p>
+
+        {/* Demo credentials hint */}
+        {mode === "login" && (
+          <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2">
+            {tab === "customer" ? (
+              <>
+                <p className="text-xs font-medium text-foreground">Demo Customer Account</p>
+                <p className="text-xs text-muted-foreground">
+                  Email: <span className="font-mono text-foreground">demo.customer@exfsafegrid.com</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Password: <span className="font-mono text-foreground">Demo1234!</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-medium text-foreground">Demo Agent Account</p>
+                <p className="text-xs text-muted-foreground">
+                  Email: <span className="font-mono text-foreground">demo.agent@exfsafegrid.com</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Password: <span className="font-mono text-foreground">Demo1234!</span>
+                </p>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
