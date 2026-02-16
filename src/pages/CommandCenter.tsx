@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
+import EvacuationPanel from "@/components/EvacuationPanel";
+import {
+  EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
+} from "@/lib/evacuation-data";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -122,8 +126,9 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
+  const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -271,10 +276,81 @@ export default function CommandCenter() {
             ))
             .addTo(map);
         });
+
+      // Evacuation routes
+      EVAC_ROUTES.forEach((r) => {
+        const style = ROUTE_STYLES[r.type];
+        const srcId = `evac-route-${r.id}`;
+        map.addSource(srcId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: r.coordinates },
+            properties: { name: r.name, type: r.type, capacity: r.capacityVehiclesHr, length: r.lengthMi },
+          },
+        });
+        map.addLayer({
+          id: `${srcId}-layer`,
+          type: "line",
+          source: srcId,
+          paint: {
+            "line-color": style.color,
+            "line-width": style.width,
+            "line-opacity": 0.85,
+            ...(style.dash ? { "line-dasharray": style.dash } : {}),
+          },
+        });
+        // Route label
+        map.addLayer({
+          id: `${srcId}-label`,
+          type: "symbol",
+          source: srcId,
+          layout: {
+            "symbol-placement": "line",
+            "text-field": r.name,
+            "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+            "text-size": 10,
+            "text-offset": [0, -0.8],
+          },
+          paint: { "text-color": style.color, "text-halo-color": "rgba(0,0,0,0.7)", "text-halo-width": 1 },
+        });
+      });
+
+      // Bottleneck markers
+      BOTTLENECKS.forEach((b) => {
+        const style = BOTTLENECK_STYLES[b.severity];
+        const el = document.createElement("div");
+        el.style.cssText = `width:${style.size}px;height:${style.size}px;background:${style.color};border:2px solid rgba(255,255,255,0.8);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:${style.size - 4}px;cursor:pointer;box-shadow:0 0 8px ${style.color}80;`;
+        el.textContent = BOTTLENECK_ICONS[b.type];
+        new mapboxgl.Marker({ element: el })
+          .setLngLat([b.longitude, b.latitude])
+          .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "280px" }).setHTML(
+            `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
+              <div style="font-weight:700;color:${style.color}">${BOTTLENECK_ICONS[b.type]} ${b.name}</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:2px">${b.severity.toUpperCase()} · +${b.delayMinutes} min delay</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:4px;line-height:1.4">${b.description}</div>
+            </div>`
+          ))
+          .addTo(map);
+      });
     });
 
     return () => { map.remove(); mapRef.current = null; };
   }, [hvraAssets]);
+
+  /* ── Toggle evacuation layers visibility ────────────────── */
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const visibility = showEvacRoutes ? "visible" : "none";
+    EVAC_ROUTES.forEach((r) => {
+      const layerId = `evac-route-${r.id}-layer`;
+      const labelId = `evac-route-${r.id}-label`;
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visibility);
+      if (map.getLayer(labelId)) map.setLayoutProperty(labelId, "visibility", visibility);
+    });
+  }, [showEvacRoutes]);
 
   /* ── Update fires on map ───────────────────────────────── */
 
@@ -493,10 +569,23 @@ export default function CommandCenter() {
         {/* ── Interactive Map ───────────────────────────────── */}
         <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
-            <h2 className="text-sm font-semibold flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-400" />
-              Operational Map — Fire & Asset Overlay
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-400" />
+                Operational Map — Fire, Asset & Evacuation Overlay
+              </h2>
+              <button
+                onClick={() => setShowEvacRoutes(!showEvacRoutes)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  showEvacRoutes
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+              >
+                <Route className="w-3 h-3" />
+                Evac Routes
+              </button>
+            </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white/30" /> Substation
@@ -516,6 +605,17 @@ export default function CommandCenter() {
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#4ADE80" }} /> Timber
               </span>
+              <span className="text-white/15">|</span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 rounded" style={{ background: "#10B981" }} /> Primary Route
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 rounded" style={{ background: "#3B82F6", borderTop: "1px dashed #3B82F6" }} /> Secondary
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm border" style={{ background: "#EF444420", borderColor: "#EF4444" }} /> Bottleneck
+              </span>
+              <span className="text-white/15">|</span>
               {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
                 <span key={r} className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full" style={{ background: RISK_COLORS[r] }} />
@@ -563,6 +663,15 @@ export default function CommandCenter() {
             >
               <BarChart3 className="w-4 h-4 text-emerald-400" />
               NVC Risk Scores
+            </button>
+            <button
+              onClick={() => setActiveTab("evac")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Route className="w-4 h-4 text-amber-400" />
+              Evacuation
             </button>
           </div>
 
@@ -624,9 +733,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <HvraPanel fires={fires} />
             </div>
-          ) : (
+          ) : activeTab === "nvc" ? (
             <div className="p-5">
               <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
+            </div>
+          ) : (
+            <div className="p-5">
+              <EvacuationPanel />
             </div>
           )}
         </div>
