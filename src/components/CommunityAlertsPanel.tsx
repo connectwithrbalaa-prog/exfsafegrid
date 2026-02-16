@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import type { FirePoint } from "@/lib/wildfire-utils";
 import { toast } from "sonner";
+import { subscriberSchema, manualAlertSchema } from "@/lib/validation";
 
 interface AlertSubscriber {
   id: string;
@@ -72,13 +73,23 @@ export default function CommunityAlertsPanel({ fires }: { fires: FirePoint[] }) 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const addSubscriber = async () => {
-    if (!newName.trim()) return;
-    const { error } = await supabase.from("alert_subscribers").insert({
-      name: newName.trim(),
-      email: newEmail.trim() || null,
-      phone: newPhone.trim() || null,
+    const parsed = subscriberSchema.safeParse({
+      name: newName,
+      email: newEmail,
+      phone: newPhone,
       zip_code: newZip,
       preferred_channel: newChannel,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.errors[0]?.message || "Invalid input");
+      return;
+    }
+    const { error } = await supabase.from("alert_subscribers").insert({
+      name: parsed.data.name,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      zip_code: parsed.data.zip_code,
+      preferred_channel: parsed.data.preferred_channel,
     });
     if (error) { toast.error("Failed to add subscriber"); return; }
     toast.success("Subscriber added");
@@ -116,8 +127,13 @@ export default function CommunityAlertsPanel({ fires }: { fires: FirePoint[] }) 
   };
 
   const sendManualAlert = async () => {
-    if (!manualMsg.trim() || manualZips.length === 0) {
-      toast.error("Message and at least one ZIP required");
+    const parsed = manualAlertSchema.safeParse({
+      message: manualMsg,
+      zips: manualZips,
+      severity: manualSeverity,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.errors[0]?.message || "Invalid input");
       return;
     }
     try {
