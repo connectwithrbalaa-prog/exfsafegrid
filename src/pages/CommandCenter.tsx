@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
 import EvacuationPanel from "@/components/EvacuationPanel";
 import ResourceTracker from "@/components/ResourceTracker";
 import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
+import FireHistoryTimeline from "@/components/FireHistoryTimeline";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -128,7 +129,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
@@ -767,6 +768,15 @@ export default function CommandCenter() {
               <DollarSign className="w-4 h-4 text-teal-400" />
               Insurance Risk
             </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Clock className="w-4 h-4 text-orange-400" />
+              Fire History
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -839,9 +849,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <ResourceTracker />
             </div>
-          ) : (
+          ) : activeTab === "insurance" ? (
             <div className="p-5">
               <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />
+            </div>
+          ) : (
+            <div className="p-5">
+              <FireHistoryTimeline fires={fires} />
             </div>
           )}
         </div>
