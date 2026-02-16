@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.firms-fires]
 verify_jwt = false
+
+[functions.weather]
+verify_jwt = false

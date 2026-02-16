@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud,
 } from "lucide-react";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
@@ -131,6 +131,9 @@ export default function CommandCenter() {
   const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance">("assets");
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
+  const [showWeather, setShowWeather] = useState(true);
+  const [weatherData, setWeatherData] = useState<any[]>([]);
+  const weatherMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -163,6 +166,66 @@ export default function CommandCenter() {
       if (data) setHvraAssets(data as unknown as HvraAsset[]);
     })();
   }, []);
+
+  // Fetch weather data
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("weather");
+        if (!error && data?.weather) setWeatherData(data.weather);
+      } catch (e) {
+        console.error("Weather fetch failed:", e);
+      }
+    })();
+  }, []);
+
+  // Render / toggle weather markers on map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Remove existing weather markers
+    weatherMarkersRef.current.forEach((m) => m.remove());
+    weatherMarkersRef.current = [];
+
+    if (!showWeather || weatherData.length === 0) return;
+
+    const getWindArrow = (deg: number) => {
+      const arrows = ["↓", "↙", "←", "↖", "↑", "↗", "→", "↘"];
+      return arrows[Math.round(deg / 45) % 8];
+    };
+
+    const getHumidityColor = (h: number) => {
+      if (h < 20) return "#EF4444";
+      if (h < 40) return "#F97316";
+      if (h < 60) return "#FBBF24";
+      return "#34D399";
+    };
+
+    weatherData.forEach((w: any) => {
+      const humColor = getHumidityColor(w.humidity_pct);
+      const el = document.createElement("div");
+      el.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 6px;min-width:56px;font-family:system-ui;cursor:pointer;backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,0.3);`;
+      el.innerHTML = `<div style="font-size:13px;font-weight:700;color:#F8FAFC;line-height:1">${Math.round(w.temperature_f)}°F</div><div style="font-size:10px;color:${humColor};font-weight:600;line-height:1.2">${w.humidity_pct}% RH</div><div style="font-size:10px;color:#94A3B8;line-height:1.2">${getWindArrow(w.wind_direction_deg)} ${Math.round(w.wind_speed_mph)} mph</div>`;
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        .setLngLat([w.longitude, w.latitude])
+        .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "220px" }).setHTML(
+          `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
+            <div style="font-weight:700;color:#60A5FA">${w.label}</div>
+            <div style="color:#94a3b8;font-size:12px;margin-top:4px;line-height:1.6">
+              🌡 Temperature: <b>${w.temperature_f}°F</b><br/>
+              💧 Humidity: <b style="color:${humColor}">${w.humidity_pct}%</b><br/>
+              💨 Wind: <b>${w.wind_speed_mph} mph</b> ${getWindArrow(w.wind_direction_deg)} (${w.wind_direction_deg}°)<br/>
+              ${w.humidity_pct < 25 ? '<div style="color:#EF4444;font-weight:700;margin-top:4px">⚠ LOW HUMIDITY — Fire Weather Alert</div>' : ""}
+            </div>
+          </div>`
+        ))
+        .addTo(map);
+
+      weatherMarkersRef.current.push(marker);
+    });
+  }, [showWeather, weatherData]);
 
   /* ── Enrich fires relative to ALL assets ───────────────── */
 
@@ -586,6 +649,17 @@ export default function CommandCenter() {
               >
                 <Route className="w-3 h-3" />
                 Evac Routes
+              </button>
+              <button
+                onClick={() => setShowWeather(!showWeather)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  showWeather
+                    ? "bg-sky-500/15 border-sky-500/30 text-sky-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+              >
+                <Cloud className="w-3 h-3" />
+                Weather
               </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
