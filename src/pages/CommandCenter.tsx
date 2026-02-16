@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin,
 } from "lucide-react";
+import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -120,6 +121,8 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra">("assets");
+  const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -144,6 +147,14 @@ export default function CommandCenter() {
   }, []);
 
   useEffect(() => { fetchFires(); }, [fetchFires]);
+
+  // Fetch HVRA assets
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("hvra_assets").select("*");
+      if (data) setHvraAssets(data as unknown as HvraAsset[]);
+    })();
+  }, []);
 
   /* ── Enrich fires relative to ALL assets ───────────────── */
 
@@ -239,10 +250,30 @@ export default function CommandCenter() {
           ))
           .addTo(map);
       });
+
+      // HVRA markers (non-substation assets)
+      hvraAssets
+        .filter((a) => a.category !== "Substation")
+        .forEach((a) => {
+          const cfg = CATEGORY_CONFIG[a.category] || { mapColor: "#A78BFA" };
+          const el = document.createElement("div");
+          el.style.cssText = `width:12px;height:12px;background:${cfg.mapColor};border:2px solid rgba(255,255,255,0.7);border-radius:3px;box-shadow:0 0 6px ${cfg.mapColor}80;cursor:pointer;`;
+          new mapboxgl.Marker({ element: el })
+            .setLngLat([a.longitude, a.latitude])
+            .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "240px" }).setHTML(
+              `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
+                <div style="font-weight:700;color:${cfg.mapColor}">${a.name}</div>
+                <div style="color:#94a3b8;font-size:11px">${a.category}${a.subcategory ? ` · ${a.subcategory}` : ""}</div>
+                <div style="color:#94a3b8;font-size:11px;margin-top:2px">Weight: ${a.importance_weight}/10 · ${a.response_function}</div>
+                ${a.population_served > 0 ? `<div style="color:#94a3b8;font-size:11px">Pop: ${a.population_served.toLocaleString()}</div>` : ""}
+              </div>`
+            ))
+            .addTo(map);
+        });
     });
 
     return () => { map.remove(); mapRef.current = null; };
-  }, []);
+  }, [hvraAssets]);
 
   /* ── Update fires on map ───────────────────────────────── */
 
@@ -465,12 +496,24 @@ export default function CommandCenter() {
               <ShieldAlert className="w-4 h-4 text-red-400" />
               Operational Map — Fire & Asset Overlay
             </h2>
-            <div className="flex items-center gap-3 text-[10px] text-white/30">
+            <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white/30" /> Substation
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-4 h-0.5 bg-cyan-400 rounded" /> Transmission
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FB7185" }} /> Hospital
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FBBF24" }} /> School
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#22D3EE" }} /> Water
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#4ADE80" }} /> Timber
               </span>
               {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
                 <span key={r} className="flex items-center gap-1">
@@ -490,68 +533,88 @@ export default function CommandCenter() {
           </div>
         </div>
 
-        {/* ── Critical Asset Table ─────────────────────────── */}
+        {/* ── Tabs: Grid Assets / HVRA Registry ─────────────── */}
         <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
-            <h2 className="text-sm font-semibold flex items-center gap-2">
+          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-4">
+            <button
+              onClick={() => setActiveTab("assets")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
               <Zap className="w-4 h-4 text-blue-400" />
-              Critical Asset Status
-            </h2>
-            <span className="text-[10px] text-white/30">
-              {assetRisks.length} assets monitored
-            </span>
+              Grid Asset Status
+            </button>
+            <button
+              onClick={() => setActiveTab("hvra")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <MapPin className="w-4 h-4 text-purple-400" />
+              HVRA Registry
+            </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
-                  <th className="px-5 py-3 font-medium">Asset Name</th>
-                  <th className="px-5 py-3 font-medium">Type</th>
-                  <th className="px-5 py-3 font-medium">Voltage</th>
-                  <th className="px-5 py-3 font-medium">Capacity</th>
-                  <th className="px-5 py-3 font-medium">Zone</th>
-                  <th className="px-5 py-3 font-medium">Nearest Fire</th>
-                  <th className="px-5 py-3 font-medium">Risk Level</th>
-                  <th className="px-5 py-3 font-medium">Trend</th>
-                  <th className="px-5 py-3 font-medium">Recommended Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {assetRisks.map((a) => {
-                  const ssData = SUBSTATIONS.find((s) => s.id === a.id);
-                  return (
-                    <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3 font-medium">{a.name}</td>
-                      <td className="px-5 py-3 text-white/50">
-                        <span className="inline-flex items-center gap-1">
-                          {a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}
-                          {a.type}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
-                      <td className="px-5 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
-                      <td className="px-5 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
-                      <td className="px-5 py-3">
-                        {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
-                      </td>
-                      <td className="px-5 py-3">
-                        <RiskBadge risk={a.risk} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <TrendBadge trend={a.trend} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <ActionBadge action={a.action} />
-                      </td>
+
+          {activeTab === "assets" ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
+                      <th className="px-5 py-3 font-medium">Asset Name</th>
+                      <th className="px-5 py-3 font-medium">Type</th>
+                      <th className="px-5 py-3 font-medium">Voltage</th>
+                      <th className="px-5 py-3 font-medium">Capacity</th>
+                      <th className="px-5 py-3 font-medium">Zone</th>
+                      <th className="px-5 py-3 font-medium">Nearest Fire</th>
+                      <th className="px-5 py-3 font-medium">Risk Level</th>
+                      <th className="px-5 py-3 font-medium">Trend</th>
+                      <th className="px-5 py-3 font-medium">Recommended Action</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-5 py-2 border-t border-white/[0.04] text-[10px] text-white/20">
-            Risk calculated from fire proximity, intensity (FRP), and approach trend · No raw coordinates or satellite metadata displayed
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {assetRisks.map((a) => {
+                      const ssData = SUBSTATIONS.find((s) => s.id === a.id);
+                      return (
+                        <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-5 py-3 font-medium">{a.name}</td>
+                          <td className="px-5 py-3 text-white/50">
+                            <span className="inline-flex items-center gap-1">
+                              {a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}
+                              {a.type}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
+                          <td className="px-5 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
+                          <td className="px-5 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
+                          <td className="px-5 py-3">
+                            {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
+                          </td>
+                          <td className="px-5 py-3">
+                            <RiskBadge risk={a.risk} />
+                          </td>
+                          <td className="px-5 py-3">
+                            <TrendBadge trend={a.trend} />
+                          </td>
+                          <td className="px-5 py-3">
+                            <ActionBadge action={a.action} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-2 border-t border-white/[0.04] text-[10px] text-white/20">
+                Risk calculated from fire proximity, intensity (FRP), and approach trend
+              </div>
+            </>
+          ) : (
+            <div className="p-5">
+              <HvraPanel fires={fires} />
+            </div>
+          )}
         </div>
       </main>
     </div>

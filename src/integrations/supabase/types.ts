@@ -184,6 +184,54 @@ export type Database = {
         }
         Relationships: []
       }
+      hvra_assets: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          importance_weight: number
+          latitude: number
+          longitude: number
+          name: string
+          notes: string | null
+          population_served: number | null
+          response_function: string
+          subcategory: string | null
+          updated_at: string
+          value_estimate: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          importance_weight?: number
+          latitude: number
+          longitude: number
+          name: string
+          notes?: string | null
+          population_served?: number | null
+          response_function?: string
+          subcategory?: string | null
+          updated_at?: string
+          value_estimate?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          importance_weight?: number
+          latitude?: number
+          longitude?: number
+          name?: string
+          notes?: string | null
+          population_served?: number | null
+          response_function?: string
+          subcategory?: string | null
+          updated_at?: string
+          value_estimate?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
