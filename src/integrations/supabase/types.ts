@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_subscribers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          preferred_channel: string
+          updated_at: string
+          zip_code: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          preferred_channel?: string
+          updated_at?: string
+          zip_code: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          preferred_channel?: string
+          updated_at?: string
+          zip_code?: string
+        }
+        Relationships: []
+      }
+      community_alerts: {
+        Row: {
+          affected_zips: string[]
+          alert_type: string
+          created_at: string
+          delivery_status: string
+          fire_distance_km: number | null
+          fire_latitude: number | null
+          fire_longitude: number | null
+          id: string
+          message: string
+          recipients_count: number
+          severity: string
+          title: string
+        }
+        Insert: {
+          affected_zips?: string[]
+          alert_type?: string
+          created_at?: string
+          delivery_status?: string
+          fire_distance_km?: number | null
+          fire_latitude?: number | null
+          fire_longitude?: number | null
+          id?: string
+          message: string
+          recipients_count?: number
+          severity?: string
+          title: string
+        }
+        Update: {
+          affected_zips?: string[]
+          alert_type?: string
+          created_at?: string
+          delivery_status?: string
+          fire_distance_km?: number | null
+          fire_latitude?: number | null
+          fire_longitude?: number | null
+          id?: string
+          message?: string
+          recipients_count?: number
+          severity?: string
+          title?: string
+        }
+        Relationships: []
+      }
       customer_requests: {
         Row: {
           agent_response: string | null
