@@ -1,67 +1,60 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useCustomer, type UserRole } from "@/hooks/use-customer";
-import type { Customer } from "@/lib/customer-types";
-import { AGENT_REGIONS } from "@/lib/region-utils";
-import { Zap, LogIn, User, Headset } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { Zap, LogIn, User, Headset, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
-const DEMO_PASSWORD = "demo123";
-const AGENT_PASSWORD = "agent123";
-
-const DEMO_AGENTS = Object.entries(AGENT_REGIONS).map(([email, region]) => ({
-  name: email.split("@")[0].split(".").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-  email,
-  region,
-}));
+type Tab = "customer" | "agent";
+type Mode = "login" | "signup";
 
 export default function Login() {
-  const [tab, setTab] = useState<UserRole>("customer");
+  const [tab, setTab] = useState<Tab>("customer");
+  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setCustomer, setRole, setAgentEmail } = useCustomer();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // If already logged in, redirect
+  if (user) {
+    navigate("/", { replace: true });
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
+    setLoading(true);
 
-    if (tab === "agent") {
-      if (password !== AGENT_PASSWORD) {
-        toast.error("Invalid agent password. Hint: use agent123");
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      setLoading(false);
+      if (error) {
+        toast.error(error.message);
         return;
       }
-      // Agent login doesn't need a customer record — just set role and go
-      setRole("agent");
-      setAgentEmail(email.trim().toLowerCase());
-      setCustomer(null);
-      navigate("/");
+      toast.success("Check your email to confirm your account, then sign in.");
+      setMode("login");
       return;
     }
 
-    // Customer login
-    if (password !== DEMO_PASSWORD) {
-      toast.error("Invalid password. Hint: use demo123");
-      return;
-    }
-
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .ilike("email", email.trim())
-      .maybeSingle();
+    // Login
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
     setLoading(false);
-
-    if (error || !data) {
-      toast.error("No customer found with that email.");
+    if (error) {
+      toast.error(error.message);
       return;
     }
-
-    setCustomer(data as unknown as Customer);
-    setRole("customer");
+    toast.success("Signed in!");
     navigate("/");
   };
 
@@ -74,32 +67,36 @@ export default function Login() {
             <Zap className="w-6 h-6 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">ExfSafeGrid</h1>
-          <p className="text-sm text-muted-foreground">Sign in to your dashboard</p>
+          <p className="text-sm text-muted-foreground">
+            {mode === "login" ? "Sign in to your dashboard" : "Create your account"}
+          </p>
         </div>
 
-        {/* Role tabs */}
-        <div className="flex rounded-lg border border-border bg-muted p-1 gap-1">
-          {([
-            { key: "customer" as const, label: "Customer", icon: User },
-            { key: "agent" as const, label: "Agent", icon: Headset },
-          ]).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => { setTab(t.key); setEmail(""); setPassword(""); }}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                tab === t.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <t.icon className="w-4 h-4" />
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Role tabs (login only) */}
+        {mode === "login" && (
+          <div className="flex rounded-lg border border-border bg-muted p-1 gap-1">
+            {([
+              { key: "customer" as const, label: "Customer", icon: User },
+              { key: "agent" as const, label: "Agent", icon: Headset },
+            ]).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => { setTab(t.key); setEmail(""); setPassword(""); }}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  tab === t.key
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <t.icon className="w-4 h-4" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Login form */}
-        <form onSubmit={handleLogin} className="rounded-lg border border-border bg-card p-6 space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6 space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
             <input
@@ -107,7 +104,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={tab === "customer" ? "e.g. maria.gonzalez@example.com" : "e.g. agent.smith@exfsafegrid.com"}
+              placeholder={tab === "customer" ? "you@example.com" : "agent@exfsafegrid.com"}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
             />
@@ -119,9 +116,10 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
+              placeholder={mode === "signup" ? "Min 6 characters" : "Enter password"}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
+              minLength={6}
             />
           </div>
           <button
@@ -129,37 +127,23 @@ export default function Login() {
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            <LogIn className="w-4 h-4" />
-            {loading ? "Signing in…" : `Sign In as ${tab === "customer" ? "Customer" : "Agent"}`}
+            {mode === "login" ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+            {loading
+              ? (mode === "login" ? "Signing in…" : "Creating account…")
+              : (mode === "login" ? `Sign In as ${tab === "customer" ? "Customer" : "Agent"}` : "Create Account")}
           </button>
         </form>
 
-        {/* Demo hint */}
-        <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2">
-          {tab === "customer" ? (
-            <>
-              <p className="text-xs font-medium text-foreground">Demo Customer Accounts</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5">
-                <li>maria.gonzalez@example.com</li>
-                <li>john.smith@example.com</li>
-                <li>priya.patel@example.com</li>
-                <li>david.kim@example.com</li>
-                <li>sarah.johnson@example.com</li>
-              </ul>
-              <p className="text-xs text-muted-foreground">Password: <span className="font-mono text-foreground">demo123</span></p>
-            </>
-          ) : (
-            <>
-              <p className="text-xs font-medium text-foreground">Demo Agent Accounts</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5">
-                {DEMO_AGENTS.map((a) => (
-                  <li key={a.email}>{a.email} <span className="text-foreground/50">({a.region})</span></li>
-                ))}
-              </ul>
-              <p className="text-xs text-muted-foreground">Password: <span className="font-mono text-foreground">agent123</span></p>
-            </>
-          )}
-        </div>
+        {/* Toggle mode */}
+        <p className="text-center text-sm text-muted-foreground">
+          {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="text-primary font-medium hover:underline"
+          >
+            {mode === "login" ? "Sign up" : "Sign in"}
+          </button>
+        </p>
       </div>
     </div>
   );
