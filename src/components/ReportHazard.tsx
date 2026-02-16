@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Camera, AlertTriangle, TreePine, HelpCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { hazardReportSchema, validatePhoto } from "@/lib/validation";
 
 const HAZARD_TYPES = [
   { label: "Hazardous Pole", icon: AlertTriangle },
@@ -27,14 +28,25 @@ export default function ReportHazard({ customerName }: ReportHazardProps) {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const err = validatePhoto(file);
+      if (err) {
+        toast.error(err);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       setPhotoFile(file);
       toast.info(`Photo attached: ${file.name}`);
     }
   };
 
   const handleSubmit = async () => {
-    if (!selectedType) {
-      toast.error("Please select a hazard type");
+    const parsed = hazardReportSchema.safeParse({
+      hazard_type: selectedType || "",
+      description,
+      customer_name: customerName,
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.errors[0]?.message || "Invalid input");
       return;
     }
     setSubmitting(true);

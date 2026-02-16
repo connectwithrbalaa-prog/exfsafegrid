@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 type Msg = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
@@ -15,11 +17,18 @@ export async function streamChat({
   onDone: () => void;
   onError: (err: string) => void;
 }) {
+  // Use the user's session token when available, fall back to anon key
+  let token = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) token = data.session.access_token;
+  } catch { /* use anon key */ }
+
   const resp = await fetch(CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ messages, customerContext }),
   });
