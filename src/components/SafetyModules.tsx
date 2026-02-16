@@ -146,21 +146,21 @@ export default function SafetyModules({ customer }: { customer: Customer }) {
       {/* Tabbed Safety Modules */}
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="w-full grid grid-cols-4 h-9">
-          <TabsTrigger value="psps" className="text-xs gap-1.5">
-            <Activity className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">PSPS</span> Tracker
+          <TabsTrigger value="psps" className="text-xs gap-1 px-1.5 min-w-0">
+            <Activity className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">PSPS</span>
           </TabsTrigger>
-          <TabsTrigger value="backup" className="text-xs gap-1.5">
-            <BatteryCharging className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Backup</span> Power
+          <TabsTrigger value="backup" className="text-xs gap-1 px-1.5 min-w-0">
+            <BatteryCharging className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Backup</span>
           </TabsTrigger>
-          <TabsTrigger value="crc" className="text-xs gap-1.5">
-            <MapPin className="w-3.5 h-3.5" />
-            CRC
+          <TabsTrigger value="crc" className="text-xs gap-1 px-1.5 min-w-0">
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">CRC</span>
           </TabsTrigger>
-          <TabsTrigger value="infra" className="text-xs gap-1.5">
-            <Building2 className="w-3.5 h-3.5" />
-            Infra
+          <TabsTrigger value="infra" className="text-xs gap-1 px-1.5 min-w-0">
+            <Building2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Infra</span>
           </TabsTrigger>
         </TabsList>
 
