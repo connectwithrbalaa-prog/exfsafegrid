@@ -12,25 +12,16 @@ import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, File
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
+
 
 const Index = () => {
   const { customer, setCustomer, role, setRole, agentEmail, setAgentEmail } = useCustomer();
-  const { role: authRole, signOut } = useAuth();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Sync customer context role with auth role
   useEffect(() => {
-    if (authRole === "agent" && role !== "agent") {
-      setRole("agent");
-    }
-  }, [authRole, role, setRole]);
-
-  useEffect(() => {
-    // Only redirect if auth says customer and no customer record loaded
-    if (authRole === "customer" && !customer) navigate("/login", { replace: true });
-  }, [customer, authRole, navigate]);
+    if (role === "customer" && !customer) navigate("/login", { replace: true });
+  }, [customer, role, navigate]);
 
   const refreshData = useCallback(async () => {
     if (!customer) return;
@@ -49,10 +40,10 @@ const Index = () => {
     toast.success("Data refreshed");
   }, [customer, setCustomer]);
 
-  if (authRole === "customer" && !customer) return null;
+  if (role === "customer" && !customer) return null;
 
   // Agent view — no customer needed
-  if (authRole === "agent") {
+  if (role === "agent") {
     return (
       <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
         <PspsStatusHeader />
@@ -88,7 +79,7 @@ const Index = () => {
                 <span className="hidden sm:inline">Command Center</span>
               </button>
               <button
-                onClick={async () => { await signOut(); setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+                onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
                 className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <LogOut className="w-3 h-3 md:w-3.5 md:h-3.5" />
@@ -165,7 +156,7 @@ const Index = () => {
               {refreshing ? "Refreshing…" : "Refresh My Data"}
             </button>
             <button
-              onClick={async () => { await signOut(); setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />

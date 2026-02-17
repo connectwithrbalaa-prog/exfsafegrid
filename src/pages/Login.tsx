@@ -1,71 +1,71 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { Zap, LogIn, User, Headset, UserPlus } from "lucide-react";
+import { useCustomer } from "@/hooks/use-customer";
+import type { Customer } from "@/lib/customer-types";
+import { Zap, LogIn, User, Headset } from "lucide-react";
 import { toast } from "sonner";
 
 type Tab = "customer" | "agent";
-type Mode = "login" | "signup";
+
+const DEMO_PASSWORD = "Demo1234!";
+
+const AGENT_NAMES = [
+  { name: "Agent Smith", email: "agent.smith@exfsafegrid.com" },
+  { name: "Agent Rivera", email: "agent.rivera@exfsafegrid.com" },
+  { name: "Agent Chen", email: "agent.chen@exfsafegrid.com" },
+];
 
 export default function Login() {
   const [tab, setTab] = useState<Tab>("customer");
-  const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { setCustomer, setRole, setAgentEmail } = useCustomer();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate("/", { replace: true });
-    }
-  }, [user, authLoading, navigate]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (user) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
-    setLoading(true);
-
-    if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { emailRedirectTo: window.location.origin },
+    supabase
+      .from("customers")
+      .select("*")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setCustomers(data as unknown as Customer[]);
       });
-      setLoading(false);
-      if (error) {
-        toast.error(error.message);
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== DEMO_PASSWORD) {
+      toast.error("Invalid demo password");
+      return;
+    }
+
+    if (tab === "customer") {
+      const c = customers.find((c) => c.id === selectedCustomer);
+      if (!c) {
+        toast.error("Please select a customer");
         return;
       }
-      toast.success("Check your email to confirm your account, then sign in.");
-      setMode("login");
-      return;
+      setCustomer(c);
+      setRole("customer");
+      setAgentEmail(null);
+      toast.success(`Signed in as ${c.name}`);
+      navigate("/");
+    } else {
+      const agent = AGENT_NAMES.find((a) => a.email === selectedAgent);
+      if (!agent) {
+        toast.error("Please select an agent");
+        return;
+      }
+      setCustomer(null);
+      setRole("agent");
+      setAgentEmail(agent.email);
+      toast.success(`Signed in as ${agent.name}`);
+      navigate("/");
     }
-
-    // Login
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Signed in!");
-    navigate("/");
   };
 
   return (
@@ -77,110 +77,106 @@ export default function Login() {
             <Zap className="w-6 h-6 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">ExfSafeGrid</h1>
-          <p className="text-sm text-muted-foreground">
-            {mode === "login" ? "Sign in to your dashboard" : "Create your account"}
-          </p>
+          <p className="text-sm text-muted-foreground">Select your demo account</p>
         </div>
 
-        {/* Role tabs (login only) */}
-        {mode === "login" && (
-          <div className="flex rounded-lg border border-border bg-muted p-1 gap-1">
-            {([
-              { key: "customer" as const, label: "Customer", icon: User },
-              { key: "agent" as const, label: "Agent", icon: Headset },
-            ]).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => { setTab(t.key); setEmail(""); setPassword(""); }}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  tab === t.key
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <t.icon className="w-4 h-4" />
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Role tabs */}
+        <div className="flex rounded-lg border border-border bg-muted p-1 gap-1">
+          {([
+            { key: "customer" as const, label: "Customer", icon: User },
+            { key: "agent" as const, label: "Agent", icon: Headset },
+          ]).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === t.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <t.icon className="w-4 h-4" />
+              {t.label}
+            </button>
+          ))}
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6 space-y-4">
+          {tab === "customer" ? (
+            <div className="space-y-1.5">
+              <label htmlFor="customer-select" className="text-sm font-medium text-foreground">
+                Select Customer
+              </label>
+              <select
+                id="customer-select"
+                value={selectedCustomer}
+                onChange={(e) => setSelectedCustomer(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              >
+                <option value="">Choose a customer…</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.zip_code}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label htmlFor="agent-select" className="text-sm font-medium text-foreground">
+                Select Agent
+              </label>
+              <select
+                id="agent-select"
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              >
+                <option value="">Choose an agent…</option>
+                {AGENT_NAMES.map((a) => (
+                  <option key={a.email} value={a.email}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={tab === "customer" ? "you@example.com" : "agent@exfsafegrid.com"}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">Password</label>
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
+              Demo Password
+            </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "signup" ? "Min 6 characters" : "Enter password"}
+              placeholder="Enter demo password"
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               required
-              minLength={6}
             />
           </div>
+
           <button
             type="submit"
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {mode === "login" ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-            {loading
-              ? (mode === "login" ? "Signing in…" : "Creating account…")
-              : (mode === "login" ? `Sign In as ${tab === "customer" ? "Customer" : "Agent"}` : "Create Account")}
+            <LogIn className="w-4 h-4" />
+            Sign In
           </button>
         </form>
 
-        {/* Toggle mode */}
-        <p className="text-center text-sm text-muted-foreground">
-          {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-          <button
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="text-primary font-medium hover:underline"
-          >
-            {mode === "login" ? "Sign up" : "Sign in"}
-          </button>
-        </p>
-
-        {/* Demo credentials hint */}
-        {mode === "login" && (
-          <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2">
-            {tab === "customer" ? (
-              <>
-                <p className="text-xs font-medium text-foreground">Demo Customer Account</p>
-                <p className="text-xs text-muted-foreground">
-                  Email: <span className="font-mono text-foreground">demo.customer@exfsafegrid.com</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Password: <span className="font-mono text-foreground">Demo1234!</span>
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-medium text-foreground">Demo Agent Account</p>
-                <p className="text-xs text-muted-foreground">
-                  Email: <span className="font-mono text-foreground">demo.agent@exfsafegrid.com</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Password: <span className="font-mono text-foreground">Demo1234!</span>
-                </p>
-              </>
-            )}
-          </div>
-        )}
+        {/* Password hint */}
+        <div className="rounded-lg border border-border bg-muted/50 p-4">
+          <p className="text-xs font-medium text-foreground">Demo Password</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Password: <span className="font-mono text-foreground">Demo1234!</span>
+          </p>
+        </div>
       </div>
     </div>
   );

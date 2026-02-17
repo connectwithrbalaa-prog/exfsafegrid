@@ -4,9 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CustomerProvider } from "@/hooks/use-customer";
-import { AuthProvider } from "@/hooks/use-auth";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import CommandCenter from "./pages/CommandCenter";
@@ -30,46 +28,23 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <CustomerProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ErrorBoundary>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/docs" element={<Documentation />} />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/command-center"
-                  element={
-                    <ProtectedRoute requiredRole="agent">
-                      <CommandCenter />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/demo"
-                  element={
-                    <ProtectedRoute>
-                      <DemoPresentation />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </ErrorBoundary>
-          </BrowserRouter>
-        </CustomerProvider>
-      </AuthProvider>
+      <CustomerProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/docs" element={<Documentation />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/command-center" element={<CommandCenter />} />
+              <Route path="/demo" element={<DemoPresentation />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </CustomerProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
