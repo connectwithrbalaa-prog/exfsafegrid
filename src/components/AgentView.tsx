@@ -14,7 +14,7 @@ import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
-import WildfireMap from "@/components/WildfireMap";
+import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { getSubstationForZip } from "@/lib/wildfire-utils";
 
 import { toast } from "sonner";
@@ -193,7 +193,16 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
       )}
 
       {/* Wildfire Map — full width */}
-      <WildfireMap />
+      {(() => {
+        const ss = selected ? getSubstationForZip(selected.zip_code) : null;
+        return (
+          <CustomerWildfireMap
+            customerZip={selected?.zip_code}
+            assetLat={ss?.latitude ?? 37.20}
+            assetLng={ss?.longitude ?? -119.30}
+          />
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* LEFT COLUMN — customer selector + details */}
