@@ -12,17 +12,25 @@ import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, File
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 
 const Index = () => {
   const { customer, setCustomer, role, setRole, agentEmail, setAgentEmail } = useCustomer();
+  const { role: authRole } = useAuth();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
+  // Sync customer context role with auth role
   useEffect(() => {
-    // Agents don't need a customer record; customers do
-    if (role === "customer" && !customer) navigate("/login");
-    if (role === "agent" && !customer) { /* agent is fine without customer */ }
-  }, [customer, role, navigate]);
+    if (authRole === "agent" && role !== "agent") {
+      setRole("agent");
+    }
+  }, [authRole, role, setRole]);
+
+  useEffect(() => {
+    // Only redirect if auth says customer and no customer record loaded
+    if (authRole === "customer" && !customer) navigate("/login", { replace: true });
+  }, [customer, authRole, navigate]);
 
   const refreshData = useCallback(async () => {
     if (!customer) return;
@@ -41,10 +49,10 @@ const Index = () => {
     toast.success("Data refreshed");
   }, [customer, setCustomer]);
 
-  if (role === "customer" && !customer) return null;
+  if (authRole === "customer" && !customer) return null;
 
   // Agent view — no customer needed
-  if (role === "agent") {
+  if (authRole === "agent") {
     return (
       <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
         <PspsStatusHeader />
