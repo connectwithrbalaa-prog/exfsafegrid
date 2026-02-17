@@ -162,9 +162,10 @@ export default function Login() {
 
         {/* Reference logins */}
         <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
-          <p className="text-xs font-medium text-foreground">Reference Logins</p>
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Customers:</p>
+          <p className="text-xs font-medium text-foreground">
+            {tab === "customer" ? "Customer Logins" : "Agent Logins"}
+          </p>
+          {tab === "customer" ? (
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {customers.map((c) => (
                 <p key={c.id} className="text-xs text-muted-foreground font-mono">
@@ -172,15 +173,15 @@ export default function Login() {
                 </p>
               ))}
             </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Agents:</p>
-            {AGENT_NAMES.map((a) => (
-              <p key={a.email} className="text-xs text-muted-foreground font-mono">
-                {a.name}
-              </p>
-            ))}
-          </div>
+          ) : (
+            <div className="space-y-1">
+              {AGENT_NAMES.map((a) => (
+                <p key={a.email} className="text-xs text-muted-foreground font-mono">
+                  {a.name}
+                </p>
+              ))}
+            </div>
+          )}
           <div className="pt-2 border-t border-border">
             <p className="text-xs text-muted-foreground">
               Password: <span className="font-mono text-foreground">Demo1234!</span>
