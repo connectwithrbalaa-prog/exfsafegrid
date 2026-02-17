@@ -169,7 +169,7 @@ export default function Login() {
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {customers.map((c) => (
                 <p key={c.id} className="text-xs text-muted-foreground font-mono">
-                  {c.name} — {c.zip_code}
+                  {c.name}
                 </p>
               ))}
             </div>
