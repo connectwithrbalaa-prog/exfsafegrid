@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 const Index = () => {
   const { customer, setCustomer, role, setRole, agentEmail, setAgentEmail } = useCustomer();
-  const { role: authRole } = useAuth();
+  const { role: authRole, signOut } = useAuth();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,7 +88,7 @@ const Index = () => {
                 <span className="hidden sm:inline">Command Center</span>
               </button>
               <button
-                onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+                onClick={async () => { await signOut(); setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
                 className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <LogOut className="w-3 h-3 md:w-3.5 md:h-3.5" />
@@ -165,7 +165,7 @@ const Index = () => {
               {refreshing ? "Refreshing…" : "Refresh My Data"}
             </button>
             <button
-              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+              onClick={async () => { await signOut(); setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
