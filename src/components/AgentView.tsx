@@ -200,6 +200,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
             customerZip={selected?.zip_code}
             assetLat={ss?.latitude ?? 37.20}
             assetLng={ss?.longitude ?? -119.30}
+            hftdTier={selected?.hftd_tier ?? "None"}
           />
         );
       })()}

@@ -49,10 +49,22 @@ export interface EnrichedFire {
 /* ── Constants ────────────────────────────────────────────────── */
 
 export const SUBSTATIONS: Substation[] = [
+  // Central Valley
   { id: "SS-101", name: "North Substation", latitude: 37.25, longitude: -119.28, voltage: "220kV", capacityMW: 450, zone: "Zone A — North Highlands", status: "Online", servesZips: ["93644", "93614", "93623"] },
-  { id: "SS-102", name: "Valley Substation", latitude: 37.18, longitude: -119.35, voltage: "110kV", capacityMW: 280, zone: "Zone B — Valley Central", status: "Online", servesZips: ["93210", "93242", "93230"] },
-  { id: "SS-103", name: "South Ridge Substation", latitude: 37.12, longitude: -119.40, voltage: "110kV", capacityMW: 320, zone: "Zone C — South Ridge", status: "Reduced", servesZips: ["93637", "93602", "93604"] },
+  { id: "SS-102", name: "Valley Substation", latitude: 36.73, longitude: -119.79, voltage: "110kV", capacityMW: 280, zone: "Zone B — Valley Central", status: "Online", servesZips: ["93210", "93242", "93230", "93611"] },
+  { id: "SS-103", name: "South Ridge Substation", latitude: 35.37, longitude: -119.02, voltage: "110kV", capacityMW: 320, zone: "Zone C — South Ridge", status: "Reduced", servesZips: ["93637", "93602", "93604", "93301"] },
   { id: "SS-104", name: "Foothill Substation", latitude: 37.30, longitude: -119.22, voltage: "66kV", capacityMW: 150, zone: "Zone D — Foothill East", status: "Online", servesZips: ["93654", "93667", "93651"] },
+  // Bay Area
+  { id: "SS-201", name: "Peninsula Substation", latitude: 37.44, longitude: -122.14, voltage: "220kV", capacityMW: 500, zone: "Zone E — Peninsula", status: "Online", servesZips: ["94301", "94022", "94043"] },
+  { id: "SS-202", name: "South Bay Substation", latitude: 37.34, longitude: -121.89, voltage: "110kV", capacityMW: 380, zone: "Zone F — South Bay", status: "Online", servesZips: ["95050", "95123", "94086", "94087"] },
+  { id: "SS-203", name: "San Francisco Substation", latitude: 37.76, longitude: -122.42, voltage: "220kV", capacityMW: 420, zone: "Zone G — SF Metro", status: "Online", servesZips: ["94110"] },
+  // North Coast
+  { id: "SS-301", name: "Sonoma Substation", latitude: 38.44, longitude: -122.71, voltage: "110kV", capacityMW: 250, zone: "Zone H — Sonoma County", status: "Online", servesZips: ["95401", "95403"] },
+  { id: "SS-302", name: "East Bay Substation", latitude: 37.80, longitude: -122.27, voltage: "220kV", capacityMW: 400, zone: "Zone I — East Bay", status: "Online", servesZips: ["94612"] },
+  { id: "SS-303", name: "Ukiah Substation", latitude: 39.15, longitude: -123.21, voltage: "66kV", capacityMW: 120, zone: "Zone J — Mendocino", status: "Online", servesZips: ["95482"] },
+  // Sierra
+  { id: "SS-401", name: "Nevada City Substation", latitude: 39.26, longitude: -121.02, voltage: "66kV", capacityMW: 100, zone: "Zone K — Sierra Foothills", status: "Reduced", servesZips: ["95959"] },
+  { id: "SS-402", name: "Truckee Substation", latitude: 39.33, longitude: -120.18, voltage: "110kV", capacityMW: 180, zone: "Zone L — North Sierra", status: "Online", servesZips: ["96161"] },
 ];
 
 export const TRANSMISSION_LINES: TransmissionLine[] = [

@@ -135,12 +135,21 @@ interface Props {
   customerZip?: string;
   assetLat?: number;
   assetLng?: number;
+  hftdTier?: string;
 }
+
+const HFTD_COLORS: Record<string, string> = {
+  "Tier 3": "#DC2626",
+  "Tier 2": "#F97316",
+  "Tier 1": "#EAB308",
+  "None": "#6B7280",
+};
 
 export default function CustomerWildfireMap({
   customerZip,
   assetLat = 37.20,
   assetLng = -119.30,
+  hftdTier = "None",
 }: Props) {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -225,11 +234,26 @@ export default function CustomerWildfireMap({
     mapRef.current = map;
 
     map.on("load", () => {
-      // Asset marker
-      new mapboxgl.Marker({ color: "#3B82F6" })
+      // Asset marker with HFTD-tier color coding
+      const hftdColor = HFTD_COLORS[hftdTier] || HFTD_COLORS["None"];
+      const assetEl = document.createElement("div");
+      assetEl.style.width = "22px";
+      assetEl.style.height = "22px";
+      assetEl.style.borderRadius = "50%";
+      assetEl.style.backgroundColor = hftdColor;
+      assetEl.style.border = "3px solid #fff";
+      assetEl.style.boxShadow = `0 0 0 2px ${hftdColor}, 0 2px 8px rgba(0,0,0,0.4)`;
+      assetEl.style.cursor = "pointer";
+
+      new mapboxgl.Marker({ element: assetEl })
         .setLngLat([assetLng, assetLat])
-        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
-          `<div style="font-size:13px;font-family:system-ui"><b>Your Asset Location</b></div>`
+        .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
+          `<div style="font-size:13px;font-family:system-ui;line-height:1.6">
+            <b>Asset Location</b><br/>
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${hftdColor};margin-right:4px;vertical-align:middle"></span>
+            <b>HFTD ${hftdTier}</b><br/>
+            <span style="color:#555;font-size:12px">ZIP: ${customerZip || "—"}</span>
+          </div>`
         ))
         .addTo(map);
 
@@ -256,7 +280,7 @@ export default function CustomerWildfireMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [assetLat, assetLng]);
+  }, [assetLat, assetLng, hftdTier, customerZip]);
 
   /* ── Update fire data on map (clustered GeoJSON) ────────── */
 
@@ -498,9 +522,10 @@ export default function CustomerWildfireMap({
           {/* Collapsible Legend */}
           <LegendPanel />
 
-          {/* Asset pin label */}
-          <div className="absolute top-3 left-3 z-[1000] bg-blue-600 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow flex items-center gap-1.5">
-            <MapPin className="w-3 h-3" /> Your Asset
+          {/* Asset pin label with HFTD tier */}
+          <div className="absolute top-3 left-3 z-[1000] text-white text-[11px] font-semibold px-2.5 py-1 rounded-md shadow flex items-center gap-1.5"
+               style={{ backgroundColor: HFTD_COLORS[hftdTier] || HFTD_COLORS["None"] }}>
+            <MapPin className="w-3 h-3" /> Asset · HFTD {hftdTier}
           </div>
         </div>
 
@@ -645,6 +670,15 @@ function LegendPanel() {
               <div key={z.km} className="flex items-center gap-1.5">
                 <span className="w-3 h-0.5 rounded" style={{ background: z.border }} />
                 <span className="text-muted-foreground">{z.km}km</span>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border pt-1.5 mt-1">
+            <div className="font-semibold text-card-foreground mb-1 text-[10px]">HFTD Tier</div>
+            {(["Tier 3", "Tier 2", "Tier 1", "None"] as string[]).map((t) => (
+              <div key={t} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full border border-white/50" style={{ background: HFTD_COLORS[t] }} />
+                <span className="text-muted-foreground">{t === "None" ? "Not in HFTD" : t}</span>
               </div>
             ))}
           </div>
