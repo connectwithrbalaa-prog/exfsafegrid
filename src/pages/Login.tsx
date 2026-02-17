@@ -44,9 +44,9 @@ export default function Login() {
     }
 
     if (tab === "customer") {
-      const c = customers.find((c) => c.id === selectedCustomer);
+      const c = customers.find((c) => c.name.toLowerCase() === selectedCustomer.trim().toLowerCase());
       if (!c) {
-        toast.error("Please select a customer");
+        toast.error("Customer not found. Check the reference list below.");
         return;
       }
       setCustomer(c);
@@ -55,9 +55,9 @@ export default function Login() {
       toast.success(`Signed in as ${c.name}`);
       navigate("/");
     } else {
-      const agent = AGENT_NAMES.find((a) => a.email === selectedAgent);
+      const agent = AGENT_NAMES.find((a) => a.name.toLowerCase() === selectedAgent.trim().toLowerCase());
       if (!agent) {
-        toast.error("Please select an agent");
+        toast.error("Agent not found. Check the reference list below.");
         return;
       }
       setCustomer(null);
@@ -105,43 +105,33 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6 space-y-4">
           {tab === "customer" ? (
             <div className="space-y-1.5">
-              <label htmlFor="customer-select" className="text-sm font-medium text-foreground">
-                Select Customer
+              <label htmlFor="customer-name" className="text-sm font-medium text-foreground">
+                Customer Name
               </label>
-              <select
-                id="customer-select"
+              <input
+                id="customer-name"
+                type="text"
                 value={selectedCustomer}
                 onChange={(e) => setSelectedCustomer(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Enter customer name"
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
-              >
-                <option value="">Choose a customer…</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — {c.zip_code}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           ) : (
             <div className="space-y-1.5">
-              <label htmlFor="agent-select" className="text-sm font-medium text-foreground">
-                Select Agent
+              <label htmlFor="agent-name" className="text-sm font-medium text-foreground">
+                Agent Name
               </label>
-              <select
-                id="agent-select"
+              <input
+                id="agent-name"
+                type="text"
                 value={selectedAgent}
                 onChange={(e) => setSelectedAgent(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Enter agent name"
+                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
-              >
-                <option value="">Choose an agent…</option>
-                {AGENT_NAMES.map((a) => (
-                  <option key={a.email} value={a.email}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           )}
 
@@ -170,12 +160,32 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Password hint */}
-        <div className="rounded-lg border border-border bg-muted/50 p-4">
-          <p className="text-xs font-medium text-foreground">Demo Password</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Password: <span className="font-mono text-foreground">Demo1234!</span>
-          </p>
+        {/* Reference logins */}
+        <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
+          <p className="text-xs font-medium text-foreground">Reference Logins</p>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Customers:</p>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {customers.map((c) => (
+                <p key={c.id} className="text-xs text-muted-foreground font-mono">
+                  {c.name} — {c.zip_code}
+                </p>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Agents:</p>
+            {AGENT_NAMES.map((a) => (
+              <p key={a.email} className="text-xs text-muted-foreground font-mono">
+                {a.name}
+              </p>
+            ))}
+          </div>
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Password: <span className="font-mono text-foreground">Demo1234!</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
