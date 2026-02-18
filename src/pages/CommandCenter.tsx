@@ -133,7 +133,7 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts">("assets");
-  const [customers, setCustomers] = useState<{ hftd_tier: string }[]>([]);
+  const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
@@ -177,7 +177,7 @@ export default function CommandCenter() {
   // Fetch customers for HFTD distribution
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("customers").select("hftd_tier");
+      const { data } = await supabase.from("customers").select("hftd_tier, zip_code");
       if (data) setCustomers(data);
     })();
   }, []);
@@ -390,16 +390,40 @@ export default function CommandCenter() {
         paint: { "line-color": "#06B6D4", "line-width": 2, "line-opacity": 0.8, "line-dasharray": [3, 2] },
       });
 
-      // Substation markers
+      // Substation markers — color-coded by highest HFTD tier served
+      const HFTD_MARKER_COLORS: Record<string, { bg: string; shadow: string; label: string }> = {
+        "Tier 3": { bg: "#DC2626", shadow: "rgba(220,38,38,0.5)", label: "HFTD Tier 3" },
+        "Tier 2": { bg: "#F97316", shadow: "rgba(249,115,22,0.5)", label: "HFTD Tier 2" },
+        "Tier 1": { bg: "#EAB308", shadow: "rgba(234,179,8,0.5)", label: "HFTD Tier 1" },
+        "None":   { bg: "#3B82F6", shadow: "rgba(59,130,246,0.5)", label: "No HFTD" },
+      };
+
+      // Determine highest HFTD tier per substation from customer data
+      const tierRank: Record<string, number> = { "Tier 3": 3, "Tier 2": 2, "Tier 1": 1, "None": 0 };
+      const ssHftdMap = new Map<string, string>();
       SUBSTATIONS.forEach((ss) => {
+        let best = "None";
+        customers.forEach((c) => {
+          if (ss.servesZips.includes(c.zip_code || "")) {
+            const t = c.hftd_tier || "None";
+            if ((tierRank[t] ?? 0) > (tierRank[best] ?? 0)) best = t;
+          }
+        });
+        ssHftdMap.set(ss.id, best);
+      });
+
+      SUBSTATIONS.forEach((ss) => {
+        const hftd = ssHftdMap.get(ss.id) || "None";
+        const mc = HFTD_MARKER_COLORS[hftd] || HFTD_MARKER_COLORS["None"];
         const el = document.createElement("div");
-        el.style.cssText = "width:14px;height:14px;background:#3B82F6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px rgba(59,130,246,0.5);cursor:pointer;";
+        el.style.cssText = `width:14px;height:14px;background:${mc.bg};border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px ${mc.shadow};cursor:pointer;`;
         new mapboxgl.Marker({ element: el })
           .setLngLat([ss.longitude, ss.latitude])
-          .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "220px" }).setHTML(
+          .setPopup(new mapboxgl.Popup({ offset: 14, maxWidth: "240px" }).setHTML(
             `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
-              <div style="font-weight:700;color:#60A5FA">${ss.name}</div>
+              <div style="font-weight:700;color:${mc.bg}">${ss.name}</div>
               <div style="color:#94a3b8;font-size:12px">${ss.id} · ${ss.voltage}</div>
+              <div style="margin-top:4px;font-size:11px;font-weight:600;color:${mc.bg}">${mc.label}</div>
             </div>`
           ))
           .addTo(map);
@@ -814,7 +838,16 @@ export default function CommandCenter() {
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white/30" /> Substation
+                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#DC2626" }} /> HFTD 3
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#F97316" }} /> HFTD 2
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#EAB308" }} /> HFTD 1
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#3B82F6" }} /> No HFTD
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-4 h-0.5 bg-cyan-400 rounded" /> Transmission
