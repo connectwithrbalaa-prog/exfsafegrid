@@ -135,6 +135,7 @@ export default function CommandCenter() {
   const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
+  const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
   const [weatherData, setWeatherData] = useState<any[]>([]);
@@ -326,6 +327,10 @@ export default function CommandCenter() {
   const assetRisks = useMemo(() => computeAssetRisks(enriched), [enriched]);
   const assetsAtRisk = assetRisks.filter((a) => a.risk === "Critical" || a.risk === "High").length;
 
+  const HFTD_RANK: Record<string, number> = { "Tier 3": 3, "Tier 2": 2, "Tier 1": 1, "None": 0 };
+  const RISK_RANK: Record<string, number> = { Critical: 3, High: 2, Medium: 1, Low: 0 };
+
+
   const HFTD_TIER_CONFIG: Record<string, { color: string; label: string }> = {
     "Tier 3": { color: "#DC2626", label: "Tier 3 (Extreme)" },
     "Tier 2": { color: "#F97316", label: "Tier 2 (Elevated)" },
@@ -360,6 +365,27 @@ export default function CommandCenter() {
     });
     return result;
   }, [customers]);
+
+  const sortedAssetRisks = useMemo(() => {
+    const sorted = [...assetRisks];
+    const { col, desc } = assetSort;
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      if (col === "hftd") {
+        cmp = (HFTD_RANK[ssHftdTiers[a.id] || "None"] || 0) - (HFTD_RANK[ssHftdTiers[b.id] || "None"] || 0);
+      } else if (col === "risk") {
+        cmp = (RISK_RANK[a.risk] || 0) - (RISK_RANK[b.risk] || 0);
+      } else if (col === "fire") {
+        const da = a.nearestFireDist >= 0 ? a.nearestFireDist : 9999;
+        const db = b.nearestFireDist >= 0 ? b.nearestFireDist : 9999;
+        cmp = da - db;
+      } else if (col === "name") {
+        cmp = a.name.localeCompare(b.name);
+      }
+      return desc ? -cmp : cmp;
+    });
+    return sorted;
+  }, [assetRisks, assetSort, ssHftdTiers]);
 
   /* ── Map ────────────────────────────────────────────────── */
 
@@ -988,20 +1014,35 @@ export default function CommandCenter() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
-                      <th className="px-5 py-3 font-medium">Asset Name</th>
-                      <th className="px-5 py-3 font-medium">Type</th>
-                      <th className="px-5 py-3 font-medium">Voltage</th>
-                      <th className="px-5 py-3 font-medium">Capacity</th>
-                      <th className="px-5 py-3 font-medium">Zone</th>
-                      <th className="px-5 py-3 font-medium">HFTD Tier</th>
-                      <th className="px-5 py-3 font-medium">Nearest Fire</th>
-                      <th className="px-5 py-3 font-medium">Risk Level</th>
-                      <th className="px-5 py-3 font-medium">Trend</th>
-                      <th className="px-5 py-3 font-medium">Recommended Action</th>
+                      {([
+                        { key: "name", label: "Asset Name" },
+                        { key: "", label: "Type" },
+                        { key: "", label: "Voltage" },
+                        { key: "", label: "Capacity" },
+                        { key: "", label: "Zone" },
+                        { key: "hftd", label: "HFTD Tier" },
+                        { key: "fire", label: "Nearest Fire" },
+                        { key: "risk", label: "Risk Level" },
+                        { key: "", label: "Trend" },
+                        { key: "", label: "Recommended Action" },
+                      ] as { key: string; label: string }[]).map((h) => (
+                        <th
+                          key={h.label}
+                          className={`px-5 py-3 font-medium ${h.key ? "cursor-pointer hover:text-white/60 select-none" : ""}`}
+                          onClick={h.key ? () => setAssetSort((prev) => ({ col: h.key, desc: prev.col === h.key ? !prev.desc : true })) : undefined}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {h.label}
+                            {h.key && assetSort.col === h.key && (
+                              <span className="text-white/50">{assetSort.desc ? "▼" : "▲"}</span>
+                            )}
+                          </span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    {assetRisks.map((a) => {
+                    {sortedAssetRisks.map((a) => {
                       const ssData = SUBSTATIONS.find((s) => s.id === a.id);
                       return (
                         <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
