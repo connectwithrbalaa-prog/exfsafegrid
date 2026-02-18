@@ -136,6 +136,7 @@ export default function CommandCenter() {
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
+  const [hftdFilter, setHftdFilter] = useState<string>("All");
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
   const [weatherData, setWeatherData] = useState<any[]>([]);
@@ -367,9 +368,12 @@ export default function CommandCenter() {
   }, [customers]);
 
   const sortedAssetRisks = useMemo(() => {
-    const sorted = [...assetRisks];
+    let filtered = [...assetRisks];
+    if (hftdFilter !== "All") {
+      filtered = filtered.filter((a) => (ssHftdTiers[a.id] || "None") === hftdFilter);
+    }
     const { col, desc } = assetSort;
-    sorted.sort((a, b) => {
+    filtered.sort((a, b) => {
       let cmp = 0;
       if (col === "hftd") {
         cmp = (HFTD_RANK[ssHftdTiers[a.id] || "None"] || 0) - (HFTD_RANK[ssHftdTiers[b.id] || "None"] || 0);
@@ -384,8 +388,8 @@ export default function CommandCenter() {
       }
       return desc ? -cmp : cmp;
     });
-    return sorted;
-  }, [assetRisks, assetSort, ssHftdTiers]);
+    return filtered;
+  }, [assetRisks, assetSort, ssHftdTiers, hftdFilter]);
 
   /* ── Map ────────────────────────────────────────────────── */
 
@@ -1010,6 +1014,32 @@ export default function CommandCenter() {
 
           {activeTab === "assets" ? (
             <>
+              <div className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.06]">
+                <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Filter by HFTD:</span>
+                {["All", "Tier 3", "Tier 2", "Tier 1", "None"].map((tier) => {
+                  const isActive = hftdFilter === tier;
+                  const dotColor = tier === "All" ? undefined : HFTD_TIER_CONFIG[tier]?.color;
+                  return (
+                    <button
+                      key={tier}
+                      onClick={() => setHftdFilter(tier)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                        isActive
+                          ? "bg-white/10 border-white/20 text-white"
+                          : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
+                      }`}
+                    >
+                      {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
+                      {tier === "All" ? "All Tiers" : HFTD_TIER_CONFIG[tier]?.label || tier}
+                    </button>
+                  );
+                })}
+                {hftdFilter !== "All" && (
+                  <span className="text-[10px] text-white/30 ml-1">
+                    {sortedAssetRisks.length} of {assetRisks.length} assets
+                  </span>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
