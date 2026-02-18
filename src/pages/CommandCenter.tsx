@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users,
 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
 import NvcDashboard from "@/components/NvcDashboard";
 import EvacuationPanel from "@/components/EvacuationPanel";
@@ -132,6 +133,7 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts">("assets");
+  const [customers, setCustomers] = useState<{ hftd_tier: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
   const [showWeather, setShowWeather] = useState(true);
@@ -169,6 +171,14 @@ export default function CommandCenter() {
     (async () => {
       const { data } = await supabase.from("hvra_assets").select("*");
       if (data) setHvraAssets(data as unknown as HvraAsset[]);
+    })();
+  }, []);
+
+  // Fetch customers for HFTD distribution
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("customers").select("hftd_tier");
+      if (data) setCustomers(data);
     })();
   }, []);
 
@@ -315,6 +325,24 @@ export default function CommandCenter() {
   const criticalCount = enriched.filter((e) => e.risk === "Critical" || e.risk === "High").length;
   const assetRisks = useMemo(() => computeAssetRisks(enriched), [enriched]);
   const assetsAtRisk = assetRisks.filter((a) => a.risk === "Critical" || a.risk === "High").length;
+
+  const HFTD_TIER_CONFIG: Record<string, { color: string; label: string }> = {
+    "Tier 3": { color: "#DC2626", label: "Tier 3 (Extreme)" },
+    "Tier 2": { color: "#F97316", label: "Tier 2 (Elevated)" },
+    "Tier 1": { color: "#EAB308", label: "Tier 1 (Moderate)" },
+    "None": { color: "#6B7280", label: "No HFTD" },
+  };
+
+  const hftdDistribution = useMemo(() => {
+    const counts: Record<string, number> = { "Tier 3": 0, "Tier 2": 0, "Tier 1": 0, "None": 0 };
+    customers.forEach((c) => {
+      const tier = c.hftd_tier in counts ? c.hftd_tier : "None";
+      counts[tier]++;
+    });
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value, color: HFTD_TIER_CONFIG[name]?.color || "#6B7280" }));
+  }, [customers]);
 
   /* ── Map ────────────────────────────────────────────────── */
 
@@ -692,6 +720,55 @@ export default function CommandCenter() {
             <span className={`text-xl font-bold ${gridCfg.color}`}>{loading ? "…" : gridCfg.label}</span>
           </div>
         </div>
+
+        {/* ── HFTD Tier Distribution ────────────────────────── */}
+        {customers.length > 0 && (
+          <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-4 h-4 text-orange-400" />
+              <h2 className="text-sm font-semibold">Customer HFTD Tier Distribution</h2>
+              <span className="text-[10px] text-white/30 ml-2">{customers.length} customers</span>
+            </div>
+            <div className="flex items-center gap-8">
+              <div style={{ width: 160, height: 160 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={hftdDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      dataKey="value"
+                      strokeWidth={2}
+                      stroke="hsl(220,25%,9%)"
+                    >
+                      {hftdDistribution.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "hsl(220,25%,12%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#e2e8f0" }}
+                      formatter={(value: number, name: string) => [`${value} customers`, HFTD_TIER_CONFIG[name]?.label || name]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col gap-2">
+                {hftdDistribution.map((d) => (
+                  <div key={d.name} className="flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
+                    <span className="text-xs text-white/60 w-28">{HFTD_TIER_CONFIG[d.name]?.label || d.name}</span>
+                    <span className="text-sm font-bold">{d.value}</span>
+                    <span className="text-[10px] text-white/30">
+                      ({customers.length > 0 ? Math.round((d.value / customers.length) * 100) : 0}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Interactive Map ───────────────────────────────── */}
         <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
