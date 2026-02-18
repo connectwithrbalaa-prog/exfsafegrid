@@ -344,6 +344,23 @@ export default function CommandCenter() {
       .map(([name, value]) => ({ name, value, color: HFTD_TIER_CONFIG[name]?.color || "#6B7280" }));
   }, [customers]);
 
+  // Compute highest HFTD tier per substation (reusable across map + table)
+  const ssHftdTiers = useMemo(() => {
+    const tierRank: Record<string, number> = { "Tier 3": 3, "Tier 2": 2, "Tier 1": 1, "None": 0 };
+    const result: Record<string, string> = {};
+    SUBSTATIONS.forEach((ss) => {
+      let best = "None";
+      customers.forEach((c) => {
+        if (ss.servesZips.includes(c.zip_code || "")) {
+          const t = c.hftd_tier || "None";
+          if ((tierRank[t] ?? 0) > (tierRank[best] ?? 0)) best = t;
+        }
+      });
+      result[ss.id] = best;
+    });
+    return result;
+  }, [customers]);
+
   /* ── Map ────────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -398,22 +415,8 @@ export default function CommandCenter() {
         "None":   { bg: "#3B82F6", shadow: "rgba(59,130,246,0.5)", label: "No HFTD" },
       };
 
-      // Determine highest HFTD tier per substation from customer data
-      const tierRank: Record<string, number> = { "Tier 3": 3, "Tier 2": 2, "Tier 1": 1, "None": 0 };
-      const ssHftdMap = new Map<string, string>();
       SUBSTATIONS.forEach((ss) => {
-        let best = "None";
-        customers.forEach((c) => {
-          if (ss.servesZips.includes(c.zip_code || "")) {
-            const t = c.hftd_tier || "None";
-            if ((tierRank[t] ?? 0) > (tierRank[best] ?? 0)) best = t;
-          }
-        });
-        ssHftdMap.set(ss.id, best);
-      });
-
-      SUBSTATIONS.forEach((ss) => {
-        const hftd = ssHftdMap.get(ss.id) || "None";
+        const hftd = ssHftdTiers[ss.id] || "None";
         const mc = HFTD_MARKER_COLORS[hftd] || HFTD_MARKER_COLORS["None"];
         const el = document.createElement("div");
         el.style.cssText = `width:14px;height:14px;background:${mc.bg};border:2px solid #fff;border-radius:50%;box-shadow:0 0 8px ${mc.shadow};cursor:pointer;`;
@@ -990,6 +993,7 @@ export default function CommandCenter() {
                       <th className="px-5 py-3 font-medium">Voltage</th>
                       <th className="px-5 py-3 font-medium">Capacity</th>
                       <th className="px-5 py-3 font-medium">Zone</th>
+                      <th className="px-5 py-3 font-medium">HFTD Tier</th>
                       <th className="px-5 py-3 font-medium">Nearest Fire</th>
                       <th className="px-5 py-3 font-medium">Risk Level</th>
                       <th className="px-5 py-3 font-medium">Trend</th>
@@ -1011,6 +1015,18 @@ export default function CommandCenter() {
                           <td className="px-5 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
                           <td className="px-5 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
                           <td className="px-5 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
+                          <td className="px-5 py-3">
+                            {(() => {
+                              const tier = ssHftdTiers[a.id] || "None";
+                              const color = HFTD_TIER_CONFIG[tier]?.color || "#6B7280";
+                              return (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+                                  <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                                  {tier}
+                                </span>
+                              );
+                            })()}
+                          </td>
                           <td className="px-5 py-3">
                             {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
                           </td>
