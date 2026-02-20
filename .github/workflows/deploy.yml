@@ -1,0 +1,26 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: SSH to VPS & deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          script: |
+            cd /docker/exfsafegrid
+            git pull origin main
+            docker build --no-cache -t exfsafegrid-app .
+            docker stop exfsafegrid-app || true
+            docker rm exfsafegrid-app || true
+            docker run -d --name exfsafegrid-app -p 80:80 -p 443:443 exfsafegrid-app
