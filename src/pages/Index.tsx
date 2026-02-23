@@ -8,7 +8,7 @@ import { useCustomer } from "@/hooks/use-customer";
 import { buildCustomerContext } from "@/lib/customer-types";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
-import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, FileText } from "lucide-react";
+import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, FileText, HardHat, Globe } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { toast } from "sonner";
@@ -77,6 +77,20 @@ const Index = () => {
               >
                 <Flame className="w-3 h-3 md:w-3.5 md:h-3.5" />
                 <span className="hidden sm:inline">Command Center</span>
+              </button>
+              <button
+                onClick={() => navigate("/crew")}
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <HardHat className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Field Crew</span>
+              </button>
+              <button
+                onClick={() => navigate("/status")}
+                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Globe className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="hidden sm:inline">Public Status</span>
               </button>
               <button
                 onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}

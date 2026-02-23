@@ -14,6 +14,10 @@ import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
 import FireHistoryTimeline from "@/components/FireHistoryTimeline";
 import FireBehaviorPanel from "@/components/FireBehaviorPanel";
 import CommunityAlertsPanel from "@/components/CommunityAlertsPanel";
+import AfterActionReport from "@/components/AfterActionReport";
+import ComplianceDashboard from "@/components/ComplianceDashboard";
+import VegetationRiskPanel from "@/components/VegetationRiskPanel";
+import SmsAlertsPanel from "@/components/SmsAlertsPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -132,7 +136,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -1014,6 +1018,42 @@ export default function CommandCenter() {
               <Bell className="w-4 h-4 text-yellow-400" />
               Community Alerts
             </button>
+            <button
+              onClick={() => setActiveTab("sms")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Bell className="w-4 h-4 text-sky-400" />
+              SMS Alerts
+            </button>
+            <button
+              onClick={() => setActiveTab("after-action")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <FileText className="w-4 h-4 text-violet-400" />
+              After-Action
+            </button>
+            <button
+              onClick={() => setActiveTab("compliance")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Shield className="w-4 h-4 text-cyan-400" />
+              Compliance
+            </button>
+            <button
+              onClick={() => setActiveTab("vegetation")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Activity className="w-4 h-4 text-green-400" />
+              Vegetation
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -1184,9 +1224,25 @@ export default function CommandCenter() {
             <div className="p-5">
               <FireBehaviorPanel fires={fires} weatherData={weatherData} />
             </div>
-          ) : (
+          ) : activeTab === "alerts" ? (
             <div className="p-5">
               <CommunityAlertsPanel fires={fires} />
+            </div>
+          ) : activeTab === "sms" ? (
+            <div className="p-5">
+              <SmsAlertsPanel />
+            </div>
+          ) : activeTab === "after-action" ? (
+            <div className="p-5">
+              <AfterActionReport />
+            </div>
+          ) : activeTab === "compliance" ? (
+            <div className="p-5">
+              <ComplianceDashboard />
+            </div>
+          ) : (
+            <div className="p-5">
+              <VegetationRiskPanel />
             </div>
           )}
         </div>
