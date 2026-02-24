@@ -16,7 +16,7 @@ from typing import Optional
 import requests
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from config.database import SessionLocal
+from config.database import SessionLocal, log_ingestion
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ def _upsert_psa_outlook(db: Session, rows: list) -> tuple[int, int]:
             (:psa_id, :outlook_type, :forecast_date, :period_label,
              :fire_potential, :fire_potential_label, :raw_json::JSONB,
              CASE WHEN :geometry IS NOT NULL
-                  THEN ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326)
+                  THEN ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326))
                   ELSE NULL END,
              NOW())
         ON CONFLICT (psa_id, outlook_type, forecast_date, period_label)
@@ -215,7 +215,7 @@ def fetch_7day_outlooks(db: Optional[Session] = None) -> dict:
     finally:
         if own_db:
             db.close()
-    return {
+    result = {
         "source": "outlook_7day",
         "records_fetched": total_fetched,
         "records_inserted": total_inserted,
@@ -224,6 +224,8 @@ def fetch_7day_outlooks(db: Optional[Session] = None) -> dict:
         "error_msg": error_msg,
         "duration_sec": round(time.time() - t0, 2),
     }
+    log_ingestion(result)
+    return result
 
 
 # ── Monthly / Extended Outlooks ───────────────────────────────────
@@ -300,7 +302,7 @@ def fetch_monthly_outlooks(db: Optional[Session] = None) -> dict:
     finally:
         if own_db:
             db.close()
-    return {
+    result = {
         "source": "outlook_monthly",
         "records_fetched": total_fetched,
         "records_inserted": total_inserted,
@@ -309,6 +311,8 @@ def fetch_monthly_outlooks(db: Optional[Session] = None) -> dict:
         "error_msg": error_msg,
         "duration_sec": round(time.time() - t0, 2),
     }
+    log_ingestion(result)
+    return result
 
 
 # ── Combined runner ───────────────────────────────────────────────

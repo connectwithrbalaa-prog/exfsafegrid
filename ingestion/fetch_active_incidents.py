@@ -16,7 +16,7 @@ from typing import Optional
 import requests
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from config.database import SessionLocal
+from config.database import SessionLocal, log_ingestion
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def run(db: Optional[Session] = None) -> dict:
     finally:
         if own_db:
             db.close()
-    return {
+    result = {
         "source": "incidents",
         "records_fetched": fetched,
         "records_inserted": inserted,
@@ -221,6 +221,8 @@ def run(db: Optional[Session] = None) -> dict:
         "error_msg": error_msg,
         "duration_sec": round(time.time() - t0, 2),
     }
+    log_ingestion(result)
+    return result
 
 
 if __name__ == "__main__":
