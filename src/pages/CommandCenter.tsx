@@ -20,6 +20,7 @@ import ComplianceDashboard from "@/components/ComplianceDashboard";
 import VegetationRiskPanel from "@/components/VegetationRiskPanel";
 import SmsAlertsPanel from "@/components/SmsAlertsPanel";
 import BackendOpsPanel from "@/components/BackendOpsPanel";
+import RiskAlertsPanel from "@/components/RiskAlertsPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -138,7 +139,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -180,6 +181,14 @@ export default function CommandCenter() {
     }
     return map;
   }, [psaRiskQuery.data]);
+
+  // Asset name lookup for alerts panel
+  const assetNamesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ss of SUBSTATIONS) map.set(ss.id, ss.name);
+    for (const tl of TRANSMISSION_LINES) map.set(tl.id, tl.name);
+    return map;
+  }, []);
 
   /* ── Fetch ──────────────────────────────────────────────── */
 
@@ -1236,6 +1245,15 @@ export default function CommandCenter() {
               <Server className="w-4 h-4 text-indigo-400" />
               Backend Ops
             </button>
+            <button
+              onClick={() => setActiveTab("risk-alerts")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              Risk Alerts
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -1457,9 +1475,13 @@ export default function CommandCenter() {
             <div className="p-5">
               <ComplianceDashboard />
             </div>
-          ) : activeTab === "backend" ? (
+           ) : activeTab === "backend" ? (
             <div className="p-5">
               <BackendOpsPanel />
+            </div>
+          ) : activeTab === "risk-alerts" ? (
+            <div className="p-5">
+              <RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} />
             </div>
           ) : (
             <div className="p-5">
