@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.weather]
 verify_jwt = false
+
+[functions.community-alerts]
+verify_jwt = false
+
+[functions.sms-send]
+verify_jwt = true
+
+[functions.after-action-report]
+verify_jwt = true

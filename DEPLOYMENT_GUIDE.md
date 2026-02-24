@@ -51,7 +51,8 @@ create table if not exists public.sms_log (
 create index sms_log_dedup_idx on public.sms_log (zip_code, alert_type, sent_at desc);
 
 -- PSPS Event Log (AfterActionReport + ComplianceDashboard)
-create table if not exists public.psps_events (
+-- Note: named psps_event_log to avoid collision with VPS postgres psps_events table
+create table if not exists public.psps_event_log (
   id                   uuid primary key default gen_random_uuid(),
   event_id             text unique not null,
   event_name           text not null,
@@ -82,7 +83,7 @@ create table if not exists public.compliance_items (
   last_verified date,
   details       text,
   evidence      text,
-  psps_event_id uuid references public.psps_events(id) on delete set null,
+  psps_event_id uuid references public.psps_event_log(id) on delete set null,
   updated_at    timestamptz default now()
 );
 
@@ -113,7 +114,7 @@ alter table public.hazard_reports
 
 ```sql
 alter table public.sms_log            enable row level security;
-alter table public.psps_events         enable row level security;
+alter table public.psps_event_log      enable row level security;
 alter table public.compliance_items    enable row level security;
 alter table public.vegetation_circuits enable row level security;
 
@@ -122,8 +123,8 @@ create policy "Agents read sms_log"
 create policy "Service role insert sms_log"
   on public.sms_log for insert with check (true);
 
-create policy "Agents manage psps_events"
-  on public.psps_events for all using (auth.role() = 'authenticated');
+create policy "Agents manage psps_event_log"
+  on public.psps_event_log for all using (auth.role() = 'authenticated');
 create policy "Agents manage compliance_items"
   on public.compliance_items for all using (auth.role() = 'authenticated');
 create policy "Agents manage vegetation_circuits"
@@ -137,7 +138,7 @@ Two new edge functions connect the new UI panels to real data:
 | Function | File | Purpose |
 |---|---|---|
 | `sms-send` | `supabase/functions/sms-send/index.ts` | Twilio SMS dispatch + dedup write to `sms_log` |
-| `after-action-report` | `supabase/functions/after-action-report/index.ts` | Claude/Gemini narrative from `psps_events` data |
+| `after-action-report` | `supabase/functions/after-action-report/index.ts` | Claude/Gemini narrative from `psps_event_log` data |
 
 Both files are committed to the repo. Deploy them with:
 ```bash
@@ -150,9 +151,9 @@ npx supabase functions deploy after-action-report
 | Component | Current | Production Change |
 |---|---|---|
 | `SmsAlertsPanel.tsx` | Mock data | Subscribe to `sms_log` realtime + call `sms-send` function |
-| `AfterActionReport.tsx` | Static events | Fetch `psps_events` table + call `after-action-report` function |
+| `AfterActionReport.tsx` | Static events | Fetch `psps_event_log` table + call `after-action-report` function |
 | `VegetationRiskPanel.tsx` | MOCK_CIRCUITS | Fetch `vegetation_circuits` table |
-| `ComplianceDashboard.tsx` | Static arrays | Fetch `compliance_items` + `psps_events` tables |
+| `ComplianceDashboard.tsx` | Static arrays | Fetch `compliance_items` + `psps_event_log` tables |
 
 ### 1.5  Required Secrets (Supabase Dashboard → Settings → Secrets)
 
