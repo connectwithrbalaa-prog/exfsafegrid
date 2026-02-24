@@ -30,7 +30,6 @@ jobs:
             red-flag-status \
             weather \
             community-alerts \
-            sms-send \
             after-action-report
 
       - name: Set function secrets
@@ -39,7 +38,4 @@ jobs:
         run: |
           supabase secrets set --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} \
             LOVABLE_API_KEY=${{ secrets.LOVABLE_API_KEY }} \
-            NASA_FIRMS_API_KEY=${{ secrets.NASA_FIRMS_API_KEY }} \
-            TWILIO_SID=${{ secrets.TWILIO_SID }} \
-            TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }} \
-            TWILIO_FROM=${{ secrets.TWILIO_FROM }}
+            NASA_FIRMS_API_KEY=${{ secrets.NASA_FIRMS_API_KEY }}
