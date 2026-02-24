@@ -190,6 +190,42 @@ export default function CommandCenter() {
     return map;
   }, []);
 
+  // Global breach detection → toast notifications (fires on any tab)
+  const globalBreachRef = useRef<Set<string>>(new Set());
+  const [riskThreshold] = useState(0.5); // synced default with RiskAlertsPanel
+
+  useEffect(() => {
+    if (circuitRiskMap.size === 0) return;
+
+    const newBreaches: { name: string; prob: number; band: string }[] = [];
+    const currentSet = new Set<string>();
+
+    circuitRiskMap.forEach(({ prob, band }, circuitId) => {
+      if (prob >= riskThreshold) {
+        currentSet.add(circuitId);
+        if (!globalBreachRef.current.has(circuitId)) {
+          newBreaches.push({ name: assetNamesMap.get(circuitId) || circuitId, prob, band });
+        }
+      }
+    });
+
+    globalBreachRef.current = currentSet;
+
+    if (newBreaches.length > 0 && newBreaches.length <= 5) {
+      newBreaches.forEach((b) => {
+        toast.warning(`⚡ ${b.name} — ${(b.prob * 100).toFixed(0)}% ignition risk (${b.band})`, {
+          duration: 8000,
+          description: "Circuit risk threshold exceeded",
+        });
+      });
+    } else if (newBreaches.length > 5) {
+      toast.warning(`⚡ ${newBreaches.length} circuits exceeded ${(riskThreshold * 100).toFixed(0)}% ignition risk`, {
+        duration: 8000,
+        description: `Highest: ${newBreaches[0].name} at ${(newBreaches[0].prob * 100).toFixed(0)}%`,
+      });
+    }
+  }, [circuitRiskMap, riskThreshold, assetNamesMap]);
+
   /* ── Fetch ──────────────────────────────────────────────── */
 
   const fetchFires = useCallback(async () => {
