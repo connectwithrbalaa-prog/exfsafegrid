@@ -11,16 +11,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: SSH to VPS & deploy
+      - name: SSH to VPS & deploy full stack
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_KEY }}
+          envs: >
+            VITE_SUPABASE_URL,
+            VITE_SUPABASE_PUBLISHABLE_KEY,
+            VITE_SUPABASE_PROJECT_ID,
+            POSTGRES_PASSWORD,
+            ANTHROPIC_API_KEY,
+            API_KEY
           script: |
+            set -e
             cd /docker/exfsafegrid
             git pull origin main
-            docker build --no-cache -t exfsafegrid-app .
-            docker stop exfsafegrid-app || true
-            docker rm exfsafegrid-app || true
-            docker run -d --name exfsafegrid-app -p 80:80 -p 443:443 exfsafegrid-app
+
+            # Write .env from GitHub secrets (overwrite on every deploy)
+            cat > .env << EOF
+            VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+            VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+            VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+            ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+            API_KEY=$API_KEY
+            EOF
+
+            # Build and start all services: db, api (Python + ML models), frontend (Nginx)
+            docker compose up -d --build --remove-orphans
+
+            # Remove dangling images to free disk space
+            docker image prune -f
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
