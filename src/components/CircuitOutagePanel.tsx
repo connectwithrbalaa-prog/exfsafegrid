@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { AlertTriangle, Users, Zap, TrendingUp, ShieldAlert, Activity, MapPin, Battery } from "lucide-react";
+import { useMemo, useCallback } from "react";
+import { AlertTriangle, Users, Zap, TrendingUp, ShieldAlert, Activity, MapPin, Battery, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SUBSTATIONS, TRANSMISSION_LINES } from "@/lib/wildfire-utils";
 
@@ -111,6 +111,30 @@ export default function CircuitOutagePanel({ circuitRiskMap, psaRiskMap, custome
             Customer impact estimates from ML ignition risk × grid topology
           </p>
         </div>
+        <button
+          onClick={() => {
+            const rows = [
+              ["Substation", "ID", "Zone", "Voltage", "Capacity_MW", "Status", "HFTD_Tier", "Outage_Prob_%", "Ignition_Prob_%", "PSA_Prob_%", "Customers_Affected", "Medical_Baseline", "Battery_Backup", "Est_Restoration_Hrs"],
+              ...impacts.map((i) => [
+                i.name, i.id, `"${i.zone}"`, i.voltage, i.capacityMW, i.status, i.hftdTier,
+                (i.outageProb * 100).toFixed(1), (i.ignitionProb * 100).toFixed(1), (i.psaProb * 100).toFixed(1),
+                i.customersAffected, i.medicalBaseline, i.hasBatteryBackup, i.estimatedRestorationHrs,
+              ]),
+            ];
+            const csv = rows.map((r) => r.join(",")).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `outage-impact-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-600/30 transition-colors shrink-0"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export CSV
+        </button>
       </div>
 
       {/* Summary cards */}
