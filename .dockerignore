@@ -1,0 +1,31 @@
+node_modules
+.git
+.env
+tmp
+
+# Frontend source & config (not needed in Python API image)
+src
+public
+index.html
+vite.config.ts
+vitest.config.ts
+tsconfig*.json
+eslint.config.js
+postcss.config.js
+tailwind.config.ts
+components.json
+package.json
+package-lock.json
+bun.lockb
+Dockerfile.frontend
+nginx.conf
+supabase
+
+# Docs
+docs
+*.md
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
