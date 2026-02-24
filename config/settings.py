@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     ARCGIS_MAX_RECORDS: int = 1000
     ARCGIS_REQUEST_TIMEOUT: int = 30
 
+    # NIFC ArcGIS service URLs
+    NIFC_OUTLOOK_7DAY_URL: str = "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/outlooks_forecast/MapServer"
+    NIFC_OUTLOOK_MONTHLY_URL: str = "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/Outlooks_Monthly_Extended/MapServer"
+    NIFC_RAWS_URL: str = "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/PSA_GACC_KeyRAWS/MapServer"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
