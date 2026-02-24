@@ -30,6 +30,7 @@ jobs:
             red-flag-status \
             weather \
             community-alerts \
+            sms-send \
             after-action-report
 
       - name: Set function secrets

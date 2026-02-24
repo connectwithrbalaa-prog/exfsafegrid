@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     API_KEY: str = ""
     LOG_LEVEL: str = "INFO"
     MODEL_DIR: str = "models/artifacts"
-    CLAUDE_MODEL: str = "claude-opus-4-5"
+    CLAUDE_MODEL: str = "claude-opus-4-6"
 
     # ArcGIS / NIFC fetch settings
     ARCGIS_MAX_RECORDS: int = 1000
