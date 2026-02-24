@@ -26,6 +26,7 @@ import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
 import { toast } from "sonner";
+import TopNav from "@/components/TopNav";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -927,6 +928,7 @@ export default function CommandCenter() {
 
   return (
     <div className="min-h-screen bg-[hsl(220,25%,6%)] text-[hsl(210,40%,93%)]">
+      <TopNav variant="dark" />
       {/* Header */}
       <header className="border-b border-white/[0.08] bg-[hsl(220,25%,8%)]">
         <div className="max-w-[1600px] mx-auto px-6 flex items-center justify-between h-14">

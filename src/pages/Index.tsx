@@ -11,6 +11,7 @@ import type { Customer } from "@/lib/customer-types";
 import { Zap, Flame, DollarSign, Activity, LogOut, RefreshCw, Presentation, FileText, HardHat, Globe } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
+import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
 
 
@@ -47,23 +48,11 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
         <PspsStatusHeader />
+        <TopNav />
         <header className="border-b border-border bg-card">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 flex items-center justify-between h-12 md:h-14">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary-foreground" />
-              </div>
-              <span className="text-base md:text-lg font-bold tracking-tight"><span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span></span>
-              <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
-            </div>
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 flex items-center justify-between h-10">
+            <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Agent</span>
             <div className="flex items-center gap-2 md:gap-3">
-              <button
-                onClick={() => navigate("/docs")}
-                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <FileText className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="hidden sm:inline">Docs</span>
-              </button>
               <button
                 onClick={() => navigate("/demo")}
                 className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -72,25 +61,11 @@ const Index = () => {
                 <span className="hidden sm:inline">Demo Deck</span>
               </button>
               <button
-                onClick={() => navigate("/command-center")}
-                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Flame className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="hidden sm:inline">Command Center</span>
-              </button>
-              <button
                 onClick={() => navigate("/crew")}
                 className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <HardHat className="w-3 h-3 md:w-3.5 md:h-3.5" />
                 <span className="hidden sm:inline">Field Crew</span>
-              </button>
-              <button
-                onClick={() => navigate("/status")}
-                className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Globe className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="hidden sm:inline">Public Status</span>
               </button>
               <button
                 onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
@@ -152,6 +127,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <TopNav />
       <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
