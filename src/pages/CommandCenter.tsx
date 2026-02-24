@@ -150,6 +150,7 @@ export default function CommandCenter() {
   const weatherMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [showSpreadPrediction, setShowSpreadPrediction] = useState(false);
   const spreadMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const [showIgnitionHeatmap, setShowIgnitionHeatmap] = useState(false);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -325,6 +326,78 @@ export default function CommandCenter() {
       spreadMarkersRef.current.push(marker);
     });
   }, [showSpreadPrediction, fires, weatherData]);
+
+  // Ignition risk heatmap layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const SOURCE_ID = "ignition-heatmap-src";
+    const LAYER_ID = "ignition-heatmap-layer";
+
+    // Remove existing layer/source
+    if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
+    if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+
+    if (!showIgnitionHeatmap || circuitRiskMap.size === 0) return;
+
+    // Build GeoJSON from substations + their ignition risk probabilities
+    const features: GeoJSON.Feature[] = [];
+    for (const ss of SUBSTATIONS) {
+      const risk = circuitRiskMap.get(ss.id);
+      if (risk) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [ss.longitude, ss.latitude] },
+          properties: { prob: risk.prob, band: risk.band, name: ss.name },
+        });
+      }
+    }
+    // Also add transmission line midpoints
+    for (const tl of TRANSMISSION_LINES) {
+      const risk = circuitRiskMap.get(tl.id);
+      if (risk && tl.coordinates.length > 0) {
+        const mid = tl.coordinates[Math.floor(tl.coordinates.length / 2)];
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: mid },
+          properties: { prob: risk.prob, band: risk.band, name: tl.name },
+        });
+      }
+    }
+
+    if (features.length === 0) return;
+
+    map.addSource(SOURCE_ID, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features },
+    });
+
+    map.addLayer({
+      id: LAYER_ID,
+      type: "heatmap",
+      source: SOURCE_ID,
+      paint: {
+        // Weight by ignition probability
+        "heatmap-weight": ["get", "prob"],
+        // Intensity ramps with zoom
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 2.5],
+        // Radius grows with zoom
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 30, 12, 60, 14, 80],
+        // Color ramp: transparent → yellow → orange → red
+        "heatmap-color": [
+          "interpolate", ["linear"], ["heatmap-density"],
+          0, "rgba(0,0,0,0)",
+          0.15, "rgba(253,240,148,0.4)",
+          0.35, "rgba(252,186,3,0.55)",
+          0.55, "rgba(249,115,22,0.7)",
+          0.75, "rgba(220,38,38,0.8)",
+          1, "rgba(185,28,28,0.9)",
+        ],
+        "heatmap-opacity": 0.75,
+      },
+    });
+  }, [showIgnitionHeatmap, circuitRiskMap]);
 
   /* ── Enrich fires relative to ALL assets ───────────────── */
 
@@ -910,6 +983,17 @@ export default function CommandCenter() {
               >
                 <Flame className="w-3 h-3" />
                 Spread
+              </button>
+              <button
+                onClick={() => setShowIgnitionHeatmap(!showIgnitionHeatmap)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  showIgnitionHeatmap
+                    ? "bg-orange-500/15 border-orange-500/30 text-orange-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+              >
+                <Activity className="w-3 h-3" />
+                Ignition Risk
               </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
