@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -190,41 +190,81 @@ export default function CommandCenter() {
     return map;
   }, []);
 
-  // Global breach detection → toast notifications (fires on any tab)
+  // Global breach detection → toast notifications + audio alerts
   const globalBreachRef = useRef<Set<string>>(new Set());
-  const [riskThreshold] = useState(0.5); // synced default with RiskAlertsPanel
+  const [riskThreshold] = useState(0.5);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playAlertTone = useCallback((critical: boolean) => {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+
+      // Two-tone urgent beep pattern
+      const freqs = critical ? [880, 1100, 880] : [660, 880];
+      const beepDur = critical ? 0.12 : 0.15;
+      const gap = 0.06;
+
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = critical ? "square" : "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * (beepDur + gap));
+        gain.gain.linearRampToValueAtTime(0.15, now + i * (beepDur + gap) + 0.01);
+        gain.gain.setValueAtTime(0.15, now + i * (beepDur + gap) + beepDur - 0.02);
+        gain.gain.linearRampToValueAtTime(0, now + i * (beepDur + gap) + beepDur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + i * (beepDur + gap));
+        osc.stop(now + i * (beepDur + gap) + beepDur);
+      });
+    } catch (_) { /* AudioContext not available */ }
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (circuitRiskMap.size === 0) return;
 
     const newBreaches: { name: string; prob: number; band: string }[] = [];
     const currentSet = new Set<string>();
+    let hasCritical = false;
 
     circuitRiskMap.forEach(({ prob, band }, circuitId) => {
       if (prob >= riskThreshold) {
         currentSet.add(circuitId);
         if (!globalBreachRef.current.has(circuitId)) {
           newBreaches.push({ name: assetNamesMap.get(circuitId) || circuitId, prob, band });
+          if (prob >= 0.75) hasCritical = true;
         }
       }
     });
 
     globalBreachRef.current = currentSet;
 
-    if (newBreaches.length > 0 && newBreaches.length <= 5) {
-      newBreaches.forEach((b) => {
-        toast.warning(`⚡ ${b.name} — ${(b.prob * 100).toFixed(0)}% ignition risk (${b.band})`, {
-          duration: 8000,
-          description: "Circuit risk threshold exceeded",
+    if (newBreaches.length > 0) {
+      // Play sound for critical breaches (≥75%)
+      if (hasCritical) playAlertTone(true);
+      else playAlertTone(false);
+
+      if (newBreaches.length <= 5) {
+        newBreaches.forEach((b) => {
+          const isCrit = b.prob >= 0.75;
+          (isCrit ? toast.error : toast.warning)(
+            `${isCrit ? "🔴" : "⚡"} ${b.name} — ${(b.prob * 100).toFixed(0)}% ignition risk (${b.band})`,
+            { duration: isCrit ? 12000 : 8000, description: isCrit ? "CRITICAL: Immediate attention required" : "Circuit risk threshold exceeded" }
+          );
         });
-      });
-    } else if (newBreaches.length > 5) {
-      toast.warning(`⚡ ${newBreaches.length} circuits exceeded ${(riskThreshold * 100).toFixed(0)}% ignition risk`, {
-        duration: 8000,
-        description: `Highest: ${newBreaches[0].name} at ${(newBreaches[0].prob * 100).toFixed(0)}%`,
-      });
+      } else {
+        toast.warning(`⚡ ${newBreaches.length} circuits exceeded ${(riskThreshold * 100).toFixed(0)}% ignition risk`, {
+          duration: 8000,
+          description: `Highest: ${newBreaches[0].name} at ${(newBreaches[0].prob * 100).toFixed(0)}%`,
+        });
+      }
     }
-  }, [circuitRiskMap, riskThreshold, assetNamesMap]);
+  }, [circuitRiskMap, riskThreshold, assetNamesMap, playAlertTone]);
+
 
   /* ── Fetch ──────────────────────────────────────────────── */
 
@@ -1076,6 +1116,18 @@ export default function CommandCenter() {
               >
                 <Activity className="w-3 h-3" />
                 Ignition Risk
+              </button>
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  soundEnabled
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+                title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+              >
+                {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                Sound
               </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
