@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Zap, ArrowLeft, BookOpen, Users, Shield, BarChart3, Layers, AlertTriangle, Target, Clock, Globe } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import TopNav from "@/components/TopNav";
 
 const sections = [
   {
@@ -314,6 +315,7 @@ const Documentation = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <TopNav />
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
           <div className="flex items-center gap-3">

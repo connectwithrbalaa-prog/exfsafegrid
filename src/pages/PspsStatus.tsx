@@ -13,8 +13,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, RefreshCw, Search, MapPin, Clock, AlertTriangle, CheckCircle2, Flame, Phone, ArrowLeft } from "lucide-react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Zap, RefreshCw, Search, MapPin, Clock, AlertTriangle, CheckCircle2, Flame, Phone } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import TopNav from "@/components/TopNav";
 
 interface ZipStatus {
   zip_code: string;
@@ -46,7 +47,6 @@ const PHASE_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export default function PspsStatus() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [zipInput, setZipInput] = useState(searchParams.get("zip") || "");
   const [zipStatuses, setZipStatuses] = useState<ZipStatus[]>([]);
@@ -123,6 +123,7 @@ export default function PspsStatus() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <TopNav />
       {/* Global status banner */}
       <div className={`border-b ${gcfg.banner}`}>
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -157,13 +158,6 @@ export default function PspsStatus() {
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-white/[0.08]">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate("/")}
-              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors mr-1"
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>

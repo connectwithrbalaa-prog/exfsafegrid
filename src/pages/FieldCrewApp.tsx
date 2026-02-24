@@ -18,6 +18,7 @@ import {
   Flame, Zap, Clock, User, ArrowLeft,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -241,6 +242,7 @@ export default function FieldCrewApp() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white select-none">
+      <TopNav variant="dark" />
       {/* Status bar */}
       <div className={`px-4 py-2 flex items-center justify-between text-xs ${online ? "bg-emerald-900/50" : "bg-red-900/50"}`}>
         <div className="flex items-center gap-2">
