@@ -233,9 +233,11 @@ mkdir -p /docker/exfsafegrid
 cd /docker/exfsafegrid
 git clone https://github.com/connectwithrbalaa-prog/exfsafegrid.git .
 
-# Create .env for build-time variables
+# Create .env for build-time and runtime variables
 # Use printf to avoid heredoc parsing issues on some shells
 printf 'POSTGRES_PASSWORD=your-db-password\nANTHROPIC_API_KEY=sk-ant-...\nAPI_KEY=your-api-key\nVITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...\nVITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy\n' > .env
+# NIFC_OUTLOOK_7DAY_URL, NIFC_OUTLOOK_MONTHLY_URL, NIFC_RAWS_URL have
+# working defaults in config/settings.py — only add them if URLs change.
 
 Step 4: Push to main triggers auto-deploy
 ──────────────────────────────────────────
@@ -352,6 +354,24 @@ Required additional GitHub Secrets:
 | `VITE_SUPABASE_URL` | `https://efutjtbgcqbprgtefcfy.supabase.co` |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase Dashboard → Settings → API → anon key |
 | `VITE_SUPABASE_PROJECT_ID` | `efutjtbgcqbprgtefcfy` |
+
+### Python API (`docker-compose.yml` / `.env` on VPS)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://postgres:postgres@db:5432/exf_wildfire` | Postgres connection (set by docker-compose) |
+| `ANTHROPIC_API_KEY` | _(required)_ | Claude API key for AI agents |
+| `API_KEY` | _(optional)_ | Bearer token to protect API endpoints |
+| `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`) |
+| `MODEL_DIR` | `/app/models/artifacts` | Path for trained ML model files |
+| `CLAUDE_MODEL` | `claude-opus-4-5` | Claude model ID used by agents |
+| `ARCGIS_MAX_RECORDS` | `1000` | Max features per ArcGIS paginated request |
+| `ARCGIS_REQUEST_TIMEOUT` | `30` | Seconds before ArcGIS fetch times out |
+| `NIFC_OUTLOOK_7DAY_URL` | NIFC MapServer URL | 7-Day Significant Fire Potential service |
+| `NIFC_OUTLOOK_MONTHLY_URL` | NIFC MapServer URL | Monthly/Extended Outlook service |
+| `NIFC_RAWS_URL` | NIFC MapServer URL | PSA GACC Key RAWS stations service |
+
+> All `NIFC_*` and `ARCGIS_*` variables have working defaults and only need to be set if the upstream NIFC URLs change.
 
 ### Edge Functions (Supabase Secrets)
 
