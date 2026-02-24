@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -153,6 +154,31 @@ export default function CommandCenter() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const fireHistoryRef = useRef<Map<string, number>>(new Map());
+
+  // Backend ML predictions
+  const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
+  const psaRiskQuery = usePsaRisk({ limit: 500 });
+
+  // Build lookup maps: circuit_id → prediction data
+  const circuitRiskMap = useMemo(() => {
+    const map = new Map<string, { prob: number; band: string }>();
+    if (circuitRiskQuery.data?.results) {
+      for (const r of circuitRiskQuery.data.results) {
+        map.set(r.circuit_id, { prob: r.prob_spike, band: r.risk_band });
+      }
+    }
+    return map;
+  }, [circuitRiskQuery.data]);
+
+  const psaRiskMap = useMemo(() => {
+    const map = new Map<string, { prob: number; bucket: string }>();
+    if (psaRiskQuery.data?.results) {
+      for (const r of psaRiskQuery.data.results) {
+        map.set(r.circuit_id, { prob: r.prob_above_normal, bucket: r.risk_bucket });
+      }
+    }
+    return map;
+  }, [psaRiskQuery.data]);
 
   /* ── Fetch ──────────────────────────────────────────────── */
 
@@ -394,11 +420,19 @@ export default function CommandCenter() {
         cmp = da - db;
       } else if (col === "name") {
         cmp = a.name.localeCompare(b.name);
+      } else if (col === "ignition") {
+        const ia = circuitRiskMap.get(a.id)?.prob ?? -1;
+        const ib = circuitRiskMap.get(b.id)?.prob ?? -1;
+        cmp = ia - ib;
+      } else if (col === "psa") {
+        const pa = psaRiskMap.get(a.id)?.prob ?? -1;
+        const pb = psaRiskMap.get(b.id)?.prob ?? -1;
+        cmp = pa - pb;
       }
       return desc ? -cmp : cmp;
     });
     return filtered;
-  }, [assetRisks, assetSort, ssHftdTiers, hftdFilter, riskFilter]);
+  }, [assetRisks, assetSort, ssHftdTiers, hftdFilter, riskFilter, circuitRiskMap, psaRiskMap]);
 
   /* ── Map ────────────────────────────────────────────────── */
 
@@ -1139,6 +1173,8 @@ export default function CommandCenter() {
                         { key: "hftd", label: "HFTD Tier" },
                         { key: "fire", label: "Nearest Fire" },
                         { key: "risk", label: "Risk Level" },
+                        { key: "ignition", label: "Ignition Risk 24h" },
+                        { key: "psa", label: "PSA Risk" },
                         { key: "", label: "Trend" },
                         { key: "", label: "Recommended Action" },
                       ] as { key: string; label: string }[]).map((h) => (
@@ -1191,6 +1227,39 @@ export default function CommandCenter() {
                             <RiskBadge risk={a.risk} />
                           </td>
                           <td className="px-5 py-3">
+                            {(() => {
+                              const cr = circuitRiskMap.get(a.id);
+                              if (!cr) return <span className="text-white/20 text-xs">—</span>;
+                              const pct = (cr.prob * 100).toFixed(1);
+                              const color = cr.band === "CRITICAL" ? "bg-red-500/20 text-red-300" :
+                                cr.band === "HIGH" ? "bg-orange-500/15 text-orange-300" :
+                                cr.band === "ELEVATED" ? "bg-amber-500/15 text-amber-300" :
+                                "bg-emerald-500/15 text-emerald-300";
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>
+                                  {pct}% <span className="text-[9px] font-normal opacity-70">{cr.band}</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-5 py-3">
+                            {(() => {
+                              const pr = psaRiskMap.get(a.id);
+                              if (!pr) return <span className="text-white/20 text-xs">—</span>;
+                              const pct = (pr.prob * 100).toFixed(0);
+                              const color = pr.bucket === "CRITICAL" ? "text-red-400" :
+                                pr.bucket === "HIGH" ? "text-orange-400" :
+                                pr.bucket === "ELEVATED" ? "text-amber-400" :
+                                "text-emerald-400";
+                              return (
+                                <span className="text-xs">
+                                  <span className={`font-bold ${color}`}>{pct}%</span>
+                                  <span className="text-white/30 ml-1">{pr.bucket}</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-5 py-3">
                             <TrendBadge trend={a.trend} />
                           </td>
                           <td className="px-5 py-3">
@@ -1203,7 +1272,7 @@ export default function CommandCenter() {
                 </table>
               </div>
               <div className="px-5 py-2 border-t border-white/[0.04] text-[10px] text-white/20">
-                Risk calculated from fire proximity, intensity (FRP), and approach trend
+                Risk calculated from fire proximity, intensity (FRP), approach trend · ML columns from backend (Ignition Spike 24h, PSA Activity Risk)
               </div>
             </>
           ) : activeTab === "hvra" ? (
