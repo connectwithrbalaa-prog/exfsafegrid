@@ -1050,6 +1050,23 @@ export default function CommandCenter() {
                 <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
               </div>
             )}
+            {showIgnitionHeatmap && (
+              <div className="absolute bottom-3 left-3 z-[900] rounded-lg border border-white/10 bg-black/80 backdrop-blur-sm px-3 py-2.5 text-[10px] font-medium text-white/70">
+                <div className="mb-1.5 text-[11px] font-semibold text-orange-300 flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> Ignition Risk 24h
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>Low</span>
+                  <div className="h-2.5 w-32 rounded-sm" style={{
+                    background: "linear-gradient(to right, rgba(253,240,148,0.6), rgba(252,186,3,0.7), rgba(249,115,22,0.85), rgba(220,38,38,0.9), rgba(185,28,28,1))"
+                  }} />
+                  <span>Critical</span>
+                </div>
+                <div className="flex justify-between mt-1 text-[9px] text-white/40 w-full" style={{ paddingLeft: 22, paddingRight: 32 }}>
+                  <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
