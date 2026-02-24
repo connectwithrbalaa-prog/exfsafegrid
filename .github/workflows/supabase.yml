@@ -30,7 +30,8 @@ jobs:
             red-flag-status \
             weather \
             community-alerts \
-            after-action-report
+            after-action-report \
+            backend-proxy
 
       - name: Set function secrets
         env:

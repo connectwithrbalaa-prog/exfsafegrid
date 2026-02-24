@@ -41,6 +41,16 @@ jobs:
 
             # Build and start all services: db, api (Python + ML models), frontend (Nginx)
             docker compose up -d --build --remove-orphans
+            
+            # Wait for API to be healthy
+            echo "Waiting for API health check..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+                echo "API is healthy!"
+                break
+              fi
+              sleep 2
+            done
 
             # Remove dangling images to free disk space
             docker image prune -f
