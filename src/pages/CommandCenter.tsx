@@ -378,13 +378,9 @@ export default function CommandCenter() {
       type: "heatmap",
       source: SOURCE_ID,
       paint: {
-        // Weight by ignition probability
         "heatmap-weight": ["get", "prob"],
-        // Intensity ramps with zoom
         "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 2.5],
-        // Radius grows with zoom
         "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 30, 12, 60, 14, 80],
-        // Color ramp: transparent → yellow → orange → red
         "heatmap-color": [
           "interpolate", ["linear"], ["heatmap-density"],
           0, "rgba(0,0,0,0)",
@@ -397,6 +393,47 @@ export default function CommandCenter() {
         "heatmap-opacity": 0.75,
       },
     });
+
+    // Clickable circle layer on top for inspect
+    const CIRCLE_LAYER = "ignition-heatmap-circles";
+    map.addLayer({
+      id: CIRCLE_LAYER,
+      type: "circle",
+      source: SOURCE_ID,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 8, 14, 14],
+        "circle-color": "transparent",
+        "circle-stroke-width": 0,
+      },
+    });
+
+    map.on("mouseenter", CIRCLE_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", CIRCLE_LAYER, () => { map.getCanvas().style.cursor = ""; });
+
+    map.on("click", CIRCLE_LAYER, (e) => {
+      const f = e.features?.[0];
+      if (!f || !f.properties) return;
+      const { name, prob, band } = f.properties;
+      const pct = (prob * 100).toFixed(1);
+      const bandColor = band === "Critical" ? "#DC2626" : band === "High" ? "#F97316" : band === "Elevated" ? "#EAB308" : "#34D399";
+      const coords = (f.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+      new mapboxgl.Popup({ offset: 14, maxWidth: "220px" })
+        .setLngLat(coords)
+        .setHTML(
+          `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
+            <div style="font-weight:700;color:${bandColor}">${name}</div>
+            <div style="margin-top:4px;font-size:12px;color:#94a3b8">
+              Ignition Probability: <b style="color:${bandColor}">${pct}%</b><br/>
+              Risk Band: <b style="color:${bandColor}">${band}</b>
+            </div>
+          </div>`
+        )
+        .addTo(map);
+    });
+
+    return () => {
+      if (map.getLayer(CIRCLE_LAYER)) map.removeLayer(CIRCLE_LAYER);
+    };
   }, [showIgnitionHeatmap, circuitRiskMap]);
 
   /* ── Enrich fires relative to ALL assets ───────────────── */
