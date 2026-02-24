@@ -9,6 +9,7 @@ import {
 import {
   User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle,
   Shield, HeartPulse, MapPin, Radio, Building2,
+  ChevronDown, ChevronUp, TrendingUp, Keyboard,
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
@@ -16,6 +17,9 @@ import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { getSubstationForZip } from "@/lib/wildfire-utils";
+import PredictiveOutagePanel from "@/components/PredictiveOutagePanel";
+import HardshipTriagePanel from "@/components/HardshipTriagePanel";
+import { useKeyboardShortcuts, SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
 
 import { toast } from "sonner";
 
@@ -36,9 +40,23 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
   const [redFlagData, setRedFlagData] = useState<RedFlagData>({});
   const [loadingRedFlag, setLoadingRedFlag] = useState(true);
+  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
+  const [advancedTab, setAdvancedTab] = useState<"predictive" | "hardship">("predictive");
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const searchRef = useRef<HTMLSelectElement>(null);
 
   const redFlagActive = redFlagData[agentRegion]?.active ?? false;
+
+  // Keyboard shortcuts
+  const QUICK_ACTIONS = ["Call Customer", "Apply REACH", "PSPS Alert", "Add Note"];
+  useKeyboardShortcuts({
+    onFocusSearch: () => { searchRef.current?.focus(); toast.info("Ctrl+K — Customer selector focused"); },
+    onSaveNotes:   () => { if (selected) saveNotes(); },
+    onRefreshAlerts: () => fetchRedFlagStatus(),
+    onQuickAction: (n) => { if (selected) handleQuickAction(QUICK_ACTIONS[n - 1]); },
+    onShowHelp: () => setShowShortcutsHelp(true),
+  }, true);
 
   // Fetch Red Flag Warning status
   const fetchRedFlagStatus = useCallback(async () => {
@@ -215,6 +233,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
             </label>
             <select
               id="agent-customer-select"
+              ref={searchRef}
               value={selected?.id ?? ""}
               onChange={(e) => handleSelect(e.target.value)}
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -415,6 +434,98 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           <ReportHazard customerName={selected?.name} />
         </div>
       </div>
+
+      {/* Advanced Tools Section */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <button
+          onClick={() => setShowAdvancedTools(!showAdvancedTools)}
+          className="w-full flex items-center justify-between px-5 py-3 hover:bg-secondary/50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-card-foreground">Advanced Tools</span>
+            <span className="text-xs text-muted-foreground">Predictive Outage · Hardship Triage</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowShortcutsHelp(true); }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Keyboard shortcuts (?)"
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Shortcuts</span>
+            </button>
+            {showAdvancedTools ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
+        </button>
+        {showAdvancedTools && (
+          <div className="border-t border-border">
+            <div className="flex border-b border-border">
+              {[
+                { id: "predictive", label: "Predictive Outage Intelligence" },
+                { id: "hardship", label: "Hardship Triage" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setAdvancedTab(tab.id as typeof advancedTab)}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
+                    advancedTab === tab.id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="p-4">
+              {advancedTab === "predictive" ? (
+                <PredictiveOutagePanel customers={customers} />
+              ) : (
+                <HardshipTriagePanel
+                  customers={customers}
+                  onCustomerUpdate={(updated) => {
+                    setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+                    if (selected?.id === updated.id) setSelected(updated);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showShortcutsHelp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowShortcutsHelp(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Keyboard className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold">Keyboard Shortcuts</h3>
+            </div>
+            <div className="space-y-2">
+              {SHORTCUTS.map((s) => (
+                <div key={s.key} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{s.description}</span>
+                  <kbd className="px-2 py-0.5 rounded-md bg-muted border border-border text-xs font-mono">
+                    {s.modifier === "ctrl" ? "Ctrl+" : ""}{s.key.toUpperCase()}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowShortcutsHelp(false)}
+              className="mt-4 w-full py-2 rounded-md bg-secondary text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

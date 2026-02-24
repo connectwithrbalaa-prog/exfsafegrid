@@ -10,6 +10,8 @@ import Login from "./pages/Login";
 import CommandCenter from "./pages/CommandCenter";
 import DemoPresentation from "./pages/DemoPresentation";
 import Documentation from "./pages/Documentation";
+import PspsStatus from "./pages/PspsStatus";
+import FieldCrewApp from "./pages/FieldCrewApp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -39,6 +41,8 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/demo" element={<DemoPresentation />} />
+              <Route path="/status" element={<PspsStatus />} />
+              <Route path="/crew" element={<FieldCrewApp />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
