@@ -193,7 +193,7 @@ def _synthetic_features() -> pd.DataFrame:
     today = date.today()
     rows = []
     for i in range(n):
-        d = today - timedelta(days=rng.integers(0, 730))
+        d = today - timedelta(days=int(rng.integers(0, 730)))
         rows.append({
             "circuit_id": f"C{rng.integers(1, 50):03d}",
             "psa_id": f"PSA_{rng.integers(1, 20)}",
