@@ -234,11 +234,8 @@ cd /docker/exfsafegrid
 git clone https://github.com/connectwithrbalaa-prog/exfsafegrid.git .
 
 # Create .env for build-time variables
-cat > .env.production << EOF
-VITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...
-VITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy
-EOF
+# Use printf to avoid heredoc parsing issues on some shells
+printf 'POSTGRES_PASSWORD=your-db-password\nANTHROPIC_API_KEY=sk-ant-...\nAPI_KEY=your-api-key\nVITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...\nVITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy\n' > .env
 
 Step 4: Push to main triggers auto-deploy
 ──────────────────────────────────────────
