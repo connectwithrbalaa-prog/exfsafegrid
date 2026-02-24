@@ -218,7 +218,8 @@ CREATE TABLE IF NOT EXISTS model_predictions (
     prob_score      NUMERIC(6,4),
     risk_bucket     TEXT,
     top_drivers     JSONB,
-    predicted_at    TIMESTAMPTZ DEFAULT NOW()
+    predicted_at    TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (model_name, circuit_id, psa_id, prediction_date, horizon_label)
 );
 CREATE INDEX IF NOT EXISTS idx_mp_model_date ON model_predictions (model_name, prediction_date DESC);
 CREATE INDEX IF NOT EXISTS idx_mp_circuit ON model_predictions (circuit_id, prediction_date DESC);
