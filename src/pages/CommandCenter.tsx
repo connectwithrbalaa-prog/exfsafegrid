@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -18,6 +18,7 @@ import AfterActionReport from "@/components/AfterActionReport";
 import ComplianceDashboard from "@/components/ComplianceDashboard";
 import VegetationRiskPanel from "@/components/VegetationRiskPanel";
 import SmsAlertsPanel from "@/components/SmsAlertsPanel";
+import BackendOpsPanel from "@/components/BackendOpsPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -136,7 +137,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -1054,6 +1055,15 @@ export default function CommandCenter() {
               <Activity className="w-4 h-4 text-green-400" />
               Vegetation
             </button>
+            <button
+              onClick={() => setActiveTab("backend")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "backend" ? "border-indigo-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Server className="w-4 h-4 text-indigo-400" />
+              Backend Ops
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -1239,6 +1249,10 @@ export default function CommandCenter() {
           ) : activeTab === "compliance" ? (
             <div className="p-5">
               <ComplianceDashboard />
+            </div>
+          ) : activeTab === "backend" ? (
+            <div className="p-5">
+              <BackendOpsPanel />
             </div>
           ) : (
             <div className="p-5">
