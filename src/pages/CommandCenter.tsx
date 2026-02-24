@@ -21,6 +21,7 @@ import VegetationRiskPanel from "@/components/VegetationRiskPanel";
 import SmsAlertsPanel from "@/components/SmsAlertsPanel";
 import BackendOpsPanel from "@/components/BackendOpsPanel";
 import RiskAlertsPanel from "@/components/RiskAlertsPanel";
+import CircuitOutagePanel from "@/components/CircuitOutagePanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -139,8 +140,8 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts">("assets");
-  const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage">("assets");
+  const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
   const [hftdFilter, setHftdFilter] = useState<string>("All");
@@ -297,7 +298,7 @@ export default function CommandCenter() {
   // Fetch customers for HFTD distribution
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("customers").select("hftd_tier, zip_code");
+      const { data } = await supabase.from("customers").select("hftd_tier, zip_code, medical_baseline, has_portable_battery, has_permanent_battery");
       if (data) setCustomers(data);
     })();
   }, []);
@@ -1342,6 +1343,15 @@ export default function CommandCenter() {
               <AlertTriangle className="w-4 h-4 text-orange-400" />
               Risk Alerts
             </button>
+            <button
+              onClick={() => setActiveTab("outage")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Zap className="w-4 h-4 text-violet-400" />
+              Outage Impact
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -1570,6 +1580,10 @@ export default function CommandCenter() {
           ) : activeTab === "risk-alerts" ? (
             <div className="p-5">
               <RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} />
+            </div>
+          ) : activeTab === "outage" ? (
+            <div className="p-5">
+              <CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} />
             </div>
           ) : (
             <div className="p-5">
