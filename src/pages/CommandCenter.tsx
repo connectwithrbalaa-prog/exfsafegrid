@@ -1197,7 +1197,7 @@ export default function CommandCenter() {
                     {sortedAssetRisks.map((a) => {
                       const ssData = SUBSTATIONS.find((s) => s.id === a.id);
                       return (
-                        <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                        <tr key={a.id} className={`transition-colors ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
                           <td className="px-5 py-3 font-medium">{a.name}</td>
                           <td className="px-5 py-3 text-white/50">
                             <span className="inline-flex items-center gap-1">
