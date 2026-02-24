@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+supabase.tar.gz
+supabase_cli_bin
+certs/
