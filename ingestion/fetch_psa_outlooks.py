@@ -142,7 +142,7 @@ def _upsert_psa_outlook(db: Session, rows: List[Dict[str, Any]]) -> Tuple[int, i
              fire_potential, fire_potential_label, raw_json, geometry, retrieved_at)
         VALUES
             (:psa_id, :outlook_type, :forecast_date, :period_label,
-             :fire_potential, :fire_potential_label, :raw_json::JSONB,
+             :fire_potential, :fire_potential_label, CAST(:raw_json AS JSONB),
              CASE WHEN :geometry IS NOT NULL
                   THEN ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326))
                   ELSE NULL END,
