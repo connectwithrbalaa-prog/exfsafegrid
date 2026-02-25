@@ -157,7 +157,7 @@ def load_features(db, lookback_days: int) -> pd.DataFrame:
         return _synthetic_features()
 
     # Rollup to PSA level (average across circuits per PSA per day)
-    df["year_month"] = pd.to_datetime(df["feature_date"]).dt.to_period("M").dt.to_timestamp().dt.date
+    df["year_month"] = pd.to_datetime(df["feature_date"]).apply(lambda x: x.replace(day=1).date())
 
     # Derived features
     day_cols = [f"fp_7day_d{i}" for i in range(1, 8)]
@@ -244,7 +244,7 @@ def train(lookback_days: int = 730, eval_split: float = 0.2) -> dict:
         df_labels = compute_labels(db)
 
         # Join features to labels on psa_id + year_month
-        df_feat["year_month"] = pd.to_datetime(df_feat["feature_date"]).dt.to_period("M").dt.to_timestamp().dt.date
+        df_feat["year_month"] = pd.to_datetime(df_feat["feature_date"]).apply(lambda x: x.replace(day=1).date())
         df = df_feat.merge(df_labels, on=["psa_id", "year_month"], how="inner")
         df = df.dropna(subset=["above_normal_activity"])
 
@@ -252,7 +252,7 @@ def train(lookback_days: int = 730, eval_split: float = 0.2) -> dict:
             logger.warning("Only %d labeled rows available. Using synthetic data.", len(df))
             df_feat = _synthetic_features()
             df_labels = _synthetic_labels()
-            df_feat["year_month"] = pd.to_datetime(df_feat["feature_date"]).dt.to_period("M").dt.to_timestamp().dt.date
+            df_feat["year_month"] = pd.to_datetime(df_feat["feature_date"]).apply(lambda x: x.replace(day=1).date())
             df = df_feat.merge(df_labels, on=["psa_id", "year_month"], how="inner")
 
         logger.info("Training Model A on %d samples (pos=%.1f%%)",
@@ -402,8 +402,8 @@ def score_and_store(prediction_date=None) -> int:
                     (model_name, model_version, circuit_id, psa_id, prediction_date,
                      horizon_label, prob_score, risk_bucket, top_drivers)
                 VALUES
-                    (:model_name, :model_version, :circuit_id, :psa_id, :prediction_date::DATE,
-                     :horizon_label, :prob_score, :risk_bucket, :top_drivers::JSONB)
+                    (:model_name, :model_version, :circuit_id, :psa_id, CAST(:prediction_date AS DATE),
+                     :horizon_label, :prob_score, :risk_bucket, CAST(:top_drivers AS JSONB))
                 ON CONFLICT DO NOTHING
             """),
             rows,
