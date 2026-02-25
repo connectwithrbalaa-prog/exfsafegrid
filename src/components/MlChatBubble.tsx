@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageSquare, X, Send, Loader2, Bot, User, Sparkles } from "lucide-react";
+import { MessageSquare, X, Send, Loader2, Bot, User, Sparkles, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 
@@ -134,12 +134,24 @@ export default function MlChatBubble() {
       {open && (
         <div className="fixed bottom-24 right-5 z-50 w-[380px] max-h-[520px] flex flex-col rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-primary/5">
-            <Bot className="w-5 h-5 text-primary" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">ML Predictions Assistant</p>
-              <p className="text-[10px] text-muted-foreground">Ask about PSA risk & circuit ignition risk</p>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary/5">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">ML Predictions Assistant</p>
+                <p className="text-[10px] text-muted-foreground">Ask about PSA risk & circuit ignition risk</p>
+              </div>
             </div>
+            {messages.length > 0 && (
+              <button
+                onClick={() => setMessages([])}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="New query"
+              >
+                <RotateCcw className="w-3 h-3" />
+                New
+              </button>
+            )}
           </div>
 
           {/* Messages */}
