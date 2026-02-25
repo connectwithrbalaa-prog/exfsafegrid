@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
+import { useDailyBriefing, usePspsWatchlist as useApiPspsWatchlist } from "@/hooks/use-api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api-client";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -162,6 +165,33 @@ export default function CommandCenter() {
   // Backend ML predictions
   const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
   const psaRiskQuery = usePsaRisk({ limit: 500 });
+
+  // Direct API hooks (nginx proxy → FastAPI)
+  const queryClient = useQueryClient();
+  const { data: briefingData, isError: noBriefing } = useDailyBriefing();
+  const { data: watchlistData } = useApiPspsWatchlist({ horizon: "24h" });
+
+  const generateBriefingMutation = useMutation({
+    mutationFn: () =>
+      apiFetch("/briefing/generate", {
+        method: "POST",
+        body: JSON.stringify({ overwrite: false }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["briefing"] });
+    },
+  });
+
+  const generateWatchlistMutation = useMutation({
+    mutationFn: (horizon: "24h" | "48h" | "72h") =>
+      apiFetch("/psps-watchlist/generate", {
+        method: "POST",
+        body: JSON.stringify({ horizon, overwrite: false }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["psps-watchlist"] });
+    },
+  });
 
   // Build lookup maps: circuit_id → prediction data
   const circuitRiskMap = useMemo(() => {
