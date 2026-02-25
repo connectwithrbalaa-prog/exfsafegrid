@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CustomerProvider } from "@/hooks/use-customer";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MlChatBubble from "@/components/MlChatBubble";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import CommandCenter from "./pages/CommandCenter";
@@ -46,6 +47,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <MlChatBubble />
           </ErrorBoundary>
         </BrowserRouter>
       </CustomerProvider>
