@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You help users query wildfire risk predictions from two machine learning models:
+const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You help users query wildfire risk predictions from three machine learning models:
 
 1. **PSA Risk Model (Model A)** — Predicts above-normal wildfire activity risk per PSA (Predictive Service Area) over a 1–3 month horizon.
    - Parameters: psa_id, month_offset (1-3), min_prob (0-1), prediction_date, limit
@@ -14,11 +14,16 @@ const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You hel
 2. **Circuit Ignition Spike Model (Model B)** — Predicts circuit-level ignition spike risk over 24h/48h/72h horizons.
    - Parameters: circuit_id, horizon_hours (24/48/72), psa_id, min_prob (0-1), risk_band (LOW/MODERATE/HIGH/CRITICAL), prediction_date, limit
 
+3. **Fire Spread & Behavior Model (Model C)** — Predicts fire spread rate (chains/hr), flame length (ft), and spotting distance (mi) using wind, terrain, and fuel moisture data.
+   - Parameters: circuit_id, psa_id, min_spread (chains/hr), severity (LOW/MODERATE/HIGH/EXTREME), prediction_date, limit
+
 When users ask questions in natural language, use the appropriate tool to fetch predictions and then summarize the results clearly. Examples:
 - "Which circuits are at critical risk?" → query_circuit_ignition_risk with risk_band=CRITICAL
 - "What's the 72-hour risk for circuit C008?" → query_circuit_ignition_risk with circuit_id=C008, horizon_hours=72
 - "Show me PSA risk for next month" → query_psa_risk with month_offset=1
-- "High risk circuits in PSA_3" → query_circuit_ignition_risk with psa_id=PSA_3, risk_band=HIGH
+- "Where is fire spreading fastest?" → query_fire_spread_risk sorted by spread rate
+- "What's the flame length for circuits in PSA_2?" → query_fire_spread_risk with psa_id=PSA_2
+- "Show extreme fire behavior" → query_fire_spread_risk with severity=EXTREME
 
 Always present results in a clear, organized format with risk levels highlighted. If no results are found, explain what that means.`;
 
@@ -63,6 +68,26 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "query_fire_spread_risk",
+      description: "Query fire spread and behavior predictions including spread rate (chains/hr), flame length (ft), and spotting distance (mi).",
+      parameters: {
+        type: "object",
+        properties: {
+          circuit_id: { type: "string", description: "Filter by specific circuit ID (e.g. C008)" },
+          psa_id: { type: "string", description: "Filter by PSA ID" },
+          min_spread: { type: "number", description: "Minimum spread rate in chains/hr" },
+          severity: { type: "string", enum: ["LOW", "MODERATE", "HIGH", "EXTREME"], description: "Filter by spread severity" },
+          prediction_date: { type: "string", description: "Date for predictions (YYYY-MM-DD)" },
+          limit: { type: "number", description: "Max number of results" },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 async function callBackend(path: string, params: Record<string, any>): Promise<any> {
@@ -97,6 +122,8 @@ async function executeTool(name: string, args: Record<string, any>): Promise<str
       result = await callBackend("/psa-risk", args);
     } else if (name === "query_circuit_ignition_risk") {
       result = await callBackend("/circuit-ignition-risk", args);
+    } else if (name === "query_fire_spread_risk") {
+      result = await callBackend("/fire-spread-risk", args);
     } else {
       return JSON.stringify({ error: `Unknown tool: ${name}` });
     }
