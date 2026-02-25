@@ -30,6 +30,10 @@ services:
       API_KEY: ${API_KEY:-}
       LOG_LEVEL: INFO
       MODEL_DIR: /app/models/artifacts
+      # Pin ArcGIS service URLs here so a host .env can never override them
+      NIFC_OUTLOOK_7DAY_URL: "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/outlooks_forecast/MapServer"
+      NIFC_OUTLOOK_MONTHLY_URL: "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/Outlooks_Monthly_Extended/MapServer"
+      NIFC_RAWS_URL: "https://fsapps.nwcg.gov/psp/arcgis/rest/services/npsg/PSA_GACC_KeyRAWS/MapServer"
     ports:
       - "8000:8000"
     volumes:
