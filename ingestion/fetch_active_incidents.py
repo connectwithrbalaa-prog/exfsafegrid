@@ -110,13 +110,13 @@ def _upsert_incidents(db: Session, rows: list) -> tuple[int, int]:
              latitude, longitude, geometry, raw_json, retrieved_at)
         VALUES
             (:incident_id, :incident_name, :state, :cause,
-             :discovery_date::TIMESTAMPTZ, :last_update::TIMESTAMPTZ, :is_active,
+             CAST(:discovery_date AS TIMESTAMPTZ), CAST(:last_update AS TIMESTAMPTZ), :is_active,
              :acres_burned, :containment_pct,
              :latitude, :longitude,
              CASE WHEN :geometry IS NOT NULL
                   THEN ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326)
                   ELSE NULL END,
-             :raw_json::JSONB, NOW())
+             CAST(:raw_json AS JSONB), NOW())
         ON CONFLICT (incident_id) DO UPDATE SET
             incident_name   = EXCLUDED.incident_name,
             acres_burned    = EXCLUDED.acres_burned,
