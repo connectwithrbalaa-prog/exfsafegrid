@@ -109,6 +109,11 @@ export default function MlChatBubble() {
           }
         }
       }
+
+      // If stream ended with no content, show fallback
+      if (!assistantSoFar) {
+        setMessages(prev => [...prev, { role: "assistant", content: "The model returned no predictions. This may mean Model C hasn't been trained yet — try training it from the Backend Ops panel first." }]);
+      }
     } catch (e: any) {
       console.error("ML chat error:", e);
       setMessages(prev => [...prev, { role: "assistant", content: "⚠️ Failed to connect to the ML assistant." }]);

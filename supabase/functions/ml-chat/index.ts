@@ -201,7 +201,7 @@ serve(async (req) => {
       });
     }
 
-    // Second call: let AI summarize results with streaming
+    // Second call: let AI summarize results with streaming (no tools — just summarize)
     const secondResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -214,6 +214,7 @@ serve(async (req) => {
           ...allMessages,
           choice.message,
           ...toolResults,
+          { role: "system", content: "Summarize the tool results for the user in a clear, formatted way. Do NOT call any more tools." },
         ],
         stream: true,
       }),
