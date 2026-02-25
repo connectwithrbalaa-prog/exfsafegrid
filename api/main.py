@@ -44,13 +44,13 @@ def auth(key: str = Security(_key_header)):
 
 
 class TrainRequest(BaseModel):
-    model: str = "both"
+    model: str = "all"
     synthetic: bool = False
 
 
 class ScoreRequest(BaseModel):
     prediction_date: Optional[date] = None
-    model: str = "both"
+    model: str = "all"
 
 
 class BriefingRequest(BaseModel):
@@ -137,6 +137,41 @@ def get_circuit_ignition_risk(
         ORDER BY mp.prob_score DESC LIMIT :limit
     """), params).fetchall()
     return {"prediction_date": str(d), "horizon_hours": horizon_hours, "model": "ignition_spike",
+            "count": len(rows), "results": [dict(r._mapping) for r in rows]}
+
+
+@app.get("/fire-spread-risk", tags=["Predictions"])
+def get_fire_spread_risk(
+    circuit_id: Optional[str] = Query(None),
+    psa_id: Optional[str] = Query(None),
+    min_spread: float = Query(0.0, ge=0),
+    severity: Optional[str] = Query(None),
+    prediction_date: Optional[date] = Query(None),
+    limit: int = Query(100, le=500),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """Model C: Fire spread & behavior risk. Returns spread_rate, flame_length, spotting_distance."""
+    d = prediction_date or date.today()
+    params = {"d": str(d), "min_spread": min_spread, "limit": limit}
+    extra = ""
+    if circuit_id:
+        extra += " AND mp.circuit_id = :circuit_id"; params["circuit_id"] = circuit_id
+    if psa_id:
+        extra += " AND mp.psa_id = :psa_id"; params["psa_id"] = psa_id
+    if severity:
+        extra += " AND mp.risk_bucket = :severity"; params["severity"] = severity.upper()
+    rows = db.execute(text(f"""
+        SELECT mp.circuit_id, mp.psa_id, mp.prob_score AS spread_rate_ch_hr,
+               mp.risk_bucket AS spread_severity, mp.top_drivers AS behavior_data,
+               uc.hftd_tier, uc.customer_count, uc.county
+        FROM model_predictions mp
+        LEFT JOIN utility_circuits uc ON uc.circuit_id = mp.circuit_id
+        WHERE mp.model_name = 'fire_spread'
+          AND mp.prediction_date = :d
+          AND mp.prob_score >= :min_spread {extra}
+        ORDER BY mp.prob_score DESC LIMIT :limit
+    """), params).fetchall()
+    return {"prediction_date": str(d), "model": "fire_spread",
             "count": len(rows), "results": [dict(r._mapping) for r in rows]}
 
 
@@ -249,28 +284,34 @@ def get_monthly_outlooks(forecast_date: Optional[date] = Query(None),
 
 @app.post("/models/train", tags=["Management"])
 def train_models(req: TrainRequest, _: str = Depends(auth)):
-    from models import train_psa_risk, train_ignition_spike
+    from models import train_psa_risk, train_ignition_spike, train_fire_spread
     results = {}
-    if req.model in ("psa_risk", "both"):
+    if req.model in ("psa_risk", "both", "all"):
         try: results["psa_risk"] = train_psa_risk.train()
         except Exception as e: results["psa_risk"] = {"status": "error", "error": str(e)}
-    if req.model in ("ignition_spike", "both"):
+    if req.model in ("ignition_spike", "both", "all"):
         try: results["ignition_spike"] = train_ignition_spike.train(force_synthetic=req.synthetic)
         except Exception as e: results["ignition_spike"] = {"status": "error", "error": str(e)}
+    if req.model in ("fire_spread", "all"):
+        try: results["fire_spread"] = train_fire_spread.train(force_synthetic=req.synthetic)
+        except Exception as e: results["fire_spread"] = {"status": "error", "error": str(e)}
     return results
 
 
 @app.post("/models/score", tags=["Management"])
 def score_models(req: ScoreRequest, _: str = Depends(auth)):
-    from models import train_psa_risk, train_ignition_spike
+    from models import train_psa_risk, train_ignition_spike, train_fire_spread
     d = req.prediction_date or date.today()
     results = {}
-    if req.model in ("psa_risk", "both"):
+    if req.model in ("psa_risk", "both", "all"):
         try: results["psa_risk"] = {"status": "ok", "stored": train_psa_risk.score_and_store(d)}
         except Exception as e: results["psa_risk"] = {"status": "error", "error": str(e)}
-    if req.model in ("ignition_spike", "both"):
+    if req.model in ("ignition_spike", "both", "all"):
         try: results["ignition_spike"] = {"status": "ok", "stored": train_ignition_spike.score_and_store(d)}
         except Exception as e: results["ignition_spike"] = {"status": "error", "error": str(e)}
+    if req.model in ("fire_spread", "all"):
+        try: results["fire_spread"] = {"status": "ok", "stored": train_fire_spread.score_and_store(d)}
+        except Exception as e: results["fire_spread"] = {"status": "error", "error": str(e)}
     return {"prediction_date": str(d), **results}
 
 

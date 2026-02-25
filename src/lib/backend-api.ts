@@ -86,6 +86,18 @@ export interface CircuitIgnitionParams {
 export const getCircuitIgnitionRisk = (p?: CircuitIgnitionParams) =>
   proxyCall("/circuit-ignition-risk", "GET", p as any);
 
+export interface FireSpreadParams {
+  circuit_id?: string;
+  psa_id?: string;
+  min_spread?: number;
+  severity?: string;
+  prediction_date?: string;
+  limit?: number;
+}
+
+export const getFireSpreadRisk = (p?: FireSpreadParams) =>
+  proxyCall("/fire-spread-risk", "GET", p as any);
+
 // ---------------------------------------------------------------------------
 // Agents
 // ---------------------------------------------------------------------------
