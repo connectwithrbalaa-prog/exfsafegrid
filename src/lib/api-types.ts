@@ -100,16 +100,22 @@ export interface OutlooksResponse {
 // ── Agents ────────────────────────────────────────────────────
 
 export interface DailyBriefing {
-  id: number;
+  id: string;                // UUID
   briefing_date: string;
-  content: string;       // Markdown from Claude ops briefing agent
-  generated_at: string;
+  markdown_text: string;     // Markdown from Claude ops briefing agent
+  structured_data: Record<string, unknown> | null;
+  model_used: string | null;
+  tokens_used: number | null;
+  created_at: string;
 }
 
 export interface PspsWatchlist {
-  id: number;
+  id: string;                // UUID
   watchlist_date: string;
   horizon: "24h" | "48h" | "72h";
-  content: string;       // Markdown from Claude PSPS planning agent
-  generated_at: string;
+  markdown_text: string;     // Markdown from Claude PSPS planning agent
+  structured_data: Record<string, unknown> | null;
+  model_used: string | null;
+  tokens_used: number | null;
+  created_at: string;
 }
