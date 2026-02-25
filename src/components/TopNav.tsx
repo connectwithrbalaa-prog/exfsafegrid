@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Radio, Globe, FileText, Zap } from "lucide-react";
+import { Home, Radio, Globe, FileText, Zap, HardHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { to: "/command-center", label: "Command Center", icon: Radio },
   { to: "/status", label: "Status", icon: Globe },
   { to: "/docs", label: "Docs", icon: FileText },
+  { to: "/field-crew", label: "Field Crew", icon: HardHat },
 ];
 
 interface TopNavProps {
