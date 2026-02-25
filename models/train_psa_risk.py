@@ -402,8 +402,8 @@ def score_and_store(prediction_date=None) -> int:
                     (model_name, model_version, circuit_id, psa_id, prediction_date,
                      horizon_label, prob_score, risk_bucket, top_drivers)
                 VALUES
-                    (:model_name, :model_version, :circuit_id, :psa_id, :prediction_date::DATE,
-                     :horizon_label, :prob_score, :risk_bucket, :top_drivers::JSONB)
+                    (:model_name, :model_version, :circuit_id, :psa_id, CAST(:prediction_date AS DATE),
+                     :horizon_label, :prob_score, :risk_bucket, CAST(:top_drivers AS JSONB))
                 ON CONFLICT DO NOTHING
             """),
             rows,
