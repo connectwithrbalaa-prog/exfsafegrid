@@ -27,6 +27,54 @@ logger = logging.getLogger(__name__)
 _MAX_STALENESS_DAYS = 3
 
 
+def _synthetic_features_for_date(prediction_date: date) -> pd.DataFrame:
+    """
+    Synthetic single-day feature rows for 50 bootstrap circuits.
+    Used when circuit_features/utility_circuits tables are empty (phase-1 dev).
+    Mirrors the circuit IDs and PSA assignments used in the training synthetic data.
+    """
+    rng = np.random.default_rng(42 + prediction_date.toordinal())
+    rows = []
+    for circuit_num in range(1, 51):
+        cid = f"C{circuit_num:03d}"
+        rows.append({
+            "circuit_id": cid,
+            "psa_id": f"PSA_{(circuit_num % 5) + 1}",
+            "feature_date": prediction_date,
+            "fp_7day_d1": int(rng.integers(1, 6)),
+            "fp_7day_d2": int(rng.integers(1, 6)),
+            "fp_7day_d3": int(rng.integers(1, 6)),
+            "fp_7day_d4": int(rng.integers(1, 6)),
+            "fp_7day_d5": int(rng.integers(1, 6)),
+            "fp_7day_d6": int(rng.integers(1, 6)),
+            "fp_7day_d7": int(rng.integers(1, 6)),
+            "fp_monthly_m1": int(rng.integers(1, 6)),
+            "fp_monthly_m2": int(rng.integers(1, 6)),
+            "fp_monthly_m3": int(rng.integers(1, 6)),
+            "psa_risk_score": float(rng.uniform(0, 1)),
+            "max_temp_f": float(rng.uniform(60, 115)),
+            "min_rh_pct": float(rng.uniform(4, 40)),
+            "max_wind_mph": float(rng.uniform(5, 65)),
+            "max_gust_mph": float(rng.uniform(10, 85)),
+            "erc_max": float(rng.uniform(20, 100)),
+            "bi_max": float(rng.uniform(10, 80)),
+            "ffwi_max": float(rng.uniform(1, 50)),
+            "hftd_tier": int(rng.choice([2, 3])),
+            "length_miles": float(rng.uniform(5, 80)),
+            "voltage_kv": float(rng.choice([12.0, 21.0, 69.0, 115.0])),
+            "active_incidents_50mi": int(rng.integers(0, 8)),
+            "acres_burning_50mi": float(rng.uniform(0, 5000)),
+            "faults_90d": int(rng.integers(0, 5)),
+            "ignitions_365d": int(rng.integers(0, 3)),
+            "is_red_flag": bool(rng.random() < 0.1),
+        })
+    logger.warning(
+        "circuit_features empty — using synthetic bootstrap data for %s (%d circuits)",
+        prediction_date, len(rows),
+    )
+    return pd.DataFrame(rows)
+
+
 def build_features_for_date(prediction_date: date, db: Session) -> pd.DataFrame:
     """
     Return a feature DataFrame for inference on `prediction_date`.
@@ -72,11 +120,7 @@ def build_features_for_date(prediction_date: date, db: Session) -> pd.DataFrame:
     )
 
     if df.empty:
-        logger.warning(
-            "No circuit_features rows for %s (lookback %s). Returning empty DataFrame.",
-            prediction_date, cutoff,
-        )
-        return df
+        return _synthetic_features_for_date(prediction_date)
 
     # Prefer live incident context over stale feature-store values when available
     df["active_incidents_50mi"] = df["active_incidents_50mi_live"].fillna(
