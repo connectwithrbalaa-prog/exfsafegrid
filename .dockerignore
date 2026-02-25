@@ -18,6 +18,7 @@ package.json
 package-lock.json
 bun.lockb
 Dockerfile.frontend
+nginx.conf
 supabase
 
 # Docs
