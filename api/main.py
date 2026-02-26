@@ -88,16 +88,22 @@ def get_psa_risk(
         params["psa_id"] = psa_id
     rows = db.execute(text(f"""
         SELECT mp.circuit_id, mp.psa_id, mp.prob_score AS prob_above_normal,
-               mp.risk_bucket, mp.top_drivers AS drivers,
+               mp.risk_bucket, mp.top_drivers AS drivers, mp.prediction_date,
                uc.hftd_tier, uc.customer_count, uc.county, uc.voltage_kv
         FROM model_predictions mp
         LEFT JOIN utility_circuits uc ON uc.circuit_id = mp.circuit_id
         WHERE mp.model_name = 'psa_risk'
-          AND mp.prediction_date = :d AND mp.horizon_label = :horizon
+          AND mp.prediction_date = (
+              SELECT MAX(prediction_date) FROM model_predictions
+              WHERE model_name = 'psa_risk' AND horizon_label = :horizon
+                AND prediction_date <= :d
+          )
+          AND mp.horizon_label = :horizon
           AND mp.prob_score >= :min_prob {extra}
         ORDER BY mp.prob_score DESC LIMIT :limit
     """), params).fetchall()
-    return {"prediction_date": str(d), "horizon": horizon, "model": "psa_risk",
+    actual_date = rows[0]._mapping["prediction_date"] if rows else d
+    return {"prediction_date": str(actual_date), "horizon": horizon, "model": "psa_risk",
             "count": len(rows), "results": [dict(r._mapping) for r in rows]}
 
 
@@ -127,16 +133,22 @@ def get_circuit_ignition_risk(
         extra += " AND mp.risk_bucket = :risk_band"; params["risk_band"] = risk_band.upper()
     rows = db.execute(text(f"""
         SELECT mp.circuit_id, mp.psa_id, mp.prob_score AS prob_spike,
-               mp.risk_bucket AS risk_band, mp.top_drivers AS drivers,
+               mp.risk_bucket AS risk_band, mp.top_drivers AS drivers, mp.prediction_date,
                uc.hftd_tier, uc.customer_count, uc.critical_customers, uc.county
         FROM model_predictions mp
         LEFT JOIN utility_circuits uc ON uc.circuit_id = mp.circuit_id
         WHERE mp.model_name = 'ignition_spike'
-          AND mp.prediction_date = :d AND mp.horizon_label = :horizon
+          AND mp.prediction_date = (
+              SELECT MAX(prediction_date) FROM model_predictions
+              WHERE model_name = 'ignition_spike' AND horizon_label = :horizon
+                AND prediction_date <= :d
+          )
+          AND mp.horizon_label = :horizon
           AND mp.prob_score >= :min_prob {extra}
         ORDER BY mp.prob_score DESC LIMIT :limit
     """), params).fetchall()
-    return {"prediction_date": str(d), "horizon_hours": horizon_hours, "model": "ignition_spike",
+    actual_date = rows[0]._mapping["prediction_date"] if rows else d
+    return {"prediction_date": str(actual_date), "horizon_hours": horizon_hours, "model": "ignition_spike",
             "count": len(rows), "results": [dict(r._mapping) for r in rows]}
 
 
@@ -163,15 +175,21 @@ def get_fire_spread_risk(
     rows = db.execute(text(f"""
         SELECT mp.circuit_id, mp.psa_id, mp.prob_score AS spread_rate_ch_hr,
                mp.risk_bucket AS spread_severity, mp.top_drivers AS behavior_data,
+               mp.prediction_date,
                uc.hftd_tier, uc.customer_count, uc.county
         FROM model_predictions mp
         LEFT JOIN utility_circuits uc ON uc.circuit_id = mp.circuit_id
         WHERE mp.model_name = 'fire_spread'
-          AND mp.prediction_date = :d
+          AND mp.prediction_date = (
+              SELECT MAX(prediction_date) FROM model_predictions
+              WHERE model_name = 'fire_spread'
+                AND prediction_date <= :d
+          )
           AND mp.prob_score >= :min_spread {extra}
         ORDER BY mp.prob_score DESC LIMIT :limit
     """), params).fetchall()
-    return {"prediction_date": str(d), "model": "fire_spread",
+    actual_date = rows[0]._mapping["prediction_date"] if rows else d
+    return {"prediction_date": str(actual_date), "model": "fire_spread",
             "count": len(rows), "results": [dict(r._mapping) for r in rows]}
 
 
