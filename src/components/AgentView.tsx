@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import type { Customer } from "@/lib/customer-types";
 import { buildCustomerContext } from "@/lib/customer-types";
@@ -257,20 +258,35 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
       {/* ── Selected Customer Summary Strip ── */}
       {selected && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-          <SummaryChip icon={User} label="Customer" value={selected.name} />
-          <SummaryChip icon={MapPin} label="ZIP / HFTD" value={`${selected.zip_code} · ${selected.hftd_tier}`} color={hftdColor(selected.hftd_tier)} />
-          <SummaryChip icon={Flame} label="Fire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
-          <SummaryChip icon={Zap} label="Outage" value={selected.current_outage_status}
-            color={selected.current_outage_status === "Normal" ? "text-success" : "text-warning"} />
-          <SummaryChip icon={Activity} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
-          {selected.medical_baseline ? (
-            <SummaryChip icon={HeartPulse} label="Medical" value="Enrolled" color="text-destructive" highlight />
-          ) : (
-            <SummaryChip icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"}
-              color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
-          )}
-        </div>
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3"
+          initial="hidden"
+          animate="visible"
+          variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+        >
+          {[
+            <SummaryChip key="name" icon={User} label="Customer" value={selected.name} />,
+            <SummaryChip key="zip" icon={MapPin} label="ZIP / HFTD" value={`${selected.zip_code} · ${selected.hftd_tier}`} color={hftdColor(selected.hftd_tier)} />,
+            <SummaryChip key="fire" icon={Flame} label="Fire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />,
+            <SummaryChip key="outage" icon={Zap} label="Outage" value={selected.current_outage_status}
+              color={selected.current_outage_status === "Normal" ? "text-success" : "text-warning"} />,
+            <SummaryChip key="grid" icon={Activity} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />,
+            selected.medical_baseline ? (
+              <SummaryChip key="med" icon={HeartPulse} label="Medical" value="Enrolled" color="text-destructive" highlight />
+            ) : (
+              <SummaryChip key="arr" icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"}
+                color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
+            ),
+          ].map((chip, i) => (
+            <motion.div
+              key={i}
+              variants={{ hidden: { opacity: 0, y: 12, scale: 0.95 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              {chip}
+            </motion.div>
+          ))}
+        </motion.div>
       )}
 
       {/* ── Section Tabs ── */}
@@ -296,7 +312,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
       {/* ═══════ SAFETY & RISK ═══════ */}
       {activeSection === "risk" && (
-        <div className="space-y-5">
+        <motion.div key="risk" className="space-y-5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           {selected ? (
             <>
               {/* Priority badge */}
@@ -353,12 +369,12 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           ) : (
             <EmptyState icon={Shield} message="Select a customer to view safety & risk data" />
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ═══════ SUPPORT & PROGRAMS ═══════ */}
       {activeSection === "support" && (
-        <div className="space-y-5">
+        <motion.div key="support" className="space-y-5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           {selected ? (
             <>
               {/* Customer Profile + Infrastructure */}
@@ -476,12 +492,12 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           ) : (
             <EmptyState icon={User} message="Select a customer to view support tools" />
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ═══════ MAP & TRANSPARENCY ═══════ */}
       {activeSection === "map" && (
-        <div className="space-y-5">
+        <motion.div key="map" className="space-y-5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           {selected ? (
             <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
               <CustomerWildfireMap
@@ -494,7 +510,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           ) : (
             <EmptyState icon={Map} message="Select a customer to view the wildfire map" />
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Keyboard Shortcuts Help */}
@@ -552,7 +568,12 @@ function SectionCard({ title, icon: Icon, iconColor, children, noPadding }: {
   title: string; icon: React.ElementType; iconColor?: string; children: React.ReactNode; noPadding?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <motion.div
+      className="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/60">
         <Icon className={`w-4 h-4 ${iconColor ?? "text-primary"}`} />
         <h3 className="text-sm font-semibold text-card-foreground">{title}</h3>
@@ -560,7 +581,7 @@ function SectionCard({ title, icon: Icon, iconColor, children, noPadding }: {
       <div className={noPadding ? "" : "p-5"}>
         {children}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
