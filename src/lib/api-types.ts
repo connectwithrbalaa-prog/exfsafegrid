@@ -1,10 +1,12 @@
 // src/lib/api-types.ts
+// TypeScript types for all FastAPI backend responses.
 
-// ── Predictions ──────────────────────────────────────────────
+// ── Predictions ───────────────────────────────────────────────
+
 export interface PsaRiskResult {
   circuit_id: string;
   psa_id: string;
-  prob_above_normal: number;   // 0–1
+  prob_above_normal: number; // 0–1
   risk_bucket: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   drivers: string | null;
   hftd_tier: string | null;
@@ -14,8 +16,8 @@ export interface PsaRiskResult {
 }
 
 export interface PsaRiskResponse {
-  prediction_date: string;     // "YYYY-MM-DD"
-  horizon: string;             // "Month1" | "Month2" | "Month3"
+  prediction_date: string; // "YYYY-MM-DD"
+  horizon: string;         // "Month1" | "Month2" | "Month3"
   model: "psa_risk";
   count: number;
   results: PsaRiskResult[];
@@ -24,7 +26,7 @@ export interface PsaRiskResponse {
 export interface IgnitionRiskResult {
   circuit_id: string;
   psa_id: string;
-  prob_spike: number;          // 0–1
+  prob_spike: number; // 0–1
   risk_band: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   drivers: string | null;
   hftd_tier: string | null;
@@ -41,7 +43,8 @@ export interface IgnitionRiskResponse {
   results: IgnitionRiskResult[];
 }
 
-// ── Live Data ────────────────────────────────────────────────
+// ── Live Data ─────────────────────────────────────────────────
+
 export interface Incident {
   incident_id: string;
   incident_name: string;
@@ -80,9 +83,9 @@ export interface PerimetersResponse {
 
 export interface Outlook {
   psa_id: string;
-  period_label: string;
+  period_label: string;        // "Day1"–"Day7", "Month1"–"Month3"
   forecast_date: string;
-  fire_potential: number;       // 1–5
+  fire_potential: number;      // 1=BelowNormal … 5=ExtremelyCritical
   fire_potential_label: string;
   retrieved_at: string;
 }
@@ -94,18 +97,25 @@ export interface OutlooksResponse {
   outlooks: Outlook[];
 }
 
-// ── Agents ───────────────────────────────────────────────────
+// ── Agents ────────────────────────────────────────────────────
+
 export interface DailyBriefing {
-  id: number;
+  id: string;                // UUID
   briefing_date: string;
-  content: string;              // markdown text from Claude agent
-  generated_at: string;
+  markdown_text: string;     // Markdown from Claude ops briefing agent
+  structured_data: Record<string, unknown> | null;
+  model_used: string | null;
+  tokens_used: number | null;
+  created_at: string;
 }
 
 export interface PspsWatchlist {
-  id: number;
+  id: string;                // UUID
   watchlist_date: string;
   horizon: "24h" | "48h" | "72h";
-  content: string;              // markdown text from Claude agent
-  generated_at: string;
+  markdown_text: string;     // Markdown from Claude PSPS planning agent
+  structured_data: Record<string, unknown> | null;
+  model_used: string | null;
+  tokens_used: number | null;
+  created_at: string;
 }

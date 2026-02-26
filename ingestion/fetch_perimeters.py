@@ -16,7 +16,7 @@ from typing import Optional
 import requests
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from config.database import SessionLocal
+from config.database import SessionLocal, log_ingestion
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -112,11 +112,11 @@ def _upsert_perimeters(db: Session, rows: list) -> tuple[int, int]:
              geometry, raw_json, retrieved_at)
         VALUES
             (:perimeter_id, :incident_id, :incident_name, :state,
-             :gis_acres, :map_acres, :containment_pct, :date_current::TIMESTAMPTZ,
+             :gis_acres, :map_acres, :containment_pct, CAST(:date_current AS TIMESTAMPTZ),
              CASE WHEN :geometry IS NOT NULL
-                  THEN ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326)
+                  THEN ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326))
                   ELSE NULL END,
-             :raw_json::JSONB, NOW())
+             CAST(:raw_json AS JSONB), NOW())
         ON CONFLICT (incident_id, date_current) DO UPDATE SET
             gis_acres       = EXCLUDED.gis_acres,
             map_acres       = EXCLUDED.map_acres,
@@ -205,7 +205,7 @@ def run(db: Optional[Session] = None) -> dict:
     finally:
         if own_db:
             db.close()
-    return {
+    result = {
         "source": "perimeters",
         "records_fetched": fetched,
         "records_inserted": inserted,
@@ -214,6 +214,8 @@ def run(db: Optional[Session] = None) -> dict:
         "error_msg": error_msg,
         "duration_sec": round(time.time() - t0, 2),
     }
+    log_ingestion(result)
+    return result
 
 
 if __name__ == "__main__":

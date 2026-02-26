@@ -36,8 +36,6 @@ from typing import Optional
 # Ensure project root is on path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import text
-
 from config.database import SessionLocal
 from ingestion import (
     fetch_psa_outlooks,
@@ -83,48 +81,19 @@ SOURCES = {
 }
 
 
-# ── Logging helper ─────────────────────────────────────────────────
-def _log_result(result: dict, db=None) -> None:
-    """Write ingestion result to ingestion_log table."""
-    if db is None:
-        return
-    if isinstance(result, list):
-        for r in result:
-            _log_result(r, db)
-        return
-    try:
-        db.execute(
-            text("""
-                INSERT INTO ingestion_log
-                    (source, records_fetched, records_inserted, records_updated,
-                     status, error_msg, duration_sec)
-                VALUES
-                    (:source, :records_fetched, :records_inserted, :records_updated,
-                     :status, :error_msg, :duration_sec)
-            """),
-            result,
-        )
-        db.commit()
-    except Exception as exc:
-        logger.error("Failed to write ingestion_log: %s", exc)
-        try:
-            db.rollback()
-        except Exception:
-            pass
-
-
 # ── Single-run function ────────────────────────────────────────────
 def run_source(name: str) -> dict:
-    """Run a single ingestion source, log result, return result dict."""
+    """Run a single ingestion source and return result dict.
+    ingestion_log is written automatically inside each run() function
+    via config.database.log_ingestion — no duplicate write needed here.
+    """
     source = SOURCES[name]
     logger.info("▶ Starting: %s", name)
     db = SessionLocal()
     try:
         result = source["fn"](db)
-        # Normalize to list for logging
         results = result if isinstance(result, list) else [result]
         for r in results:
-            _log_result(r, db)
             icon = "✓" if r.get("status") == "success" else "✗"
             logger.info(
                 "%s %s: fetched=%s ins=%s upd=%s (%.1fs)",

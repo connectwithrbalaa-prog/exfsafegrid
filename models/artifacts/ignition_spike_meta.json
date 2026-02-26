@@ -1,0 +1,40 @@
+{
+  "model_name": "ignition_spike",
+  "model_version": "v1",
+  "trained_at": "2026-02-24",
+  "algorithm": "LightGBM",
+  "n_train": 14600,
+  "n_val": 3650,
+  "auc_roc": 0.5,
+  "avg_precision": 0.0301,
+  "feature_cols": [
+    "fp_7day_d1",
+    "fp_7day_d2",
+    "fp_7day_d3",
+    "psa_risk_score",
+    "max_temp_f",
+    "min_rh_pct",
+    "max_wind_mph",
+    "max_gust_mph",
+    "erc_max",
+    "bi_max",
+    "ffwi_max",
+    "hftd_tier",
+    "length_miles",
+    "voltage_kv",
+    "active_incidents_50mi",
+    "acres_burning_50mi",
+    "faults_90d",
+    "ignitions_365d",
+    "month_sin",
+    "month_cos",
+    "month_of_year",
+    "is_red_flag_int"
+  ],
+  "horizon_decay": {
+    "24h": 1.0,
+    "48h": 0.9,
+    "72h": 0.8
+  },
+  "note": "bootstrap \u2014 trained on synthetic data, retrain once real data accumulates"
+}

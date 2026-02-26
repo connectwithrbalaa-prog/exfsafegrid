@@ -30,14 +30,15 @@ jobs:
             git pull origin main
 
             # Write .env from GitHub secrets (overwrite on every deploy)
-            cat > .env << EOF
-            VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-            VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
-            VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
-            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-            ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-            API_KEY=$API_KEY
-            EOF
+            # printf avoids heredoc shell-expansion issues with values containing $ or !
+            printf '%s\n' \
+              "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" \
+              "VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY" \
+              "VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID" \
+              "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" \
+              "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" \
+              "API_KEY=$API_KEY" \
+              > .env
 
             # Build and start all services: db, api (Python + ML models), frontend (Nginx)
             docker compose up -d --build --remove-orphans

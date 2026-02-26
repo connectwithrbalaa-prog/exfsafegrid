@@ -18,7 +18,7 @@ from typing import Optional
 import requests
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from config.database import SessionLocal
+from config.database import SessionLocal, log_ingestion
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -78,31 +78,23 @@ def _fetch_all_layers(base_url: str) -> list:
     for layer in layers:
         lid = layer["id"]
         layer_url = f"{base_url}/{lid}"
-        offset = 0
-        while True:
-            resp = requests.get(
-                f"{layer_url}/query",
-                params={
-                    "where": "1=1",
-                    "outFields": "*",
-                    "returnGeometry": "true",
-                    "outSR": "4326",
-                    "resultOffset": offset,
-                    "resultRecordCount": settings.ARCGIS_MAX_RECORDS,
-                    "f": "json",
-                },
-                timeout=settings.ARCGIS_REQUEST_TIMEOUT,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            if "error" in data:
-                logger.warning("RAWS layer %d error: %s", lid, data["error"])
-                break
-            feats = data.get("features", [])
-            all_features.extend(feats)
-            if not data.get("exceededTransferLimit", False):
-                break
-            offset += settings.ARCGIS_MAX_RECORDS
+        resp = requests.get(
+            f"{layer_url}/query",
+            params={
+                "where": "1=1",
+                "outFields": "*",
+                "returnGeometry": "true",
+                "outSR": "4326",
+                "f": "json",
+            },
+            timeout=settings.ARCGIS_REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if "error" in data:
+            logger.warning("RAWS layer %d error: %s", lid, data["error"])
+            continue
+        all_features.extend(data.get("features", []))
     return all_features
 
 
@@ -115,13 +107,13 @@ def _upsert_raws(db: Session, rows: list) -> tuple[int, int]:
              temp_f, rh_pct, wind_speed_mph, wind_gust_mph, wind_dir_deg,
              precip_in, erc, bi, ffwi, geometry, raw_json, retrieved_at)
         VALUES
-            (:station_id, :station_name, :psa_id, :obs_time::TIMESTAMPTZ,
+            (:station_id, :station_name, :psa_id, CAST(:obs_time AS TIMESTAMPTZ),
              :temp_f, :rh_pct, :wind_speed_mph, :wind_gust_mph, :wind_dir_deg,
              :precip_in, :erc, :bi, :ffwi,
              CASE WHEN :geometry IS NOT NULL
                   THEN ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326)
                   ELSE NULL END,
-             :raw_json::JSONB, NOW())
+             CAST(:raw_json AS JSONB), NOW())
         ON CONFLICT (station_id, obs_time) DO UPDATE SET
             temp_f         = EXCLUDED.temp_f,
             rh_pct         = EXCLUDED.rh_pct,
@@ -203,7 +195,7 @@ def run(db: Optional[Session] = None) -> dict:
     finally:
         if own_db:
             db.close()
-    return {
+    result = {
         "source": "raws_stations",
         "records_fetched": fetched,
         "records_inserted": inserted,
@@ -212,6 +204,8 @@ def run(db: Optional[Session] = None) -> dict:
         "error_msg": error_msg,
         "duration_sec": round(time.time() - t0, 2),
     }
+    log_ingestion(result)
+    return result
 
 
 if __name__ == "__main__":

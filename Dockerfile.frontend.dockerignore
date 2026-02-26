@@ -1,0 +1,22 @@
+node_modules
+.git
+.env
+tmp
+
+# Python / API files (not needed in frontend image)
+config
+routers
+services
+alembic
+alembic.ini
+main.py
+requirements*.txt
+Dockerfile
+*.py
+*.pyc
+*.pyo
+__pycache__
+
+# Docs
+docs
+*.md

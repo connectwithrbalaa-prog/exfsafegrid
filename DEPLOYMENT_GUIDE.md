@@ -51,7 +51,8 @@ create table if not exists public.sms_log (
 create index sms_log_dedup_idx on public.sms_log (zip_code, alert_type, sent_at desc);
 
 -- PSPS Event Log (AfterActionReport + ComplianceDashboard)
-create table if not exists public.psps_events (
+-- Note: named psps_event_log to avoid collision with VPS postgres psps_events table
+create table if not exists public.psps_event_log (
   id                   uuid primary key default gen_random_uuid(),
   event_id             text unique not null,
   event_name           text not null,
@@ -82,7 +83,7 @@ create table if not exists public.compliance_items (
   last_verified date,
   details       text,
   evidence      text,
-  psps_event_id uuid references public.psps_events(id) on delete set null,
+  psps_event_id uuid references public.psps_event_log(id) on delete set null,
   updated_at    timestamptz default now()
 );
 
@@ -113,7 +114,7 @@ alter table public.hazard_reports
 
 ```sql
 alter table public.sms_log            enable row level security;
-alter table public.psps_events         enable row level security;
+alter table public.psps_event_log      enable row level security;
 alter table public.compliance_items    enable row level security;
 alter table public.vegetation_circuits enable row level security;
 
@@ -122,8 +123,8 @@ create policy "Agents read sms_log"
 create policy "Service role insert sms_log"
   on public.sms_log for insert with check (true);
 
-create policy "Agents manage psps_events"
-  on public.psps_events for all using (auth.role() = 'authenticated');
+create policy "Agents manage psps_event_log"
+  on public.psps_event_log for all using (auth.role() = 'authenticated');
 create policy "Agents manage compliance_items"
   on public.compliance_items for all using (auth.role() = 'authenticated');
 create policy "Agents manage vegetation_circuits"
@@ -137,7 +138,7 @@ Two new edge functions connect the new UI panels to real data:
 | Function | File | Purpose |
 |---|---|---|
 | `sms-send` | `supabase/functions/sms-send/index.ts` | Twilio SMS dispatch + dedup write to `sms_log` |
-| `after-action-report` | `supabase/functions/after-action-report/index.ts` | Claude/Gemini narrative from `psps_events` data |
+| `after-action-report` | `supabase/functions/after-action-report/index.ts` | Claude/Gemini narrative from `psps_event_log` data |
 
 Both files are committed to the repo. Deploy them with:
 ```bash
@@ -150,9 +151,9 @@ npx supabase functions deploy after-action-report
 | Component | Current | Production Change |
 |---|---|---|
 | `SmsAlertsPanel.tsx` | Mock data | Subscribe to `sms_log` realtime + call `sms-send` function |
-| `AfterActionReport.tsx` | Static events | Fetch `psps_events` table + call `after-action-report` function |
+| `AfterActionReport.tsx` | Static events | Fetch `psps_event_log` table + call `after-action-report` function |
 | `VegetationRiskPanel.tsx` | MOCK_CIRCUITS | Fetch `vegetation_circuits` table |
-| `ComplianceDashboard.tsx` | Static arrays | Fetch `compliance_items` + `psps_events` tables |
+| `ComplianceDashboard.tsx` | Static arrays | Fetch `compliance_items` + `psps_event_log` tables |
 
 ### 1.5  Required Secrets (Supabase Dashboard → Settings → Secrets)
 
@@ -233,12 +234,11 @@ mkdir -p /docker/exfsafegrid
 cd /docker/exfsafegrid
 git clone https://github.com/connectwithrbalaa-prog/exfsafegrid.git .
 
-# Create .env for build-time variables
-cat > .env.production << EOF
-VITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...
-VITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy
-EOF
+# Create .env for build-time and runtime variables
+# Use printf to avoid heredoc parsing issues on some shells
+printf 'POSTGRES_PASSWORD=your-db-password\nANTHROPIC_API_KEY=sk-ant-...\nAPI_KEY=your-api-key\nVITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...\nVITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy\n' > .env
+# NIFC_OUTLOOK_7DAY_URL, NIFC_OUTLOOK_MONTHLY_URL, NIFC_RAWS_URL have
+# working defaults in config/settings.py — only add them if URLs change.
 
 Step 4: Push to main triggers auto-deploy
 ──────────────────────────────────────────
@@ -251,44 +251,6 @@ Step 5: HTTPS with Let's Encrypt (recommended)
 On VPS:
 apt install certbot python3-certbot-nginx
 certbot --nginx -d yourdomain.com
-```
-
----
-
-### OPTION C — Vercel (Free tier, auto-HTTPS)
-
-```
-Step 1: Install Vercel CLI
-───────────────────────────
-npm install -g vercel
-
-Step 2: Deploy from project root
-──────────────────────────────────
-cd /home/user/exfsafegrid
-vercel
-
-# Prompts:
-#   Project name:      exfsafegrid
-#   Framework:         Vite
-#   Build command:     npm run build
-#   Output directory:  dist
-
-Step 3: Add environment variables
-───────────────────────────────────
-vercel env add VITE_SUPABASE_URL
-vercel env add VITE_SUPABASE_PUBLISHABLE_KEY
-vercel env add VITE_SUPABASE_PROJECT_ID
-
-Step 4: Connect GitHub for auto-deploy
-────────────────────────────────────────
-vercel.com → Add New → Import Git Repository
-→ Select connectwithrbalaa-prog/exfsafegrid
-→ Every push to main auto-deploys in ~90 seconds
-
-Step 5: Fix React Router (SPA routing)
-────────────────────────────────────────
-vercel.json is already committed to the repo.
-All routes (/status, /crew, /command-center) work correctly.
 ```
 
 ---
@@ -348,13 +310,31 @@ Required additional GitHub Secrets:
 
 ## Part 4 — Environment Variables Reference
 
-### Frontend (.env / Lovable / Vercel)
+### Frontend (.env / Lovable / VPS)
 
 | Variable | Value |
 |---|---|
 | `VITE_SUPABASE_URL` | `https://efutjtbgcqbprgtefcfy.supabase.co` |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase Dashboard → Settings → API → anon key |
 | `VITE_SUPABASE_PROJECT_ID` | `efutjtbgcqbprgtefcfy` |
+
+### Python API (`docker-compose.yml` / `.env` on VPS)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://postgres:postgres@db:5432/exf_wildfire` | Postgres connection (set by docker-compose) |
+| `ANTHROPIC_API_KEY` | _(required)_ | Claude API key for AI agents |
+| `API_KEY` | _(optional)_ | Bearer token to protect API endpoints |
+| `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`) |
+| `MODEL_DIR` | `/app/models/artifacts` | Path for trained ML model files |
+| `CLAUDE_MODEL` | `claude-opus-4-5` | Claude model ID used by agents |
+| `ARCGIS_MAX_RECORDS` | `1000` | Max features per ArcGIS paginated request |
+| `ARCGIS_REQUEST_TIMEOUT` | `30` | Seconds before ArcGIS fetch times out |
+| `NIFC_OUTLOOK_7DAY_URL` | NIFC MapServer URL | 7-Day Significant Fire Potential service |
+| `NIFC_OUTLOOK_MONTHLY_URL` | NIFC MapServer URL | Monthly/Extended Outlook service |
+| `NIFC_RAWS_URL` | NIFC MapServer URL | PSA GACC Key RAWS stations service |
+
+> All `NIFC_*` and `ARCGIS_*` variables have working defaults and only need to be set if the upstream NIFC URLs change.
 
 ### Edge Functions (Supabase Secrets)
 
@@ -379,6 +359,6 @@ Required additional GitHub Secrets:
 [ ] 6. npx supabase secrets set LOVABLE_API_KEY=xxx NASA_FIRMS_API_KEY=xxx
 [ ] 7. Set VPS_HOST / VPS_USER / VPS_KEY in GitHub Secrets
 [ ] 8. GitHub Actions auto-builds Docker image and deploys to VPS
-[ ] 9. (Optional) Add custom domain in Lovable / Vercel / Nginx
+[ ] 9. (Optional) Add custom domain in Lovable / Nginx + certbot
 [ ]10. Visit https://yourdomain.com — done!
 ```
