@@ -20,6 +20,8 @@ import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import { getSubstationForZip } from "@/lib/wildfire-utils";
 import PredictiveOutagePanel from "@/components/PredictiveOutagePanel";
 import HardshipTriagePanel from "@/components/HardshipTriagePanel";
+import AgentRiskForecastPanel from "@/components/AgentRiskForecastPanel";
+import PspsImpactCard from "@/components/PspsImpactCard";
 import { useKeyboardShortcuts, SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
 
 import { toast } from "sonner";
@@ -42,7 +44,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const [redFlagData, setRedFlagData] = useState<RedFlagData>({});
   const [loadingRedFlag, setLoadingRedFlag] = useState(true);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [activeSection, setActiveSection] = useState<"overview" | "safety" | "chat" | "tools">("overview");
+  const [activeSection, setActiveSection] = useState<"risk" | "support" | "map">("risk");
   const [advancedTab, setAdvancedTab] = useState<"predictive" | "hardship">("predictive");
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLSelectElement>(null);
@@ -131,7 +133,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
     } else if (label === "PSPS Alert") {
       toast.success(`PSPS alert sent to ${selected.name}`);
     } else if (label === "Add Note") {
-      setActiveSection("overview");
+      setActiveSection("risk");
       setTimeout(() => {
         notesRef.current?.scrollIntoView({ behavior: "smooth" });
         notesRef.current?.focus();
@@ -163,10 +165,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const ss = selected ? getSubstationForZip(selected.zip_code) : null;
 
   const SECTION_TABS = [
-    { key: "overview" as const, label: "Overview", icon: ClipboardList },
-    { key: "safety" as const, label: "Safety & Actions", icon: Shield },
-    { key: "chat" as const, label: "AI Assistant", icon: Bot },
-    { key: "tools" as const, label: "Advanced Tools", icon: Wrench },
+    { key: "risk" as const, label: "Safety & Risk", icon: Shield },
+    { key: "support" as const, label: "Support & Programs", icon: ClipboardList },
+    { key: "map" as const, label: "Map & Transparency", icon: Map },
   ];
 
   return (
@@ -271,8 +272,8 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         ))}
       </div>
 
-      {/* ═══════ OVERVIEW ═══════ */}
-      {activeSection === "overview" && (
+      {/* ═══════ SAFETY & RISK ═══════ */}
+      {activeSection === "risk" && (
         <div className="space-y-4">
           {selected ? (
             <>
@@ -286,9 +287,58 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 </div>
               )}
 
-              {/* Customer Details + Infrastructure — side by side */}
+              {/* Medical Baseline Alert */}
+              {selected.medical_baseline && (
+                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10">
+                  <div className="flex items-center gap-2">
+                    <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
+                    <span className="text-xs font-bold text-destructive">🚨 MEDICAL BASELINE</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <button
+                      onClick={() => toast.success(`Doorbell verification dispatched for ${selected.name}`)}
+                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
+                    >
+                      🔔 Doorbell Ring
+                    </button>
+                    <button
+                      onClick={() => toast.success(`Priority restoration flagged for ${selected.name}`)}
+                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
+                    >
+                      ⚡ Priority Restore
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Risk Forecast + PSPS Impact side by side */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Customer Profile */}
+                <AgentRiskForecastPanel customer={selected} />
+                <PspsImpactCard customer={selected} />
+              </div>
+
+              {/* Safety Modules */}
+              <SafetyModules customer={selected} />
+
+              {/* Hazard Report */}
+              <ReportHazard customerName={selected.name} />
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
+              <Shield className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Select a customer to view safety & risk data</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ SUPPORT & PROGRAMS ═══════ */}
+      {activeSection === "support" && (
+        <div className="space-y-4">
+          {selected ? (
+            <>
+              {/* Customer Profile */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg border border-border bg-card space-y-3">
                   <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
                     <User className="w-4 h-4 text-primary" /> Customer Profile
@@ -328,71 +378,6 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 )}
               </div>
 
-              {/* Map */}
-              <CustomerWildfireMap
-                customerZip={selected.zip_code}
-                assetLat={ss?.latitude ?? 37.20}
-                assetLng={ss?.longitude ?? -119.30}
-                hftdTier={selected.hftd_tier ?? "None"}
-              />
-
-              {/* Agent Notes */}
-              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
-                <textarea
-                  ref={notesRef}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes about this customer..."
-                  className="w-full h-20 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                />
-                <button
-                  onClick={saveNotes}
-                  disabled={savingNotes}
-                  className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-                >
-                  {savingNotes ? "Saving…" : "Save Notes"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
-              <User className="w-6 h-6 opacity-40" />
-              <p className="text-sm">Select a customer above to view their details</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════ SAFETY & ACTIONS ═══════ */}
-      {activeSection === "safety" && (
-        <div className="space-y-4">
-          {selected ? (
-            <>
-              {/* Medical Baseline Alert */}
-              {selected.medical_baseline && (
-                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10">
-                  <div className="flex items-center gap-2">
-                    <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
-                    <span className="text-xs font-bold text-destructive">🚨 MEDICAL BASELINE</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <button
-                      onClick={() => toast.success(`Doorbell verification dispatched for ${selected.name}`)}
-                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
-                    >
-                      🔔 Doorbell Ring
-                    </button>
-                    <button
-                      onClick={() => toast.success(`Priority restoration flagged for ${selected.name}`)}
-                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
-                    >
-                      ⚡ Priority Restore
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Quick Actions */}
               <div className="p-4 rounded-lg border border-border bg-card space-y-3">
                 <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
@@ -423,81 +408,82 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 </div>
               </div>
 
-              {/* Safety Modules */}
-              <SafetyModules customer={selected} />
+              {/* AI Assistant */}
+              <div className="rounded-lg border border-border bg-card overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-card-foreground">AI Assistant</h3>
+                  <span className="text-xs text-muted-foreground ml-auto">Customer: {selected.name}</span>
+                </div>
+                <div className="h-[400px]">
+                  <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+                </div>
+              </div>
 
-              {/* Hazard Report */}
-              <ReportHazard customerName={selected.name} />
+              {/* Agent Notes */}
+              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
+                <textarea
+                  ref={notesRef}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this customer..."
+                  className="w-full h-20 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                />
+                <button
+                  onClick={saveNotes}
+                  disabled={savingNotes}
+                  className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {savingNotes ? "Saving…" : "Save Notes"}
+                </button>
+              </div>
+
+              {/* Agent Requests & Hardship/Predictive */}
+              <AgentRequestsPanel />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <PredictiveOutagePanel customers={customers} />
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <HardshipTriagePanel
+                    customers={customers}
+                    onCustomerUpdate={(updated) => {
+                      setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+                      if (selected?.id === updated.id) setSelected(updated);
+                    }}
+                  />
+                </div>
+              </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
-              <Shield className="w-6 h-6 opacity-40" />
-              <p className="text-sm">Select a customer to access safety modules</p>
+              <User className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Select a customer to view support tools</p>
             </div>
           )}
         </div>
       )}
 
-      {/* ═══════ AI ASSISTANT ═══════ */}
-      {activeSection === "chat" && (
+      {/* ═══════ MAP & TRANSPARENCY ═══════ */}
+      {activeSection === "map" && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-card-foreground">AI Assistant</h3>
-              {selected && <span className="text-xs text-muted-foreground ml-auto">Customer: {selected.name}</span>}
-            </div>
-            {selected ? (
-              <div className="h-[500px]">
-                <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
-              </div>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center">
-                <p className="text-xs text-muted-foreground">Select a customer to start chatting</p>
-              </div>
-            )}
-          </div>
-
-          <AgentRequestsPanel />
-        </div>
-      )}
-
-      {/* ═══════ ADVANCED TOOLS ═══════ */}
-      {activeSection === "tools" && (
-        <div className="space-y-4">
-          {/* Sub-tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
-            {[
-              { key: "predictive" as const, label: "Predictive Outage" },
-              { key: "hardship" as const, label: "Hardship Triage" },
-            ].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setAdvancedTab(t.key)}
-                className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors ${
-                  advancedTab === t.key
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="rounded-lg border border-border bg-card p-4">
-            {advancedTab === "predictive" ? (
-              <PredictiveOutagePanel customers={customers} />
-            ) : (
-              <HardshipTriagePanel
-                customers={customers}
-                onCustomerUpdate={(updated) => {
-                  setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
-                  if (selected?.id === updated.id) setSelected(updated);
-                }}
+          {selected ? (
+            <>
+              <CustomerWildfireMap
+                customerZip={selected.zip_code}
+                assetLat={ss?.latitude ?? 37.20}
+                assetLng={ss?.longitude ?? -119.30}
+                hftdTier={selected.hftd_tier ?? "None"}
               />
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
+              <Map className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Select a customer to view the wildfire map</p>
+            </div>
+          )}
         </div>
       )}
 
