@@ -996,7 +996,12 @@ export default function CommandCenter() {
           ]).map((s) => (
             <button
               key={s.key}
-              onClick={() => setSection(s.key)}
+              onClick={() => {
+                setSection(s.key);
+                if (s.key === "overview") setActiveTab("assets");
+                else if (s.key === "operations") setActiveTab("field-ops");
+                else if (s.key === "risk") setActiveTab("vegetation");
+              }}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
                 section === s.key
                   ? "bg-white/10 text-white shadow-sm"
@@ -1210,57 +1215,108 @@ export default function CommandCenter() {
 
         {/* ════════════════ OPERATIONS ════════════════ */}
         {section === "operations" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />
+          <div className="space-y-5">
+            {/* Section Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                <Shield className="w-4 h-4 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold">Operations Center</h2>
+                <p className="text-[11px] text-white/40">Tactical coordination, field ops, resources & community alerts</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <ResourceTracker />
+
+            {/* Sub-tabs */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-lg p-1 overflow-x-auto">
+              {([
+                { key: "field-ops" as const, label: "Field Ops", icon: MapPin },
+                { key: "resources" as const, label: "Resources", icon: Users },
+                { key: "evac" as const, label: "Evacuation", icon: Route },
+                { key: "alerts" as const, label: "Community Alerts", icon: Bell },
+                { key: "sms" as const, label: "SMS Alerts", icon: Activity },
+                { key: "after-action" as const, label: "After Action", icon: FileText },
+              ]).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === t.key
+                      ? "bg-white/10 text-white shadow-sm"
+                      : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                  }`}
+                >
+                  <t.icon className="w-3.5 h-3.5" />
+                  {t.label}
+                </button>
+              ))}
             </div>
+
+            {/* Active Panel */}
             <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <EvacuationPanel />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <CommunityAlertsPanel fires={fires} />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <SmsAlertsPanel />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <AfterActionReport />
+              {activeTab === "field-ops" && <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />}
+              {activeTab === "resources" && <ResourceTracker />}
+              {activeTab === "evac" && <EvacuationPanel />}
+              {activeTab === "alerts" && <CommunityAlertsPanel fires={fires} />}
+              {activeTab === "sms" && <SmsAlertsPanel />}
+              {activeTab === "after-action" && <AfterActionReport />}
             </div>
           </div>
         )}
 
         {/* ════════════════ RISK & PLANNING ════════════════ */}
         {section === "risk" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <VegetationRiskPanel />
+          <div className="space-y-5">
+            {/* Section Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-600/20 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold">Risk & Planning</h2>
+                <p className="text-[11px] text-white/40">Strategic analysis, compliance, modeling & system operations</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />
+
+            {/* Sub-tabs */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-lg p-1 overflow-x-auto">
+              {([
+                { key: "vegetation" as const, label: "Vegetation", icon: Layers },
+                { key: "insurance" as const, label: "Insurance", icon: DollarSign },
+                { key: "nvc" as const, label: "NVC Analysis", icon: BarChart3 },
+                { key: "behavior" as const, label: "Fire Behavior", icon: Flame },
+                { key: "history" as const, label: "Fire History", icon: Clock },
+                { key: "hvra" as const, label: "HVRA", icon: MapPin },
+                { key: "compliance" as const, label: "Compliance", icon: Shield },
+                { key: "thresholds" as const, label: "Thresholds", icon: Settings },
+                { key: "backend" as const, label: "System Ops", icon: Server },
+              ]).map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === t.key
+                      ? "bg-white/10 text-white shadow-sm"
+                      : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                  }`}
+                >
+                  <t.icon className="w-3.5 h-3.5" />
+                  {t.label}
+                </button>
+              ))}
             </div>
+
+            {/* Active Panel */}
             <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <FireBehaviorPanel fires={fires} weatherData={weatherData} />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <FireHistoryTimeline fires={fires} />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <HvraPanel fires={fires} />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <ComplianceDashboard />
-            </div>
-            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <RiskThresholdSettings />
-            </div>
-            <div className="lg:col-span-2 rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              <BackendOpsPanel />
+              {activeTab === "vegetation" && <VegetationRiskPanel />}
+              {activeTab === "insurance" && <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />}
+              {activeTab === "nvc" && <NvcDashboard fires={fires} hvraAssets={hvraAssets} />}
+              {activeTab === "behavior" && <FireBehaviorPanel fires={fires} weatherData={weatherData} />}
+              {activeTab === "history" && <FireHistoryTimeline fires={fires} />}
+              {activeTab === "hvra" && <HvraPanel fires={fires} />}
+              {activeTab === "compliance" && <ComplianceDashboard />}
+              {activeTab === "thresholds" && <RiskThresholdSettings />}
+              {activeTab === "backend" && <BackendOpsPanel />}
             </div>
           </div>
         )}
