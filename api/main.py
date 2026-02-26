@@ -193,6 +193,50 @@ def get_fire_spread_risk(
             "count": len(rows), "results": [dict(r._mapping) for r in rows]}
 
 
+@app.get("/customer-density", tags=["Predictions"])
+def get_customer_density(
+    circuit_id: Optional[str] = Query(None),
+    psa_id: Optional[str] = Query(None),
+    risk_band: Optional[str] = Query(None),
+    min_customers: int = Query(0, ge=0),
+    limit: int = Query(100, le=500),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """Customer density per circuit with latest risk overlay. Shows customer_count, critical_customers, medical_baseline impact."""
+    params: dict = {"min_customers": min_customers, "limit": limit}
+    extra = ""
+    if circuit_id:
+        extra += " AND uc.circuit_id = :circuit_id"; params["circuit_id"] = circuit_id
+    if psa_id:
+        extra += " AND uc.psa_id = :psa_id"; params["psa_id"] = psa_id
+    if risk_band:
+        extra += " AND latest.risk_bucket = :risk_band"; params["risk_band"] = risk_band.upper()
+    rows = db.execute(text(f"""
+        SELECT uc.circuit_id, uc.circuit_name, uc.psa_id, uc.county, uc.hftd_tier,
+               uc.voltage_kv, COALESCE(uc.customer_count, 0) AS customer_count,
+               COALESCE(uc.critical_customers, 0) AS critical_customers,
+               latest.prob_score AS ignition_prob, latest.risk_bucket AS risk_band,
+               latest.prediction_date
+        FROM utility_circuits uc
+        LEFT JOIN LATERAL (
+            SELECT mp.prob_score, mp.risk_bucket, mp.prediction_date
+            FROM model_predictions mp
+            WHERE mp.circuit_id = uc.circuit_id AND mp.model_name = 'ignition_spike'
+            ORDER BY mp.prediction_date DESC LIMIT 1
+        ) latest ON TRUE
+        WHERE COALESCE(uc.customer_count, 0) >= :min_customers {extra}
+        ORDER BY COALESCE(uc.customer_count, 0) DESC LIMIT :limit
+    """), params).fetchall()
+    total_customers = sum(r._mapping.get("customer_count", 0) for r in rows)
+    total_critical = sum(r._mapping.get("critical_customers", 0) for r in rows)
+    return {
+        "count": len(rows),
+        "total_customers": total_customers,
+        "total_critical_customers": total_critical,
+        "results": [dict(r._mapping) for r in rows],
+    }
+
+
 @app.get("/briefing", tags=["Agents"])
 def get_briefing(briefing_date: Optional[date] = Query(None),
                  db: Session = Depends(get_db), _: str = Depends(auth)):
