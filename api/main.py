@@ -441,6 +441,92 @@ def get_nearby_sensors(
     }
 
 
+# ── Agent: Program Eligibility ────────────────────────────────────────────
+@app.get("/api/agent/program-eligibility", tags=["Agent"])
+def get_program_eligibility(
+    customer_id: str = Query(..., description="Customer UUID"),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    Evaluate a customer's eligibility for utility assistance programs.
+
+    Rules
+    -----
+    backup_power      — eligible if hftd_tier is Tier2 or Tier3, or
+                        wildfire_risk is High / Critical / Extreme.
+    medical_baseline  — reflects the customer's enrolled boolean; no
+                        eligibility gate (self-attested at enrolment).
+    generator_rebate  — eligible if in HFTD Tier 2/3 AND no permanent
+                        battery already installed; or if wildfire_risk is
+                        High/Critical AND customer has a documented outage
+                        history; otherwise ineligible.
+
+    Response::
+
+        {
+          "backup_power":      {"eligible": true,  "reason": "HFTD Tier 3"},
+          "medical_baseline":  {"enrolled": false},
+          "generator_rebate":  {"eligible": false, "reason": "Low outage frequency"}
+        }
+    """
+    row = db.execute(text("""
+        SELECT id, hftd_tier, wildfire_risk, medical_baseline,
+               has_permanent_battery, has_transfer_meter,
+               outage_history, arrears_status
+        FROM customers
+        WHERE id = :cid
+    """), {"cid": customer_id}).fetchone()
+
+    if not row:
+        raise HTTPException(404, f"Customer '{customer_id}' not found")
+
+    c = row._mapping
+    tier        = (c["hftd_tier"] or "None").strip()
+    risk        = (c["wildfire_risk"] or "Low").strip()
+    perm_batt   = (c["has_permanent_battery"] or "None").strip()
+    outage_hist = (c["outage_history"] or "").strip()
+
+    _HFTD_HIGH = {"Tier2", "Tier3", "2", "3"}
+    _RISK_HIGH  = {"High", "Critical", "Extreme"}
+
+    # ── Backup Power ──────────────────────────────────────────────────────
+    if tier in _HFTD_HIGH:
+        bp_eligible = True
+        bp_reason   = f"HFTD {tier}"
+    elif risk in _RISK_HIGH:
+        bp_eligible = True
+        bp_reason   = f"{risk} wildfire risk"
+    else:
+        bp_eligible = False
+        bp_reason   = "Not in HFTD Tier 2/3 and wildfire risk is not elevated"
+
+    # ── Medical Baseline ──────────────────────────────────────────────────
+    mb_enrolled = bool(c["medical_baseline"])
+
+    # ── Generator Rebate ─────────────────────────────────────────────────
+    already_equipped = perm_batt not in ("None", "", "No", "N/A")
+
+    if already_equipped:
+        gr_eligible = False
+        gr_reason   = f"Permanent battery already installed ({perm_batt})"
+    elif tier in _HFTD_HIGH:
+        gr_eligible = True
+        gr_reason   = f"HFTD {tier} — qualifies for backup generation rebate"
+    elif risk in _RISK_HIGH and outage_hist:
+        gr_eligible = True
+        gr_reason   = f"{risk} wildfire risk with documented outage history"
+    else:
+        gr_eligible = False
+        gr_reason   = "Low outage frequency" if not outage_hist else "Wildfire risk not elevated"
+
+    return {
+        "customer_id":     customer_id,
+        "backup_power":    {"eligible": bp_eligible, "reason": bp_reason},
+        "medical_baseline": {"enrolled": mb_enrolled},
+        "generator_rebate": {"eligible": gr_eligible, "reason": gr_reason},
+    }
+
+
 @app.post("/models/train", tags=["Management"])
 def train_models(req: TrainRequest, _: str = Depends(auth)):
     from models import train_psa_risk, train_ignition_spike
