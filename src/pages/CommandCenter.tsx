@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, LogOut,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, LogOut, ChevronDown,
 } from "lucide-react";
 import { useCustomer } from "@/hooks/use-customer";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -31,6 +31,7 @@ import {
 import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import TopNav from "@/components/TopNav";
+import CircuitRiskTrendRow from "@/components/CircuitRiskTrendRow";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -164,7 +165,7 @@ export default function CommandCenter() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const fireHistoryRef = useRef<Map<string, number>>(new Map());
-
+  const [expandedCircuit, setExpandedCircuit] = useState<string | null>(null);
   // Backend ML predictions
   const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
   const psaRiskQuery = usePsaRisk({ limit: 500 });
@@ -1183,9 +1184,20 @@ export default function CommandCenter() {
                       <tbody className="divide-y divide-white/[0.04]">
                         {sortedAssetRisks.map((a) => {
                           const ssData = SUBSTATIONS.find((s) => s.id === a.id);
+                          const isExpanded = expandedCircuit === a.id;
                           return (
-                            <tr key={a.id} className={`transition-colors ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
-                              <td className="px-4 py-3 font-medium">{a.name}</td>
+                            <React.Fragment key={a.id}>
+                              <tr
+                                key={a.id}
+                                onClick={() => setExpandedCircuit(isExpanded ? null : a.id)}
+                                className={`transition-colors cursor-pointer ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}
+                              >
+                              <td className="px-4 py-3 font-medium">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <ChevronDown className={`w-3 h-3 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  {a.name}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-white/50"><span className="inline-flex items-center gap-1">{a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}{a.type}</span></td>
                               <td className="px-4 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
                               <td className="px-4 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
@@ -1197,7 +1209,15 @@ export default function CommandCenter() {
                               <td className="px-4 py-3">{(() => { const pr = psaRiskMap.get(a.id); if (!pr) return <span className="text-white/20 text-xs">—</span>; const pct = (pr.prob * 100).toFixed(0); const color = pr.bucket === "CRITICAL" ? "text-red-400" : pr.bucket === "HIGH" ? "text-orange-400" : pr.bucket === "ELEVATED" ? "text-amber-400" : "text-emerald-400"; return (<span className={`text-xs font-bold ${color}`}>{pct}%</span>); })()}</td>
                               <td className="px-4 py-3"><TrendBadge trend={a.trend} /></td>
                               <td className="px-4 py-3"><ActionBadge action={a.action} /></td>
-                            </tr>
+                              </tr>
+                              {isExpanded && (
+                                <CircuitRiskTrendRow
+                                  key={`trend-${a.id}`}
+                                  circuitId={a.id}
+                                  onClose={() => setExpandedCircuit(null)}
+                                />
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>
