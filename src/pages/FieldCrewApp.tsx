@@ -33,6 +33,7 @@ interface HazardSubmission {
   lng: number;
   submitted_at: Date;
   synced: boolean;
+  photo_url?: string | null;
 }
 
 const PATROL_ITEMS: Omit<PatrolCheckItem, "completed" | "timestamp">[] = [
@@ -125,6 +126,7 @@ export default function FieldCrewApp() {
           setSubmissions(data.map((r: any) => ({
             id: r.id, type: r.hazard_type || "Unknown", description: r.description || "",
             lat: r.latitude || 0, lng: r.longitude || 0, submitted_at: new Date(r.created_at), synced: true,
+            photo_url: r.photo_url || null,
           })));
         }
       });
@@ -135,6 +137,7 @@ export default function FieldCrewApp() {
         setSubmissions((prev) => [{
           id: r.id, type: r.hazard_type || "Unknown", description: r.description || "",
           lat: r.latitude || 0, lng: r.longitude || 0, submitted_at: new Date(r.created_at), synced: true,
+          photo_url: r.photo_url || null,
         }, ...prev]);
       }).subscribe();
 
@@ -452,18 +455,23 @@ export default function FieldCrewApp() {
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
             {submissions.map((r) => (
-              <div key={r.id} className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-orange-300">{r.type}</span>
-                  <span className="text-[9px] text-white/20 flex items-center gap-1">
-                    <Clock className="w-2.5 h-2.5" />
-                    {r.submitted_at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-                <p className="text-xs text-white/40 line-clamp-2">{r.description || "No description"}</p>
-                {(r.lat !== 0 || r.lng !== 0) && (
-                  <p className="text-[9px] font-mono text-white/15">{r.lat.toFixed(4)}, {r.lng.toFixed(4)}</p>
+              <div key={r.id} className="rounded-lg bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+                {r.photo_url && (
+                  <img src={r.photo_url} alt={r.type} className="w-full h-36 object-cover" />
                 )}
+                <div className="px-3 py-2.5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-orange-300">{r.type}</span>
+                    <span className="text-[9px] text-white/20 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      {r.submitted_at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/40 line-clamp-2">{r.description || "No description"}</p>
+                  {(r.lat !== 0 || r.lng !== 0) && (
+                    <p className="text-[9px] font-mono text-white/15">{r.lat.toFixed(4)}, {r.lng.toFixed(4)}</p>
+                  )}
+                </div>
               </div>
             ))}
             {submissions.length === 0 && (
