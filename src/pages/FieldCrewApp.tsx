@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   MapPin, Wifi, WifiOff, CheckCircle2, Circle, AlertTriangle,
-  Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, LogOut, Flame,
+  Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, LogOut, Flame, X, Image,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import TopNav from "@/components/TopNav";
@@ -75,6 +75,10 @@ export default function FieldCrewApp() {
   const [submissions, setSubmissions] = useState<HazardSubmission[]>([]);
   const [queue, setQueue] = useState<HazardSubmission[]>([]);
   const [activeTab, setActiveTab] = useState<"patrol" | "hazard" | "reports">("patrol");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const watchRef = useRef<number | null>(null);
 
   const completedCount = items.filter((i) => i.completed).length;
@@ -145,6 +149,34 @@ export default function FieldCrewApp() {
     if (item && !item.completed) toast.success(`✓ ${item.label}`);
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5MB"); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { toast.error("JPEG, PNG or WebP only"); return; }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoFile) return null;
+    setUploadingPhoto(true);
+    const ext = photoFile.name.split(".").pop() || "jpg";
+    const path = `field/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("hazard-photos").upload(path, photoFile, { contentType: photoFile.type });
+    setUploadingPhoto(false);
+    if (error) { toast.error("Photo upload failed"); return null; }
+    const { data: urlData } = supabase.storage.from("hazard-photos").getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
   const submitHazard = useCallback(async () => {
     if (!hazardDesc.trim()) { toast.error("Description required"); return; }
     setSubmitting(true);
@@ -156,19 +188,24 @@ export default function FieldCrewApp() {
     if (!online) {
       setQueue((prev) => [...prev, record]);
       toast.warning("Offline — queued for sync");
-      setSubmitting(false); setHazardDesc(""); return;
+      setSubmitting(false); setHazardDesc(""); clearPhoto(); return;
     }
+
+    // Upload photo first if present
+    const photoUrl = await uploadPhoto();
 
     const { error } = await supabase.from("hazard_reports").insert({
       hazard_type: hazardType, description: hazardDesc,
       latitude: gps?.lat ?? null, longitude: gps?.lng ?? null,
+      photo_url: photoUrl,
     } as any);
 
     setSubmitting(false);
     if (error) { toast.error("Failed — queued locally"); setQueue((prev) => [...prev, record]); }
     else { toast.success("Report submitted"); setSubmissions((prev) => [{ ...record, synced: true }, ...prev]); }
     setHazardDesc("");
-  }, [hazardType, hazardDesc, gps, online]);
+    clearPhoto();
+  }, [hazardType, hazardDesc, gps, online, photoFile]);
 
   const syncQueue = useCallback(async () => {
     if (queue.length === 0) return;
@@ -355,14 +392,46 @@ export default function FieldCrewApp() {
               />
             </div>
 
+            {/* Photo capture */}
+            <div>
+              <label className="text-[10px] text-white/30 uppercase tracking-wider mb-1.5 block">Photo</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+              {photoPreview ? (
+                <div className="relative rounded-lg overflow-hidden border border-white/[0.06]">
+                  <img src={photoPreview} alt="Hazard preview" className="w-full h-40 object-cover" />
+                  <button
+                    onClick={clearPhoto}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white/80 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-6 rounded-lg border border-dashed border-white/10 bg-white/[0.02] text-white/25 hover:text-white/40 hover:border-white/20 transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span className="text-xs">Tap to capture photo</span>
+                </button>
+              )}
+            </div>
+
             {/* Submit */}
             <button
               onClick={submitHazard}
-              disabled={submitting || !hazardDesc.trim()}
+              disabled={submitting || uploadingPhoto || !hazardDesc.trim()}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-500 disabled:opacity-30 transition-colors"
             >
-              {submitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {online ? "Submit" : "Queue Offline"}
+              {(submitting || uploadingPhoto) ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {uploadingPhoto ? "Uploading…" : online ? "Submit" : "Queue Offline"}
             </button>
 
             {/* Offline queue */}
