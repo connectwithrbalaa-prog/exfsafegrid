@@ -112,7 +112,7 @@ export default function MlChatBubble() {
 
       // If stream ended with no content, show fallback
       if (!assistantSoFar) {
-        setMessages(prev => [...prev, { role: "assistant", content: "The model returned no predictions. This may mean Model C hasn't been trained yet — try training it from the Backend Ops panel first." }]);
+        setMessages(prev => [...prev, { role: "assistant", content: "No response received. The relevant model may not be trained or scored yet — try training & scoring from the Backend Ops panel, then retry." }]);
       }
     } catch (e: any) {
       console.error("ML chat error:", e);
