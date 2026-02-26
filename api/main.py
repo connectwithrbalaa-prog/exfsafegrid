@@ -289,82 +289,156 @@ def get_monthly_outlooks(forecast_date: Optional[date] = Query(None),
             "count": len(rows), "outlooks": [dict(r._mapping) for r in rows]}
 
 
-@app.get("/api/agent/risk-12h", tags=["Agent"])
-def api_risk_12h(
-    circuit_id: str = Query(..., description="Circuit ID to query"),
+# ── Agent: 12-Hour Circuit Risk Trend ─────────────────────────────────────
+@app.get("/agent/risk-12h", tags=["Agent"])
+def get_circuit_risk_trend(
+    circuit_id: str = Query(..., description="e.g. CIRCUIT_101"),
     db: Session = Depends(get_db), _: str = Depends(auth),
 ):
     """
-    12-hour hourly ignition-risk trend for a circuit.
-
-    Derives RISING / FALLING / STABLE from the delta between the two most
-    recent daily model predictions, then extrapolates 12 hourly probability
-    points forward from now.
-
-    Response::
-
-        {
-          "circuit_id": "CIRCUIT_101",
-          "trend_label": "RISING",
-          "hourly": [
-            {"time": "2026-02-26T12:00Z", "prob": 0.32},
-            ...
-          ]
-        }
+    Returns the last 12 hourly ignition-risk predictions for a circuit,
+    plus a trend label (RISING / FALLING / STABLE).
+    Reads from `model_predictions` where model_name = 'ignition_spike'
+    and horizon_label = '24h', ordered by prediction timestamp descending,
+    taking the 12 most recent hourly scores.
     """
-    from agents.risk_sensor_agent import get_risk_12h
-    result = get_risk_12h(circuit_id, db)
-    if result is None:
-        raise HTTPException(404, f"No predictions found for circuit '{circuit_id}'. "
-                                 "Run POST /models/score to generate predictions first.")
-    return result
-
-
-@app.get("/api/agent/nearby-sensors", tags=["Agent"])
-def api_nearby_sensors(
-    lat: float = Query(..., description="Latitude (decimal degrees)"),
-    lon: float = Query(..., description="Longitude (decimal degrees)"),
-    radius_miles: int = Query(25, ge=1, le=150, description="Search radius in miles"),
-    summary: bool = Query(False, description="Generate a Claude one-sentence summary"),
-    circuit_id: Optional[str] = Query(None, description="Circuit ID for risk context in summary"),
-    db: Session = Depends(get_db), _: str = Depends(auth),
-):
-    """
-    Return RAWS weather stations within *radius_miles* of (lat, lon).
-
-    Pass ``summary=true`` (and optionally ``circuit_id``) to include a
-    Claude-generated one-sentence operational summary of risk + conditions.
-
-    Response::
-
-        {
-          "lat": 34.05,
-          "lon": -118.25,
-          "radius_miles": 25,
-          "raws_stations": [
-            {"station_id": "...", "station_name": "...", "distance_miles": 4.2,
-             "temp_f": 87, "rh_pct": 12, "wind_speed_mph": 18, ...}
-          ],
-          "cameras": [],
-          "summary": "Risk is rising this afternoon due to high winds; RH at nearest station is 12%."
-        }
-    """
-    from agents.risk_sensor_agent import get_nearby_sensors, get_risk_12h, generate_summary
-
-    sensor_data = get_nearby_sensors(lat, lon, db, radius_miles)
-
-    if summary:
-        risk_data = None
-        if circuit_id:
-            try:
-                risk_data = get_risk_12h(circuit_id, db)
-            except Exception:
-                risk_data = None
-        sensor_data["summary"] = generate_summary(risk_data, sensor_data)
+    rows = db.execute(text("""
+        SELECT mp.prediction_date, mp.created_at, mp.prob_score
+        FROM model_predictions mp
+        WHERE mp.circuit_id = :cid
+          AND mp.model_name  = 'ignition_spike'
+          AND mp.horizon_label = '24h'
+        ORDER BY mp.created_at DESC
+        LIMIT 12
+    """), {"cid": circuit_id}).fetchall()
+    if not rows:
+        raise HTTPException(404, f"No predictions for circuit {circuit_id}")
+    # Build hourly array (oldest → newest)
+    hourly = [
+        {"time": r._mapping["created_at"].isoformat(), "prob": round(float(r._mapping["prob_score"]), 4)}
+        for r in reversed(rows)
+    ]
+    # Compute trend: compare average of first 3 vs last 3 points
+    if len(hourly) >= 6:
+        first3 = sum(h["prob"] for h in hourly[:3]) / 3
+        last3  = sum(h["prob"] for h in hourly[-3:]) / 3
+        diff = last3 - first3
+        trend = "RISING" if diff > 0.03 else ("FALLING" if diff < -0.03 else "STABLE")
     else:
-        sensor_data["summary"] = None
+        trend = "STABLE"
+    return {
+        "circuit_id": circuit_id,
+        "trend_label": trend,
+        "hourly": hourly,
+    }
 
-    return sensor_data
+
+# ── Agent: Nearby Sensors ─────────────────────────────────────────────────
+@app.get("/agent/nearby-sensors", tags=["Agent"])
+def get_nearby_sensors(
+    lat: float = Query(..., description="Latitude of the circuit/substation"),
+    lon: float = Query(..., description="Longitude of the circuit/substation"),
+    radius_miles: float = Query(25, ge=1, le=100),
+    summary: bool = Query(False, description="Include AI-generated risk summary"),
+    circuit_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    Returns RAWS weather stations within `radius_miles` of (lat, lon),
+    sorted by distance. Optionally includes a one-paragraph AI summary.
+    Extracts lat/lon from the PostGIS geometry column; uses Haversine for
+    distance filtering.
+    """
+    radius_km = radius_miles * 1.60934
+    # Wrap in subquery so the computed distance alias can be filtered in WHERE
+    # (HAVING without GROUP BY is not valid in PostgreSQL).
+    # lat/lon are extracted from the stored PostGIS geometry point.
+    rows = db.execute(text("""
+        SELECT station_id, station_name, latitude, longitude,
+               obs_time, temp_f, rh_pct,
+               wind_speed_mph, wind_gust_mph, wind_dir_deg,
+               erc, bi, ffwi, precip_in, distance_km
+        FROM (
+            SELECT rs.station_id,
+                   rs.station_name,
+                   ST_Y(rs.geometry::geometry) AS latitude,
+                   ST_X(rs.geometry::geometry) AS longitude,
+                   rs.obs_time, rs.temp_f, rs.rh_pct,
+                   rs.wind_speed_mph, rs.wind_gust_mph, rs.wind_dir_deg,
+                   rs.erc, rs.bi, rs.ffwi, rs.precip_in,
+                   (6371 * acos(LEAST(1.0,
+                       cos(radians(:lat)) * cos(radians(ST_Y(rs.geometry::geometry))) *
+                       cos(radians(ST_X(rs.geometry::geometry)) - radians(:lon)) +
+                       sin(radians(:lat)) * sin(radians(ST_Y(rs.geometry::geometry)))
+                   ))) AS distance_km
+            FROM raws_observations rs
+            WHERE rs.geometry IS NOT NULL
+              AND rs.obs_time = (
+                  SELECT MAX(obs_time)
+                  FROM raws_observations
+                  WHERE station_id = rs.station_id
+              )
+        ) sub
+        WHERE distance_km <= :radius_km
+        ORDER BY distance_km
+        LIMIT 10
+    """), {"lat": lat, "lon": lon, "radius_km": radius_km}).fetchall()
+
+    stations = []
+    for r in rows:
+        m = r._mapping
+        stations.append({
+            "station_id":     m["station_id"],
+            "station_name":   m["station_name"],
+            "distance_miles": round(float(m["distance_km"]) * 0.621371, 1),
+            "obs_time":       m["obs_time"].isoformat() if m["obs_time"] else None,
+            "temp_f":         m["temp_f"],
+            "rh_pct":         m["rh_pct"],
+            "wind_speed_mph": m["wind_speed_mph"],
+            "wind_gust_mph":  m["wind_gust_mph"],
+            "wind_dir_deg":   m["wind_dir_deg"],
+            "erc":            m["erc"],
+            "bi":             m["bi"],
+            "ffwi":           m["ffwi"],
+            "precip_in":      m["precip_in"],
+        })
+
+    # Optional rules-based summary (no extra API call needed)
+    summary_text = ""
+    if summary and stations:
+        nearest = stations[0]
+        conditions = []
+        if nearest.get("rh_pct") is not None and nearest["rh_pct"] < 15:
+            conditions.append(f"critically low humidity ({nearest['rh_pct']}%)")
+        elif nearest.get("rh_pct") is not None and nearest["rh_pct"] < 25:
+            conditions.append(f"low humidity ({nearest['rh_pct']}%)")
+        if nearest.get("wind_gust_mph") is not None and nearest["wind_gust_mph"] > 25:
+            conditions.append(f"strong gusts ({nearest['wind_gust_mph']} mph)")
+        elif nearest.get("wind_speed_mph") is not None and nearest["wind_speed_mph"] > 15:
+            conditions.append(f"moderate winds ({nearest['wind_speed_mph']} mph)")
+        if nearest.get("erc") is not None and nearest["erc"] > 60:
+            conditions.append(f"elevated ERC ({nearest['erc']})")
+        if conditions:
+            summary_text = (
+                f"Risk is elevated near {nearest['station_name']} due to "
+                f"{', '.join(conditions)}. "
+                f"Monitor conditions closely."
+            )
+        else:
+            summary_text = (
+                f"Conditions near {nearest['station_name']} are within normal ranges. "
+                f"RH {nearest.get('rh_pct', 'N/A')}%, "
+                f"wind {nearest.get('wind_speed_mph', 'N/A')} mph."
+            )
+
+    return {
+        "lat": lat,
+        "lon": lon,
+        "radius_miles": radius_miles,
+        "raws_stations": stations,
+        "cameras": [],   # placeholder for future camera integration
+        "summary": summary_text if summary else "",
+    }
 
 
 @app.post("/models/train", tags=["Management"])
