@@ -15,12 +15,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   MapPin, Wifi, WifiOff, CheckCircle2, Circle, AlertTriangle,
   Camera, Send, RefreshCw, Navigation, Battery, Thermometer,
-  Flame, Zap, Clock, User, ArrowLeft,
+  Flame, Zap, Clock, User, ArrowLeft, LogOut,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { useCustomer } from "@/hooks/use-customer";
 
 interface GpsPos { lat: number; lng: number; accuracy: number; timestamp: number }
 
@@ -76,6 +77,7 @@ const CATEGORY_COLORS = {
 
 export default function FieldCrewApp() {
   const navigate = useNavigate();
+  const { setCustomer, setRole, setAgentEmail } = useCustomer();
   const [online, setOnline] = useState(navigator.onLine);
   const [gps, setGps] = useState<GpsPos | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -280,9 +282,17 @@ export default function FieldCrewApp() {
               <p className="text-[10px] text-white/30 uppercase tracking-wider">ExfSafeGrid · Crew Mode</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-white/40">
-            <User className="w-3.5 h-3.5" />
-            Field Crew
+          <div className="flex items-center gap-3 text-xs text-white/40">
+            <div className="flex items-center gap-1">
+              <User className="w-3.5 h-3.5" />
+              Field Crew
+            </div>
+            <button
+              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
+              className="flex items-center gap-1 text-white/40 hover:text-white transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
