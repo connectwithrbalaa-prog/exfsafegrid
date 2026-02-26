@@ -1,6 +1,7 @@
 import { Zap, AlertTriangle, ShieldCheck, MapPin, Clock, List } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
 import { usePspsWatchlist } from "@/hooks/use-backend-data";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   customer: Customer;
@@ -17,13 +18,27 @@ function phaseIndex(phase: string): number {
 }
 
 /** Derive a PSPS likelihood from customer risk signals */
-function derivePspsLikelihood(customer: Customer): "HIGH" | "MEDIUM" | "LOW" {
+function derivePspsLikelihood(customer: Customer): { level: "HIGH" | "MEDIUM" | "LOW"; factors: string[] } {
   const risk = customer.wildfire_risk.toLowerCase();
   const tier = customer.hftd_tier.toLowerCase();
   const stress = customer.grid_stress_level.toLowerCase();
-  if ((risk === "high" && tier.includes("3")) || stress === "high") return "HIGH";
-  if (risk === "medium" || tier.includes("2") || stress === "medium") return "MEDIUM";
-  return "LOW";
+  const factors: string[] = [];
+
+  if (risk === "high") factors.push("Wildfire Risk: High");
+  else if (risk === "medium") factors.push("Wildfire Risk: Medium");
+
+  if (tier.includes("3")) factors.push("HFTD Tier 3");
+  else if (tier.includes("2")) factors.push("HFTD Tier 2");
+
+  if (stress === "high") factors.push("Grid Stress: High");
+  else if (stress === "medium") factors.push("Grid Stress: Medium");
+
+  if (customer.current_outage_status !== "Normal") factors.push(`Outage: ${customer.current_outage_status}`);
+
+  if ((risk === "high" && tier.includes("3")) || stress === "high") return { level: "HIGH", factors };
+  if (risk === "medium" || tier.includes("2") || stress === "medium") return { level: "MEDIUM", factors };
+  if (factors.length === 0) factors.push("No elevated risk factors");
+  return { level: "LOW", factors };
 }
 
 const LIKELIHOOD_CFG: Record<string, { bg: string; text: string; border: string }> = {
@@ -46,7 +61,7 @@ export default function PspsImpactCard({ customer }: Props) {
   const phase = phaseIndex(customer.psps_phase);
   const hasEtr = customer.restoration_timer && customer.restoration_timer !== "TBD";
   const inHftd = customer.hftd_tier !== "None";
-  const likelihood = derivePspsLikelihood(customer);
+  const { level: likelihood, factors: likelihoodFactors } = derivePspsLikelihood(customer);
   const lCfg = LIKELIHOOD_CFG[likelihood];
   const outageWindow = estimateOutageWindow(customer);
 
@@ -92,9 +107,26 @@ export default function PspsImpactCard({ customer }: Props) {
               <Zap className="w-3 h-3 text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground font-medium">PSPS Likelihood (24h)</p>
             </div>
-            <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded ${lCfg.bg} ${lCfg.text} border ${lCfg.border}`}>
-              {likelihood}
-            </span>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded cursor-help ${lCfg.bg} ${lCfg.text} border ${lCfg.border}`}>
+                    {likelihood}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px] space-y-1 p-3">
+                  <p className="text-[11px] font-semibold text-popover-foreground">Contributing Factors</p>
+                  <ul className="space-y-0.5">
+                    {likelihoodFactors.map((f) => (
+                      <li key={f} className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${lCfg.bg.replace('/10', '')}`} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
