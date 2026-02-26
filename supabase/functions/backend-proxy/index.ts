@@ -49,6 +49,21 @@ Deno.serve(async (req) => {
     const upstream = await fetch(targetUrl.toString(), fetchInit);
     const body = await upstream.text();
 
+    // Optional resources: return empty JSON instead of 404 to avoid noisy runtime errors.
+    if (
+      upstream.status === 404 &&
+      (targetPath === "/briefing" || targetPath === "/psps-watchlist")
+    ) {
+      console.log(`Upstream ${targetPath} missing; returning null payload`);
+      return new Response("null", {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
     console.log(`Upstream responded ${upstream.status}`);
 
     return new Response(body, {
