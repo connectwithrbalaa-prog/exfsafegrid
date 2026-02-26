@@ -1,5 +1,6 @@
-import { Zap, Clock, AlertTriangle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Zap, AlertTriangle, ShieldCheck, MapPin, Clock, List } from "lucide-react";
 import type { Customer } from "@/lib/customer-types";
+import { usePspsWatchlist } from "@/hooks/use-backend-data";
 
 interface Props {
   customer: Customer;
@@ -15,10 +16,45 @@ function phaseIndex(phase: string): number {
   return map[phase.toLowerCase()] ?? 0;
 }
 
+/** Derive a PSPS likelihood from customer risk signals */
+function derivePspsLikelihood(customer: Customer): "HIGH" | "MEDIUM" | "LOW" {
+  const risk = customer.wildfire_risk.toLowerCase();
+  const tier = customer.hftd_tier.toLowerCase();
+  const stress = customer.grid_stress_level.toLowerCase();
+  if ((risk === "high" && tier.includes("3")) || stress === "high") return "HIGH";
+  if (risk === "medium" || tier.includes("2") || stress === "medium") return "MEDIUM";
+  return "LOW";
+}
+
+const LIKELIHOOD_CFG: Record<string, { bg: string; text: string; border: string }> = {
+  HIGH: { bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/25" },
+  MEDIUM: { bg: "bg-warning/10", text: "text-warning", border: "border-warning/25" },
+  LOW: { bg: "bg-success/10", text: "text-success", border: "border-success/25" },
+};
+
+/** Estimate a plausible outage window based on phase & grid stress */
+function estimateOutageWindow(customer: Customer): string | null {
+  if (customer.current_outage_status === "Normal" && customer.psps_phase === "Restored") return null;
+  const stress = customer.grid_stress_level.toLowerCase();
+  if (stress === "high") return "14:00 – 22:00";
+  if (stress === "medium") return "16:00 – 20:00";
+  return "18:00 – 21:00";
+}
+
 export default function PspsImpactCard({ customer }: Props) {
   const isActive = customer.current_outage_status !== "Normal" || customer.psps_phase !== "Restored";
   const phase = phaseIndex(customer.psps_phase);
   const hasEtr = customer.restoration_timer && customer.restoration_timer !== "TBD";
+  const inHftd = customer.hftd_tier !== "None";
+  const likelihood = derivePspsLikelihood(customer);
+  const lCfg = LIKELIHOOD_CFG[likelihood];
+  const outageWindow = estimateOutageWindow(customer);
+
+  // Check if customer circuit is on the PSPS watchlist
+  const { data: watchlist } = usePspsWatchlist({ horizon: "24h" });
+  const onWatchlist = watchlist?.circuits
+    ? (watchlist.circuits as any[]).some((c: any) => c.circuit_id?.includes(customer.zip_code.slice(-4)))
+    : isActive; // fallback: treat active events as "on watchlist"
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -40,11 +76,55 @@ export default function PspsImpactCard({ customer }: Props) {
       </div>
 
       <div className="p-5 space-y-4">
+        {/* HFTD + Likelihood Row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground font-medium">In HFTD?</p>
+            </div>
+            <p className={`text-sm font-bold mt-1 ${inHftd ? "text-warning" : "text-success"}`}>
+              {inHftd ? `Yes — ${customer.hftd_tier}` : "No"}
+            </p>
+          </div>
+          <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground font-medium">PSPS Likelihood (24h)</p>
+            </div>
+            <span className={`inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded ${lCfg.bg} ${lCfg.text} border ${lCfg.border}`}>
+              {likelihood}
+            </span>
+          </div>
+        </div>
+
+        {/* Outage Window + Watchlist Row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground font-medium">Expected Outage Window</p>
+            </div>
+            <p className={`text-sm font-bold mt-1 ${outageWindow ? "text-card-foreground" : "text-muted-foreground"}`}>
+              {outageWindow ?? "N/A"}
+            </p>
+          </div>
+          <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-1.5">
+              <List className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground font-medium">On Watchlist?</p>
+            </div>
+            <p className={`text-sm font-bold mt-1 ${onWatchlist ? "text-warning" : "text-success"}`}>
+              {onWatchlist ? "Yes" : "No"}
+            </p>
+          </div>
+        </div>
+
         {/* Key Metrics */}
         <div className="grid grid-cols-2 gap-3">
           <MetricCard label="Outage Status" value={customer.current_outage_status}
             color={customer.current_outage_status === "Normal" ? "text-success" : "text-warning"}
-            icon={customer.current_outage_status === "Normal" ? "🟢" : "🟡"} />
+            icon="🟢" active={customer.current_outage_status !== "Normal"} />
           <MetricCard label="Current Phase" value={customer.psps_phase}
             color={phase >= 4 ? "text-success" : phase >= 2 ? "text-info" : "text-warning"}
             icon={phase >= 4 ? "✅" : "⏳"} />
@@ -111,11 +191,11 @@ export default function PspsImpactCard({ customer }: Props) {
   );
 }
 
-function MetricCard({ label, value, color, icon }: { label: string; value: string; color?: string; icon: string }) {
+function MetricCard({ label, value, color, icon, active }: { label: string; value: string; color?: string; icon: string; active?: boolean }) {
   return (
     <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
       <div className="flex items-center gap-1.5">
-        <span className="text-xs">{icon}</span>
+        <span className="text-xs">{active ? "🟡" : icon}</span>
         <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
       </div>
       <p className={`text-sm font-bold mt-1 ${color ?? "text-card-foreground"}`}>{value}</p>
