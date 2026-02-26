@@ -3,6 +3,7 @@
  * circuit ignition risk, ingestion status, and management controls.
  */
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   useBackendHealth,
   useBriefing,
@@ -23,6 +24,18 @@ import {
 } from "lucide-react";
 import { downloadCsv, formatCircuitRiskCsv, formatPsaRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
+
+/** Extract the best displayable text from a briefing/watchlist response */
+function extractNarrative(data: any): string | null {
+  if (!data) return null;
+  // Try known text fields
+  for (const key of ["narrative", "summary", "markdown_text", "text", "content"]) {
+    if (typeof data[key] === "string" && data[key].trim()) return data[key];
+  }
+  // If the entire response is a string
+  if (typeof data === "string") return data;
+  return null;
+}
 
 export default function BackendOpsPanel() {
   const health = useBackendHealth();
@@ -145,8 +158,8 @@ export default function BackendOpsPanel() {
                 <span>Date: {briefing.data.briefing_date}</span>
                 {briefing.data.model_name && <span>Model: {briefing.data.model_name}</span>}
               </div>
-              <div className="text-sm text-white/80 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
-                {briefing.data.narrative || briefing.data.summary || JSON.stringify(briefing.data, null, 2)}
+              <div className="prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto text-white/80">
+                <ReactMarkdown>{extractNarrative(briefing.data) ?? JSON.stringify(briefing.data, null, 2)}</ReactMarkdown>
               </div>
             </div>
           ) : null}
@@ -184,8 +197,8 @@ export default function BackendOpsPanel() {
               No watchlist available. Click "Generate" to create one.
             </div>
           ) : watchlist.data ? (
-            <div className="p-4 rounded-lg border border-white/[0.08] bg-white/[0.02] text-sm text-white/80 whitespace-pre-wrap max-h-96 overflow-y-auto">
-              {watchlist.data.narrative || watchlist.data.summary || JSON.stringify(watchlist.data, null, 2)}
+            <div className="p-4 rounded-lg border border-white/[0.08] bg-white/[0.02] prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto text-white/80">
+              <ReactMarkdown>{extractNarrative(watchlist.data) ?? JSON.stringify(watchlist.data, null, 2)}</ReactMarkdown>
             </div>
           ) : null}
         </div>
