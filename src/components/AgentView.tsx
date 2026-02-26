@@ -21,6 +21,8 @@ import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
+import AgentSafetyMapPanel from "@/components/AgentSafetyMapPanel";
+import NotificationHistoryCard from "@/components/NotificationHistoryCard";
 import { getSubstationForZip } from "@/lib/wildfire-utils";
 import PredictiveOutagePanel from "@/components/PredictiveOutagePanel";
 import HardshipTriagePanel from "@/components/HardshipTriagePanel";
@@ -511,14 +513,27 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
       {activeSection === "map" && (
         <motion.div key="map" className="space-y-5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
           {selected ? (
-            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-              <CustomerWildfireMap
-                customerZip={selected.zip_code}
-                assetLat={ss?.latitude ?? 37.20}
-                assetLng={ss?.longitude ?? -119.30}
-                hftdTier={selected.hftd_tier ?? "None"}
-              />
-            </div>
+            <>
+              <SectionCard title="Wildfire Safety Progress Map" icon={Map}>
+                <AgentSafetyMapPanel customer={selected} />
+              </SectionCard>
+
+              <SectionCard title="Notification History" icon={Radio}>
+                <NotificationHistoryCard customer={selected} />
+              </SectionCard>
+
+              {/* Original fire map for reference */}
+              <SectionCard title="Live Fire Detections" icon={Flame}>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <CustomerWildfireMap
+                    customerZip={selected.zip_code}
+                    assetLat={ss?.latitude ?? 37.20}
+                    assetLng={ss?.longitude ?? -119.30}
+                    hftdTier={selected.hftd_tier ?? "None"}
+                  />
+                </div>
+              </SectionCard>
+            </>
           ) : (
             <EmptyState icon={Map} message="Select a customer to view the wildfire map" />
           )}
