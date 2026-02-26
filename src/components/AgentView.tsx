@@ -10,7 +10,8 @@ import {
   User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle,
   Shield, HeartPulse, MapPin, Radio, Building2,
   ChevronDown, ChevronUp, TrendingUp, Keyboard,
-  Map, ClipboardList, Bot, Wrench,
+  Map, ClipboardList, Bot, Wrench, Search, Phone,
+  Activity, Layers,
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
@@ -45,13 +46,11 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const [loadingRedFlag, setLoadingRedFlag] = useState(true);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [activeSection, setActiveSection] = useState<"risk" | "support" | "map">("risk");
-  const [advancedTab, setAdvancedTab] = useState<"predictive" | "hardship">("predictive");
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLSelectElement>(null);
 
   const redFlagActive = redFlagData[agentRegion]?.active ?? false;
 
-  // Keyboard shortcuts
   const QUICK_ACTIONS = ["Call Customer", "Apply REACH", "PSPS Alert", "Add Note"];
   useKeyboardShortcuts({
     onFocusSearch: () => { searchRef.current?.focus(); toast.info("Ctrl+K — Customer selector focused"); },
@@ -61,45 +60,29 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
     onShowHelp: () => setShowShortcutsHelp(true),
   }, true);
 
-  // Fetch Red Flag Warning status
   const fetchRedFlagStatus = useCallback(async () => {
     setLoadingRedFlag(true);
     try {
       const res = await supabase.functions.invoke("red-flag-status");
-      if (res.data && !res.error) {
-        setRedFlagData(res.data as RedFlagData);
-      }
-    } catch (e) {
-      console.error("Failed to fetch Red Flag status", e);
-    }
+      if (res.data && !res.error) setRedFlagData(res.data as RedFlagData);
+    } catch (e) { console.error("Failed to fetch Red Flag status", e); }
     setLoadingRedFlag(false);
   }, []);
 
   useEffect(() => { fetchRedFlagStatus(); }, [fetchRedFlagStatus]);
 
-  // Fetch customers filtered by agent's region
   useEffect(() => {
-    supabase
-      .from("customers")
-      .select("*")
-      .eq("region", agentRegion)
-      .order("name")
-      .then(({ data }) => {
-        if (data) setCustomers(data as unknown as Customer[]);
-      });
+    supabase.from("customers").select("*").eq("region", agentRegion).order("name")
+      .then(({ data }) => { if (data) setCustomers(data as unknown as Customer[]); });
 
     const channel = supabase
       .channel("customers-realtime")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "customers" },
-        (payload) => {
-          const updated = payload.new as unknown as Customer;
-          setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-          setSelected((prev) => prev && prev.id === updated.id ? updated : prev);
-          if (selected?.id === updated.id) setNotes(updated.agent_notes ?? "");
-        }
-      )
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "customers" }, (payload) => {
+        const updated = payload.new as unknown as Customer;
+        setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        setSelected((prev) => prev && prev.id === updated.id ? updated : prev);
+        if (selected?.id === updated.id) setNotes(updated.agent_notes ?? "");
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -109,11 +92,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
   const handleSelect = async (id: string) => {
     if (!id) { setSelected(null); setNotes(""); return; }
-    const { data } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const { data } = await supabase.from("customers").select("*").eq("id", id).maybeSingle();
     const c = data ? (data as unknown as Customer) : customers.find((c) => c.id === id) || null;
     setSelected(c);
     setNotes(c?.agent_notes ?? "");
@@ -124,20 +103,14 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
     if (!selected) return;
     if (label === "Apply REACH") {
       const newAmount = Math.round(selected.arrears_amount * 0.5 * 100) / 100;
-      await supabase
-        .from("customers")
-        .update({ arrears_amount: newAmount } as any)
-        .eq("id", selected.id as any);
+      await supabase.from("customers").update({ arrears_amount: newAmount } as any).eq("id", selected.id as any);
       setSelected({ ...selected, arrears_amount: newAmount });
-      toast.success(`REACH applied for ${selected.name} — arrears reduced to $${newAmount}`);
+      toast.success(`REACH applied — arrears reduced to $${newAmount}`);
     } else if (label === "PSPS Alert") {
       toast.success(`PSPS alert sent to ${selected.name}`);
     } else if (label === "Add Note") {
-      setActiveSection("risk");
-      setTimeout(() => {
-        notesRef.current?.scrollIntoView({ behavior: "smooth" });
-        notesRef.current?.focus();
-      }, 100);
+      setActiveSection("support");
+      setTimeout(() => { notesRef.current?.scrollIntoView({ behavior: "smooth" }); notesRef.current?.focus(); }, 100);
       return;
     } else {
       toast.success(`Action logged: ${label} for ${selected.name}`);
@@ -148,139 +121,152 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const saveNotes = async () => {
     if (!selected) return;
     setSavingNotes(true);
-    const { error } = await supabase
-      .from("customers")
-      .update({ agent_notes: notes } as any)
-      .eq("id", selected.id as any);
+    const { error } = await supabase.from("customers").update({ agent_notes: notes } as any).eq("id", selected.id as any);
     setSavingNotes(false);
-    if (error) {
-      toast.error("Failed to save notes");
-    } else {
-      toast.success("Notes saved");
-      setSelected({ ...selected, agent_notes: notes });
-    }
+    if (error) { toast.error("Failed to save notes"); }
+    else { toast.success("Notes saved"); setSelected({ ...selected, agent_notes: notes }); }
   };
 
   const priority = selected ? getRedFlagPriority(selected) : 0;
   const ss = selected ? getSubstationForZip(selected.zip_code) : null;
 
   const SECTION_TABS = [
-    { key: "risk" as const, label: "Safety & Risk", icon: Shield },
-    { key: "support" as const, label: "Support & Programs", icon: ClipboardList },
-    { key: "map" as const, label: "Map & Transparency", icon: Map },
+    { key: "risk" as const, label: "Safety & Risk", icon: Shield, desc: "Risk forecast & PSPS" },
+    { key: "support" as const, label: "Support", icon: ClipboardList, desc: "Profile & programs" },
+    { key: "map" as const, label: "Map", icon: Map, desc: "Wildfire map" },
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Region & Red Flag Banner */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Region: {agentRegion}</span>
-          <span className="text-xs text-muted-foreground">({customers.length} customers)</span>
-        </div>
+    <div className="space-y-5">
+      {/* ── Top Bar: Region + Actions ── */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+            <MapPin className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-foreground leading-tight">{agentRegion}</h2>
+            <p className="text-xs text-muted-foreground">{customers.length} customers in region</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); setShowShortcutsHelp(true); }}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Keyboard shortcuts"
           >
-            <Keyboard className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Shortcuts</span>
+            <Keyboard className="w-4 h-4" />
           </button>
           <button
             onClick={fetchRedFlagStatus}
             disabled={loadingRedFlag}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
           >
             <Radio className={`w-3.5 h-3.5 ${loadingRedFlag ? "animate-spin" : ""}`} />
-            {loadingRedFlag ? "Checking…" : "Refresh Alerts"}
+            {loadingRedFlag ? "Checking…" : "Refresh"}
           </button>
         </div>
       </div>
 
+      {/* ── Red Flag Warning Banner ── */}
       {redFlagActive && (
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/50 bg-destructive/10">
-          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/40 bg-gradient-to-r from-destructive/8 to-destructive/4">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-destructive/15 flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+          </div>
           <div>
-            <p className="text-sm font-bold text-destructive">🔴 Red Flag Warning — {agentRegion}</p>
-            <p className="text-xs text-destructive/80 mt-0.5">
-              {redFlagData[agentRegion]?.headline || "Elevated fire weather. Customers re-ranked by risk priority."}
+            <p className="text-sm font-bold text-destructive">Red Flag Warning Active</p>
+            <p className="text-xs text-destructive/70 mt-0.5 leading-relaxed">
+              {redFlagData[agentRegion]?.headline || "Elevated fire weather conditions. Customers re-ranked by risk priority."}
             </p>
           </div>
         </div>
       )}
 
       {!redFlagActive && !loadingRedFlag && (
-        <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/50">
-          <Shield className="w-4 h-4 text-success flex-shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            No active Red Flag Warnings for {agentRegion}. Customers sorted alphabetically.
-          </p>
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-success/20 bg-success/5">
+          <Shield className="w-4 h-4 text-success" />
+          <p className="text-xs text-success font-medium">No active warnings for {agentRegion}</p>
         </div>
       )}
 
-      {/* Customer Selector — always visible */}
-      <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-        <User className="w-4 h-4 text-primary flex-shrink-0" />
-        <select
-          id="agent-customer-select"
-          ref={searchRef}
-          value={selected?.id ?? ""}
-          onChange={(e) => handleSelect(e.target.value)}
-          className="flex-1 px-3 py-1.5 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="">— Choose a customer —</option>
-          {sortedCustomers.map((c) => {
-            const p = redFlagActive ? getRedFlagPriority(c) : 0;
-            const prefix = p > 0 ? `[P${p}] ` : "";
-            return (
-              <option key={c.id} value={c.id}>
-                {prefix}{c.name} — ZIP {c.zip_code} — HFTD {c.hftd_tier}
-              </option>
-            );
-          })}
-        </select>
-        {selected && (
-          <div className="hidden sm:flex items-center gap-2">
-            <span className={`text-xs font-semibold ${riskColor(selected.wildfire_risk)}`}>
-              🔥 {selected.wildfire_risk}
-            </span>
-            {selected.medical_baseline && (
-              <span className="text-xs font-bold text-destructive flex items-center gap-1">
-                <HeartPulse className="w-3 h-3" /> MBL
-              </span>
-            )}
+      {/* ── Customer Selector ── */}
+      <div className="relative">
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
+            <Search className="w-4 h-4 text-muted-foreground" />
           </div>
-        )}
+          <select
+            id="agent-customer-select"
+            ref={searchRef}
+            value={selected?.id ?? ""}
+            onChange={(e) => handleSelect(e.target.value)}
+            className="flex-1 px-2 py-1.5 rounded-lg border-0 bg-transparent text-sm text-foreground focus:outline-none focus:ring-0 cursor-pointer"
+          >
+            <option value="">Select a customer…</option>
+            {sortedCustomers.map((c) => {
+              const p = redFlagActive ? getRedFlagPriority(c) : 0;
+              const prefix = p > 0 ? `[P${p}] ` : "";
+              return (
+                <option key={c.id} value={c.id}>
+                  {prefix}{c.name} — {c.zip_code} — HFTD {c.hftd_tier}
+                </option>
+              );
+            })}
+          </select>
+        </div>
       </div>
 
-      {/* Section Tabs */}
-      <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
-        {SECTION_TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setActiveSection(t.key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
-              activeSection === t.key
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-            }`}
-          >
-            <t.icon className="w-3.5 h-3.5" />
-            {t.label}
-          </button>
-        ))}
+      {/* ── Selected Customer Summary Strip ── */}
+      {selected && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          <SummaryChip icon={User} label="Customer" value={selected.name} />
+          <SummaryChip icon={MapPin} label="ZIP / HFTD" value={`${selected.zip_code} · ${selected.hftd_tier}`} color={hftdColor(selected.hftd_tier)} />
+          <SummaryChip icon={Flame} label="Fire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
+          <SummaryChip icon={Zap} label="Outage" value={selected.current_outage_status}
+            color={selected.current_outage_status === "Normal" ? "text-success" : "text-warning"} />
+          <SummaryChip icon={Activity} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
+          {selected.medical_baseline ? (
+            <SummaryChip icon={HeartPulse} label="Medical" value="Enrolled" color="text-destructive" highlight />
+          ) : (
+            <SummaryChip icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"}
+              color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
+          )}
+        </div>
+      )}
+
+      {/* ── Section Tabs ── */}
+      <div className="flex gap-2 p-1.5 rounded-xl border border-border bg-muted/40">
+        {SECTION_TABS.map((t) => {
+          const active = activeSection === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveSection(t.key)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                active
+                  ? "bg-card text-foreground shadow-md border border-border/50"
+                  : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+              }`}
+            >
+              <t.icon className={`w-4 h-4 ${active ? "text-primary" : ""}`} />
+              <span className="hidden sm:inline">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ═══════ SAFETY & RISK ═══════ */}
       {activeSection === "risk" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selected ? (
             <>
               {/* Priority badge */}
               {redFlagActive && priority > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card">
-                  <AlertTriangle className={`w-4 h-4 ${getPriorityColor(priority)}`} />
+                <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+                  priority <= 2 ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"
+                }`}>
+                  <AlertTriangle className={`w-5 h-5 ${getPriorityColor(priority)}`} />
                   <span className={`text-sm font-bold ${getPriorityColor(priority)}`}>
                     {getPriorityLabel(priority)}
                   </span>
@@ -289,30 +275,33 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
 
               {/* Medical Baseline Alert */}
               {selected.medical_baseline && (
-                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10">
-                  <div className="flex items-center gap-2">
-                    <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
-                    <span className="text-xs font-bold text-destructive">🚨 MEDICAL BASELINE</span>
+                <div className="p-4 rounded-xl border-2 border-destructive/40 bg-gradient-to-r from-destructive/8 to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/15">
+                      <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-destructive">Medical Baseline Customer</p>
+                      <p className="text-xs text-destructive/70 mt-0.5">Priority safety protocols required</p>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    <button
+                  <div className="flex flex-wrap gap-2 mt-3 ml-[52px]">
+                    <ActionButton
                       onClick={() => toast.success(`Doorbell verification dispatched for ${selected.name}`)}
-                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
-                    >
-                      🔔 Doorbell Ring
-                    </button>
-                    <button
+                      variant="destructive"
+                      label="🔔 Doorbell Verify"
+                    />
+                    <ActionButton
                       onClick={() => toast.success(`Priority restoration flagged for ${selected.name}`)}
-                      className="px-2 py-1 text-[10px] font-medium rounded-full bg-destructive/20 text-destructive border border-destructive/30 hover:bg-destructive/30 transition-colors"
-                    >
-                      ⚡ Priority Restore
-                    </button>
+                      variant="destructive"
+                      label="⚡ Priority Restore"
+                    />
                   </div>
                 </div>
               )}
 
-              {/* Risk Forecast + PSPS Impact side by side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Risk Forecast + PSPS Impact */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <AgentRiskForecastPanel customer={selected} />
                 <PspsImpactCard customer={selected} />
               </div>
@@ -324,129 +313,118 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
               <ReportHazard customerName={selected.name} />
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
-              <Shield className="w-6 h-6 opacity-40" />
-              <p className="text-sm">Select a customer to view safety & risk data</p>
-            </div>
+            <EmptyState icon={Shield} message="Select a customer to view safety & risk data" />
           )}
         </div>
       )}
 
       {/* ═══════ SUPPORT & PROGRAMS ═══════ */}
       {activeSection === "support" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selected ? (
             <>
-              {/* Customer Profile */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                  <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> Customer Profile
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <CompactDetail label="Name" value={selected.name} />
-                    <CompactDetail label="ZIP" value={selected.zip_code} />
-                    <CompactDetail label="Region" value={selected.region} />
-                    <CompactDetail label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
-                    <CompactDetail label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
-                    <CompactDetail label="Medical Baseline" value={selected.medical_baseline ? "Enrolled" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
-                    <CompactDetail label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
-                    <CompactDetail label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
+              {/* Customer Profile + Infrastructure */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <SectionCard title="Customer Profile" icon={User}>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <InfoField label="Name" value={selected.name} />
+                    <InfoField label="ZIP" value={selected.zip_code} />
+                    <InfoField label="Region" value={selected.region} />
+                    <InfoField label="Fire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
+                    <InfoField label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
+                    <InfoField label="Medical BL" value={selected.medical_baseline ? "Enrolled" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
+                    <InfoField label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
+                    <InfoField label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
                   </div>
-                </div>
+                </SectionCard>
 
-                {/* Infrastructure */}
                 {ss && (
-                  <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                    <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-info" /> Serving Infrastructure
-                    </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <CompactDetail label="Substation" value={ss.name} />
-                      <CompactDetail label="Zone" value={ss.zone} />
-                      <CompactDetail label="Voltage" value={ss.voltage} />
-                      <CompactDetail label="Capacity" value={`${ss.capacityMW} MW`} />
+                  <SectionCard title="Serving Infrastructure" icon={Building2} iconColor="text-info">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      <InfoField label="Substation" value={ss.name} />
+                      <InfoField label="Zone" value={ss.zone} />
+                      <InfoField label="Voltage" value={ss.voltage} />
+                      <InfoField label="Capacity" value={`${ss.capacityMW} MW`} />
                       <div className="col-span-2">
-                        <CompactDetail
+                        <InfoField
                           label="Status"
                           value={`${ss.status === "Online" ? "🟢" : ss.status === "Reduced" ? "🟡" : "🔴"} ${ss.status}`}
                           color={ss.status === "Online" ? "text-success" : ss.status === "Reduced" ? "text-warning" : "text-destructive"}
                         />
                       </div>
                     </div>
-                  </div>
+                  </SectionCard>
                 )}
               </div>
 
               {/* Quick Actions */}
-              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
+              <SectionCard title="Quick Actions" icon={Zap}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { emoji: "📞", label: "Call Customer" },
-                    { emoji: "💰", label: "Apply REACH" },
-                    { emoji: "⚠️", label: "PSPS Alert" },
-                    { emoji: "📝", label: "Add Note" },
+                    { emoji: "📞", label: "Call Customer", icon: Phone },
+                    { emoji: "💰", label: "Apply REACH", icon: DollarSign },
+                    { emoji: "⚠️", label: "PSPS Alert", icon: AlertTriangle },
+                    { emoji: "📝", label: "Add Note", icon: ClipboardList },
                   ].map((action) => {
                     const done = completedActions.has(action.label);
                     return (
                       <button
                         key={action.label}
                         onClick={() => handleQuickAction(action.label)}
-                        className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors ${
+                        className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 ${
                           done
-                            ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
-                            : "border-border hover:bg-secondary text-foreground"
+                            ? "border-success/40 bg-success/8 text-success"
+                            : "border-border bg-card hover:bg-primary/5 hover:border-primary/30 text-foreground hover:shadow-sm"
                         }`}
                       >
-                        <span>{action.emoji}</span>
-                        {action.label}
-                        {done && <span className="ml-auto text-xs">✓</span>}
+                        <span className="text-base">{action.emoji}</span>
+                        <span className="truncate">{action.label}</span>
+                        {done && <span className="ml-auto text-xs font-bold">✓</span>}
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              </SectionCard>
 
-              {/* AI Assistant */}
-              <div className="rounded-lg border border-border bg-card overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-card-foreground">AI Assistant</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">Customer: {selected.name}</span>
+              {/* AI Chat */}
+              <SectionCard title="AI Assistant" icon={Bot} noPadding>
+                <div className="px-5 pb-1 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Context: {selected.name}</span>
                 </div>
-                <div className="h-[400px]">
+                <div className="h-[380px]">
                   <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
                 </div>
-              </div>
+              </SectionCard>
 
               {/* Agent Notes */}
-              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
+              <SectionCard title="Agent Notes" icon={ClipboardList}>
                 <textarea
                   ref={notesRef}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes about this customer..."
-                  className="w-full h-20 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  placeholder="Add notes about this customer…"
+                  className="w-full h-24 px-3 py-2.5 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none transition-shadow"
                 />
-                <button
-                  onClick={saveNotes}
-                  disabled={savingNotes}
-                  className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
-                >
-                  {savingNotes ? "Saving…" : "Save Notes"}
-                </button>
-              </div>
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={saveNotes}
+                    disabled={savingNotes}
+                    className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-40 shadow-sm"
+                  >
+                    {savingNotes ? "Saving…" : "Save Notes"}
+                  </button>
+                </div>
+              </SectionCard>
 
-              {/* Agent Requests & Hardship/Predictive */}
+              {/* Requests */}
               <AgentRequestsPanel />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-border bg-card p-4">
+              {/* Advanced Tools */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <SectionCard title="Predictive Outage" icon={Activity}>
                   <PredictiveOutagePanel customers={customers} />
-                </div>
-                <div className="rounded-lg border border-border bg-card p-4">
+                </SectionCard>
+                <SectionCard title="Hardship Triage" icon={DollarSign}>
                   <HardshipTriagePanel
                     customers={customers}
                     onCustomerUpdate={(updated) => {
@@ -454,58 +432,48 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                       if (selected?.id === updated.id) setSelected(updated);
                     }}
                   />
-                </div>
+                </SectionCard>
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
-              <User className="w-6 h-6 opacity-40" />
-              <p className="text-sm">Select a customer to view support tools</p>
-            </div>
+            <EmptyState icon={User} message="Select a customer to view support tools" />
           )}
         </div>
       )}
 
       {/* ═══════ MAP & TRANSPARENCY ═══════ */}
       {activeSection === "map" && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selected ? (
-            <>
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
               <CustomerWildfireMap
                 customerZip={selected.zip_code}
                 assetLat={ss?.latitude ?? 37.20}
                 assetLng={ss?.longitude ?? -119.30}
                 hftdTier={selected.hftd_tier ?? "None"}
               />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
-              <Map className="w-6 h-6 opacity-40" />
-              <p className="text-sm">Select a customer to view the wildfire map</p>
             </div>
+          ) : (
+            <EmptyState icon={Map} message="Select a customer to view the wildfire map" />
           )}
         </div>
       )}
 
-      {/* Keyboard Shortcuts Help Modal */}
+      {/* Keyboard Shortcuts Help */}
       {showShortcutsHelp && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowShortcutsHelp(false)}
-        >
-          <div
-            className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Keyboard className="w-4 h-4 text-primary" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowShortcutsHelp(false)}>
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-5">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+                <Keyboard className="w-4 h-4 text-primary" />
+              </div>
               <h3 className="text-sm font-bold">Keyboard Shortcuts</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {SHORTCUTS.map((s) => (
-                <div key={s.key} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{s.description}</span>
-                  <kbd className="px-2 py-0.5 rounded-md bg-muted border border-border text-xs font-mono">
+                <div key={s.key} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{s.description}</span>
+                  <kbd className="px-2.5 py-1 rounded-lg bg-muted border border-border text-xs font-mono font-medium">
                     {s.modifier === "ctrl" ? "Ctrl+" : ""}{s.key.toUpperCase()}
                   </kbd>
                 </div>
@@ -513,7 +481,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
             </div>
             <button
               onClick={() => setShowShortcutsHelp(false)}
-              className="mt-4 w-full py-2 rounded-md bg-secondary text-sm font-medium hover:bg-secondary/80 transition-colors"
+              className="mt-5 w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
               Close
             </button>
@@ -524,7 +492,70 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   );
 }
 
-/* ── Helpers ────────────────────────────── */
+/* ── Reusable Sub-Components ─────────────── */
+
+function SummaryChip({ icon: Icon, label, value, color, highlight }: {
+  icon: React.ElementType; label: string; value: string; color?: string; highlight?: boolean;
+}) {
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border bg-card transition-colors ${
+      highlight ? "border-destructive/30 bg-destructive/5" : "border-border"
+    }`}>
+      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${highlight ? "text-destructive" : "text-muted-foreground"}`} />
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground leading-none">{label}</p>
+        <p className={`text-xs font-semibold truncate mt-0.5 ${color ?? "text-card-foreground"}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function SectionCard({ title, icon: Icon, iconColor, children, noPadding }: {
+  title: string; icon: React.ElementType; iconColor?: string; children: React.ReactNode; noPadding?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/60">
+        <Icon className={`w-4 h-4 ${iconColor ?? "text-primary"}`} />
+        <h3 className="text-sm font-semibold text-card-foreground">{title}</h3>
+      </div>
+      <div className={noPadding ? "" : "p-5"}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-56 rounded-xl border-2 border-dashed border-border/60 text-muted-foreground gap-3">
+      <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
+        <Icon className="w-6 h-6 opacity-50" />
+      </div>
+      <p className="text-sm font-medium">{message}</p>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, variant, label }: { onClick: () => void; variant: "destructive" | "default"; label: string }) {
+  const cls = variant === "destructive"
+    ? "bg-destructive/10 text-destructive border-destructive/25 hover:bg-destructive/20"
+    : "bg-muted text-foreground border-border hover:bg-muted/80";
+  return (
+    <button onClick={onClick} className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${cls}`}>
+      {label}
+    </button>
+  );
+}
+
+function InfoField({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="py-2">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
+      <p className={`text-sm font-semibold mt-0.5 ${color ?? "text-card-foreground"}`}>{value}</p>
+    </div>
+  );
+}
 
 function riskColor(level: string) {
   if (level === "High") return "text-destructive";
@@ -536,27 +567,4 @@ function hftdColor(tier: string) {
   if (tier === "Tier 3") return "text-destructive";
   if (tier === "Tier 2") return "text-warning";
   return "text-muted-foreground";
-}
-
-function CompactDetail({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="py-1.5">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className={`text-sm font-semibold ${color ?? "text-card-foreground"}`}>{value}</p>
-    </div>
-  );
-}
-
-function DetailCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string; color?: string }) {
-  return (
-    <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
-        <Icon className={`w-5 h-5 ${color ?? "text-info"}`} />
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
-        <p className="text-sm font-bold text-card-foreground">{value}</p>
-      </div>
-    </div>
-  );
 }
