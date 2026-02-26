@@ -5,7 +5,7 @@ const STORAGE_KEY = "exfsafegrid_customer";
 const ROLE_KEY = "exfsafegrid_role";
 const AGENT_EMAIL_KEY = "exfsafegrid_agent_email";
 
-export type UserRole = "customer" | "agent";
+export type UserRole = "customer" | "agent" | "executive" | "field";
 
 interface CustomerCtx {
   customer: Customer | null;

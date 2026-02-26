@@ -1,19 +1,20 @@
 import { useNavigate } from "react-router-dom";
-import { useCustomer } from "@/hooks/use-customer";
+import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import { Zap, User, Headset, Shield, HardHat } from "lucide-react";
 import { useEffect } from "react";
 
-/**
- * Role chooser – landing page after login.
- * If the user already has a role set, redirect them to their persona home.
- * Otherwise show a chooser (useful for demos & exec walkthroughs).
- */
+const ROLE_HOME: Record<UserRole, string> = {
+  customer: "/customer",
+  agent: "/agent",
+  executive: "/command-center",
+  field: "/field-crew",
+};
 
 const PERSONAS = [
   { key: "customer" as const, label: "Customer Portal", desc: "View your account, outages & wildfire risk", icon: User, path: "/customer" },
   { key: "agent" as const, label: "Agent Desktop", desc: "Manage customers, alerts & operations", icon: Headset, path: "/agent" },
-  { key: "command-center" as const, label: "Command Center", desc: "Executive EOC dashboard & analytics", icon: Shield, path: "/command-center" },
-  { key: "field-crew" as const, label: "Field Crew", desc: "Patrol checklists, hazard reports & GPS", icon: HardHat, path: "/field-crew" },
+  { key: "executive" as const, label: "Command Center", desc: "Executive EOC dashboard & analytics", icon: Shield, path: "/command-center" },
+  { key: "field" as const, label: "Field Crew", desc: "Patrol checklists, hazard reports & GPS", icon: HardHat, path: "/field-crew" },
 ] as const;
 
 export default function Index() {
@@ -24,8 +25,8 @@ export default function Index() {
   useEffect(() => {
     if (role === "customer" && customer) {
       navigate("/customer", { replace: true });
-    } else if (role === "agent") {
-      navigate("/agent", { replace: true });
+    } else if (role && role !== "customer") {
+      navigate(ROLE_HOME[role], { replace: true });
     }
   }, [role, customer, navigate]);
 
