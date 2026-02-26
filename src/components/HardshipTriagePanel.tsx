@@ -195,57 +195,64 @@ export default function HardshipTriagePanel({ customers, onCustomerUpdate }: Pro
             const isApplying = applying.has(t.customer.id);
             const isApplied = applied.has(t.customer.id);
             return (
-              <div key={t.customer.id} className="px-4 py-3 flex items-center gap-4 hover:bg-muted/30 transition-colors">
-                {/* Score */}
-                <div className="flex items-center gap-2 w-20 shrink-0">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted">
-                    <div className={`h-full rounded-full ${cfg.bar}`} style={{ width: `${t.score}%` }} />
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground">{t.score}</span>
-                </div>
-
-                {/* Customer */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-card-foreground truncate">{t.customer.name}</span>
-                    {t.customer.medical_baseline && <HeartPulse className="w-3 h-3 text-destructive shrink-0" />}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{t.customer.zip_code} · {t.customer.region}</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {t.breakdown.map((b) => (
-                      <span key={b.label} className="text-[9px] text-warning">+{b.pts} {b.label}</span>
-                    )).reduce<React.ReactNode[]>((acc, el, i, arr) => {
-                      acc.push(el);
-                      if (i < arr.length - 1) acc.push(<span key={`s-${i}`} className="text-muted-foreground/30 text-[9px]">·</span>);
-                      return acc;
-                    }, [])}
-                  </div>
-                </div>
-
-                {/* Tier */}
-                <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${cfg.badge} shrink-0`}>
-                  {t.tier}
-                </span>
-
-                {/* Action */}
-                <div className="shrink-0">
-                  {t.customer.arrears_status === "Yes" && !isApplied ? (
-                    <button
-                      onClick={() => applyReach(t)}
-                      disabled={isApplying}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-success/10 border border-success/30 text-success text-[10px] font-medium hover:bg-success/20 disabled:opacity-40 transition-colors"
-                    >
-                      {isApplying ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <DollarSign className="w-2.5 h-2.5" />}
-                      Apply REACH
-                    </button>
-                  ) : isApplied ? (
-                    <span className="flex items-center gap-1 text-[10px] text-success">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Applied
+              <div key={t.customer.id} className="px-4 py-3 hover:bg-muted/30 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  {/* Score + mobile tier badge */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 w-20 shrink-0">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted">
+                        <div className={`h-full rounded-full ${cfg.bar}`} style={{ width: `${t.score}%` }} />
+                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">{t.score}</span>
+                    </div>
+                    <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${cfg.badge} shrink-0 sm:hidden`}>
+                      {t.tier}
                     </span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground/50">{t.recommendedAction}</span>
-                  )}
+                  </div>
+
+                  {/* Customer */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-card-foreground truncate">{t.customer.name}</span>
+                      {t.customer.medical_baseline && <HeartPulse className="w-3 h-3 text-destructive shrink-0" />}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{t.customer.zip_code} · {t.customer.region}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {t.breakdown.map((b) => (
+                        <span key={b.label} className="text-[9px] text-warning">+{b.pts} {b.label}</span>
+                      )).reduce<React.ReactNode[]>((acc, el, i, arr) => {
+                        acc.push(el);
+                        if (i < arr.length - 1) acc.push(<span key={`s-${i}`} className="text-muted-foreground/30 text-[9px]">·</span>);
+                        return acc;
+                      }, [])}
+                    </div>
+                  </div>
+
+                  {/* Desktop-only tier */}
+                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${cfg.badge} shrink-0 hidden sm:inline`}>
+                    {t.tier}
+                  </span>
+
+                  {/* Action */}
+                  <div className="shrink-0">
+                    {t.customer.arrears_status === "Yes" && !isApplied ? (
+                      <button
+                        onClick={() => applyReach(t)}
+                        disabled={isApplying}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-success/10 border border-success/30 text-success text-[10px] font-medium hover:bg-success/20 disabled:opacity-40 transition-colors"
+                      >
+                        {isApplying ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <DollarSign className="w-2.5 h-2.5" />}
+                        Apply REACH
+                      </button>
+                    ) : isApplied ? (
+                      <span className="flex items-center gap-1 text-[10px] text-success">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Applied
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground/50">{t.recommendedAction}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
