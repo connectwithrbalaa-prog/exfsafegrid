@@ -1,25 +1,44 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Radio, Globe, FileText, Zap, HardHat } from "lucide-react";
+import { Home, Radio, Globe, FileText, Zap, HardHat, User, Headset, Shield, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCustomer, type UserRole } from "@/hooks/use-customer";
 
-const NAV_LINKS = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/command-center", label: "Command Center", icon: Radio },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  /** Which roles can see this link. Omit = visible to all. */
+  roles?: UserRole[];
+}
+
+const NAV_LINKS: NavItem[] = [
+  { to: "/customer", label: "My Portal", icon: User, roles: ["customer"] },
+  { to: "/agent", label: "Agent Desk", icon: Headset, roles: ["agent"] },
+  { to: "/command-center", label: "Command Center", icon: Radio, roles: ["agent", "executive"] },
+  { to: "/field-crew", label: "Field Crew", icon: HardHat, roles: ["agent", "field"] },
   { to: "/status", label: "Status", icon: Globe },
   { to: "/docs", label: "Docs", icon: FileText },
-  { to: "/field-crew", label: "Field Crew", icon: HardHat },
 ];
 
 interface TopNavProps {
-  /** Use "dark" for dark-themed pages like Command Center */
   variant?: "light" | "dark";
 }
 
 export default function TopNav({ variant = "light" }: TopNavProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { role, setCustomer, setRole, setAgentEmail } = useCustomer();
 
   const isDark = variant === "dark";
+
+  const visibleLinks = NAV_LINKS.filter((l) => !l.roles || l.roles.includes(role));
+
+  const handleSignOut = () => {
+    setCustomer(null);
+    setRole("customer");
+    setAgentEmail(null);
+    navigate("/login");
+  };
 
   return (
     <nav
@@ -48,7 +67,7 @@ export default function TopNav({ variant = "light" }: TopNavProps) {
 
         {/* Links */}
         <div className="flex items-center gap-1">
-          {NAV_LINKS.map((link) => {
+          {visibleLinks.map((link) => {
             const isActive = pathname === link.to;
             return (
               <button
@@ -70,6 +89,20 @@ export default function TopNav({ variant = "light" }: TopNavProps) {
               </button>
             );
           })}
+
+          {/* Sign Out */}
+          <button
+            onClick={handleSignOut}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ml-1",
+              isDark
+                ? "text-white/40 hover:text-white/70 hover:bg-white/5"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
         </div>
       </div>
     </nav>
