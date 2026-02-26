@@ -186,64 +186,72 @@ export default function PredictiveOutagePanel({ customers }: Props) {
                 {list.map((s) => {
                   const st = URGENCY_STYLES[s.urgency];
                   return (
-                    <div key={s.customer.id} className="px-4 py-3 flex items-center gap-4 hover:bg-muted/30 transition-colors">
-                      {/* Score bar */}
-                      <div className="flex items-center gap-2 w-24 shrink-0">
-                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${st.bar}`} style={{ width: `${s.score}%` }} />
+                    <div key={s.customer.id} className="px-4 py-3 hover:bg-muted/30 transition-colors">
+                      {/* Mobile: stacked layout / Desktop: row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        {/* Top row on mobile: name + score + badge */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 w-20 shrink-0">
+                            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${st.bar}`} style={{ width: `${s.score}%` }} />
+                            </div>
+                            <span className="text-xs font-mono text-muted-foreground w-6 text-right">{s.score}</span>
+                          </div>
+                          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${st.badge} shrink-0 sm:hidden`}>
+                            {st.label}
+                          </span>
                         </div>
-                        <span className="text-xs font-mono text-muted-foreground w-6 text-right">{s.score}</span>
-                      </div>
 
-                      {/* Customer info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-card-foreground truncate">{s.customer.name}</span>
-                          {s.customer.medical_baseline && <HeartPulse className="w-3.5 h-3.5 text-destructive shrink-0" />}
-                          {s.customer.arrears_status === "Yes" && <DollarSign className="w-3.5 h-3.5 text-warning shrink-0" />}
+                        {/* Customer info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-card-foreground truncate">{s.customer.name}</span>
+                            {s.customer.medical_baseline && <HeartPulse className="w-3.5 h-3.5 text-destructive shrink-0" />}
+                            {s.customer.arrears_status === "Yes" && <DollarSign className="w-3.5 h-3.5 text-warning shrink-0" />}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            ZIP {s.customer.zip_code} · {s.customer.hftd_tier} · {s.customer.region}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {s.factors.map((f) => (
+                              <span key={f.label} className={`text-[9px] ${f.color}`}>+{f.points} {f.label}</span>
+                            )).reduce<React.ReactNode[]>((acc, el, i, arr) => {
+                              acc.push(el);
+                              if (i < arr.length - 1) acc.push(<span key={`sep-${i}`} className="text-muted-foreground/30 text-[9px]">·</span>);
+                              return acc;
+                            }, [])}
+                          </div>
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          ZIP {s.customer.zip_code} · {s.customer.hftd_tier} · {s.customer.region}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {s.factors.map((f) => (
-                            <span key={f.label} className={`text-[9px] ${f.color}`}>+{f.points} {f.label}</span>
-                          )).reduce<React.ReactNode[]>((acc, el, i, arr) => {
-                            acc.push(el);
-                            if (i < arr.length - 1) acc.push(<span key={`sep-${i}`} className="text-muted-foreground/30 text-[9px]">·</span>);
-                            return acc;
-                          }, [])}
+
+                        {/* Desktop-only badge */}
+                        <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${st.badge} shrink-0 hidden sm:inline`}>
+                          {st.label}
+                        </span>
+
+                        {/* Action button */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {s.action === "Immediate Call" && (
+                            <button onClick={() => toast.success(`Calling ${s.customer.name}…`)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-[10px] font-medium hover:bg-destructive/20 transition-colors">
+                              <Phone className="w-2.5 h-2.5" /> Call Now
+                            </button>
+                          )}
+                          {s.action === "SMS Alert" && (
+                            <button onClick={() => toast.success(`SMS sent to ${s.customer.name}`)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/10 border border-warning/30 text-warning text-[10px] font-medium hover:bg-warning/20 transition-colors">
+                              <Zap className="w-2.5 h-2.5" /> Send SMS
+                            </button>
+                          )}
+                          {s.action === "Email Notice" && (
+                            <button onClick={() => toast.success(`Email queued for ${s.customer.name}`)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors">
+                              <Mail className="w-2.5 h-2.5" /> Email
+                            </button>
+                          )}
+                          {s.action === "Monitor" && (
+                            <span className="text-[10px] text-muted-foreground/50">Monitor</span>
+                          )}
                         </div>
-                      </div>
-
-                      {/* Urgency badge */}
-                      <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${st.badge} shrink-0`}>
-                        {st.label}
-                      </span>
-
-                      {/* Action */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {s.action === "Immediate Call" && (
-                          <button onClick={() => toast.success(`Calling ${s.customer.name}…`)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-[10px] font-medium hover:bg-destructive/20 transition-colors">
-                            <Phone className="w-2.5 h-2.5" /> Call Now
-                          </button>
-                        )}
-                        {s.action === "SMS Alert" && (
-                          <button onClick={() => toast.success(`SMS sent to ${s.customer.name}`)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-warning/10 border border-warning/30 text-warning text-[10px] font-medium hover:bg-warning/20 transition-colors">
-                            <Zap className="w-2.5 h-2.5" /> Send SMS
-                          </button>
-                        )}
-                        {s.action === "Email Notice" && (
-                          <button onClick={() => toast.success(`Email queued for ${s.customer.name}`)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors">
-                            <Mail className="w-2.5 h-2.5" /> Email
-                          </button>
-                        )}
-                        {s.action === "Monitor" && (
-                          <span className="text-[10px] text-muted-foreground/50">Monitor</span>
-                        )}
                       </div>
                     </div>
                   );
