@@ -9,9 +9,9 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ml-chat`;
 
 const SUGGESTIONS = [
   "Which circuits are at critical ignition risk?",
+  "How many customers are affected by high-risk circuits?",
+  "Show customer density for PSA_2",
   "Where is fire spreading fastest?",
-  "Show PSA risk for next month",
-  "What's the flame length for circuits in PSA_2?",
 ];
 
 export default function MlChatBubble() {

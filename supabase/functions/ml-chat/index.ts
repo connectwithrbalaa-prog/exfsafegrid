@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You help users query wildfire risk predictions from three machine learning models:
+const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You help users query wildfire risk predictions from three machine learning models and customer density data:
 
 1. **PSA Risk Model (Model A)** — Predicts above-normal wildfire activity risk per PSA (Predictive Service Area) over a 1–3 month horizon.
    - Parameters: psa_id, month_offset (1-3), min_prob (0-1), prediction_date, limit
@@ -17,17 +17,41 @@ const SYSTEM_PROMPT = `You are the ExfSafeGrid ML Predictions Assistant. You hel
 3. **Fire Spread & Behavior Model (Model C)** — Predicts fire spread rate (chains/hr), flame length (ft), and spotting distance (mi) using wind, terrain, and fuel moisture data.
    - Parameters: circuit_id, psa_id, min_spread (chains/hr), severity (LOW/MODERATE/HIGH/EXTREME), prediction_date, limit
 
+4. **Customer Density** — Shows how many customers (total and critical/medical-baseline) are on each circuit, with current ignition risk overlay.
+   - Parameters: circuit_id, psa_id, risk_band (LOW/MODERATE/HIGH/CRITICAL), min_customers, limit
+
 When users ask questions in natural language, use the appropriate tool to fetch predictions and then summarize the results clearly. Examples:
 - "Which circuits are at critical risk?" → query_circuit_ignition_risk with risk_band=CRITICAL
 - "What's the 72-hour risk for circuit C008?" → query_circuit_ignition_risk with circuit_id=C008, horizon_hours=72
 - "Show me PSA risk for next month" → query_psa_risk with month_offset=1
 - "Where is fire spreading fastest?" → query_fire_spread_risk sorted by spread rate
-- "What's the flame length for circuits in PSA_2?" → query_fire_spread_risk with psa_id=PSA_2
-- "Show extreme fire behavior" → query_fire_spread_risk with severity=EXTREME
+- "How many customers are affected by critical risk?" → query_customer_density with risk_band=CRITICAL
+- "Show customer density for PSA_2" → query_customer_density with psa_id=PSA_2
+- "Which circuits have the most customers at risk?" → query_customer_density sorted by customer_count
+- "Are there medical baseline customers on high-risk circuits?" → query_customer_density with risk_band=HIGH (check critical_customers field)
 
-Always present results in a clear, organized format with risk levels highlighted. If no results are found, explain what that means.`;
+Always present results in a clear, organized format with risk levels highlighted. When showing customer data, emphasize critical/medical-baseline customers. If no results are found, explain what that means.`;
 
 const tools = [
+  {
+    type: "function",
+    function: {
+      name: "query_customer_density",
+      description: "Query customer density per circuit with risk overlay. Shows how many customers (total and critical/medical-baseline) are on each circuit, optionally filtered by risk level or PSA.",
+      parameters: {
+        type: "object",
+        properties: {
+          circuit_id: { type: "string", description: "Filter by specific circuit ID (e.g. C008)" },
+          psa_id: { type: "string", description: "Filter by PSA ID" },
+          risk_band: { type: "string", enum: ["LOW", "MODERATE", "HIGH", "CRITICAL"], description: "Filter by current ignition risk band" },
+          min_customers: { type: "number", description: "Minimum customer count threshold" },
+          limit: { type: "number", description: "Max number of results" },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -118,7 +142,9 @@ async function callBackend(path: string, params: Record<string, any>): Promise<a
 async function executeTool(name: string, args: Record<string, any>): Promise<string> {
   try {
     let result: any;
-    if (name === "query_psa_risk") {
+    if (name === "query_customer_density") {
+      result = await callBackend("/customer-density", args);
+    } else if (name === "query_psa_risk") {
       result = await callBackend("/psa-risk", args);
     } else if (name === "query_circuit_ignition_risk") {
       result = await callBackend("/circuit-ignition-risk", args);
