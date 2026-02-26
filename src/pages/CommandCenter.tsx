@@ -1241,159 +1241,57 @@ export default function CommandCenter() {
 
         {/* ── Tabs: Grid Assets / HVRA Registry ─────────────── */}
         <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-4">
-            <button
-              onClick={() => setActiveTab("assets")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Zap className="w-4 h-4 text-blue-400" />
-              Grid Asset Status
+          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <button onClick={() => setActiveTab("assets")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Zap className="w-4 h-4 text-blue-400" /> Grid Asset Status
             </button>
-            <button
-              onClick={() => setActiveTab("hvra")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <MapPin className="w-4 h-4 text-purple-400" />
-              HVRA Registry
+            <button onClick={() => setActiveTab("hvra")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <MapPin className="w-4 h-4 text-purple-400" /> HVRA Registry
             </button>
-            <button
-              onClick={() => setActiveTab("nvc")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
-              NVC Risk Scores
+            <button onClick={() => setActiveTab("nvc")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <BarChart3 className="w-4 h-4 text-emerald-400" /> NVC Risk Scores
             </button>
-            <button
-              onClick={() => setActiveTab("evac")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Route className="w-4 h-4 text-amber-400" />
-              Evacuation
+            <button onClick={() => setActiveTab("evac")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Route className="w-4 h-4 text-amber-400" /> Evacuation
             </button>
-            <button
-              onClick={() => setActiveTab("resources")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Shield className="w-4 h-4 text-red-400" />
-              Resources
+            <button onClick={() => setActiveTab("resources")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Shield className="w-4 h-4 text-red-400" /> Resources
             </button>
-            <button
-              onClick={() => setActiveTab("insurance")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "insurance" ? "border-teal-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <DollarSign className="w-4 h-4 text-teal-400" />
-              Insurance Risk
+            <button onClick={() => setActiveTab("insurance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "insurance" ? "border-teal-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <DollarSign className="w-4 h-4 text-teal-400" /> Insurance Risk
             </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Clock className="w-4 h-4 text-orange-400" />
-              Fire History
+            <button onClick={() => setActiveTab("history")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Clock className="w-4 h-4 text-orange-400" /> Fire History
             </button>
-            <button
-              onClick={() => setActiveTab("behavior")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Flame className="w-4 h-4 text-rose-400" />
-              Fire Behavior
+            <button onClick={() => setActiveTab("behavior")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Flame className="w-4 h-4 text-rose-400" /> Fire Behavior
             </button>
-            <button
-              onClick={() => setActiveTab("alerts")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Bell className="w-4 h-4 text-yellow-400" />
-              Community Alerts
+            <button onClick={() => setActiveTab("alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Bell className="w-4 h-4 text-yellow-400" /> Community Alerts
             </button>
-            <button
-              onClick={() => setActiveTab("sms")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Bell className="w-4 h-4 text-sky-400" />
-              SMS Alerts
+            <button onClick={() => setActiveTab("sms")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Bell className="w-4 h-4 text-sky-400" /> SMS Alerts
             </button>
-            <button
-              onClick={() => setActiveTab("after-action")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <FileText className="w-4 h-4 text-violet-400" />
-              After-Action
+            <button onClick={() => setActiveTab("after-action")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <FileText className="w-4 h-4 text-violet-400" /> After-Action
             </button>
-            <button
-              onClick={() => setActiveTab("compliance")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Shield className="w-4 h-4 text-cyan-400" />
-              Compliance
+            <button onClick={() => setActiveTab("compliance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Shield className="w-4 h-4 text-cyan-400" /> Compliance
             </button>
-            <button
-              onClick={() => setActiveTab("vegetation")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Activity className="w-4 h-4 text-green-400" />
-              Vegetation
+            <button onClick={() => setActiveTab("vegetation")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Activity className="w-4 h-4 text-green-400" /> Vegetation
             </button>
-            <button
-              onClick={() => setActiveTab("backend")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "backend" ? "border-indigo-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Server className="w-4 h-4 text-indigo-400" />
-              Backend Ops
+            <button onClick={() => setActiveTab("backend")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "backend" ? "border-indigo-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Server className="w-4 h-4 text-indigo-400" /> Backend Ops
             </button>
-            <button
-              onClick={() => setActiveTab("risk-alerts")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4 text-orange-400" />
-              Risk Alerts
+            <button onClick={() => setActiveTab("risk-alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <AlertTriangle className="w-4 h-4 text-orange-400" /> Risk Alerts
             </button>
-            <button
-              onClick={() => setActiveTab("outage")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Zap className="w-4 h-4 text-violet-400" />
-              Outage Impact
+            <button onClick={() => setActiveTab("outage")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
             </button>
-            <button
-              onClick={() => setActiveTab("thresholds")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Settings className="w-4 h-4 text-amber-400" />
-              Thresholds
+            <button onClick={() => setActiveTab("thresholds")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+              <Settings className="w-4 h-4 text-amber-400" /> Thresholds
             </button>
           </div>
 
