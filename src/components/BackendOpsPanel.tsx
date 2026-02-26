@@ -19,8 +19,9 @@ import {
 } from "@/hooks/use-backend-data";
 import {
   Activity, AlertTriangle, CheckCircle, Loader2, RefreshCw,
-  Server, Zap, FileText, Shield, Database, Play,
+  Server, Zap, FileText, Shield, Database, Play, Download,
 } from "lucide-react";
+import { downloadCsv, formatCircuitRiskCsv, formatPsaRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 
 export default function BackendOpsPanel() {
@@ -193,10 +194,21 @@ export default function BackendOpsPanel() {
       {/* Circuit Risk */}
       {activeSection === "risk" && (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Zap className="w-4 h-4 text-orange-400" />
-            Circuit Ignition Risk (24h)
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Zap className="w-4 h-4 text-orange-400" />
+              Circuit Ignition Risk (24h)
+            </h3>
+            {circuitRisk.data?.results?.length > 0 && (
+              <button
+                onClick={() => downloadCsv(formatCircuitRiskCsv(circuitRisk.data.results), `circuit-ignition-risk-24h.csv`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Export CSV
+              </button>
+            )}
+          </div>
           {circuitRisk.isLoading ? (
             <div className="flex items-center gap-2 py-8 justify-center text-white/30">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
@@ -242,10 +254,21 @@ export default function BackendOpsPanel() {
           )}
 
           {/* PSA Risk Summary */}
-          <h3 className="text-sm font-semibold flex items-center gap-2 mt-4">
-            <Activity className="w-4 h-4 text-purple-400" />
-            PSA Activity Risk (Month 1)
-          </h3>
+          <div className="flex items-center justify-between mt-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-purple-400" />
+              PSA Activity Risk (Month 1)
+            </h3>
+            {psaRisk.data?.results?.length > 0 && (
+              <button
+                onClick={() => downloadCsv(formatPsaRiskCsv(psaRisk.data.results), `psa-activity-risk-month1.csv`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                Export CSV
+              </button>
+            )}
+          </div>
           {psaRisk.isLoading ? (
             <div className="flex items-center gap-2 py-4 justify-center text-white/30">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
