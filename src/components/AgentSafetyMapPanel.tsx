@@ -57,6 +57,19 @@ const INFRA_BY_SS: Record<string, InfraSegment[]> = {
     { id: "vc-6", type: "veg_completed", label: "Twin Peaks Veg Clear (0.9 mi)", coords: [[-122.45, 37.74], [-122.43, 37.75]] },
     { id: "vp-6", type: "veg_planned", label: "Glen Park Corridor Veg (Q4 2026)", coords: [[-122.39, 37.78], [-122.37, 37.79]] },
   ],
+  "SS-102": [
+    { id: "ug-7", type: "undergrounded", label: "Valley Central Underground (1.6 mi)", coords: [[-119.81, 36.72], [-119.78, 36.74]] },
+    { id: "hp-10", type: "hardened_pole", label: "Pole #V-2201 – Strengthened", coords: [-119.79, 36.73] },
+    { id: "vc-7", type: "veg_completed", label: "Kings River Veg Clear (2.0 mi)", coords: [[-119.83, 36.71], [-119.80, 36.72]] },
+    { id: "vp-7", type: "veg_planned", label: "Hanford Connector Veg (Q2 2027)", coords: [[-119.76, 36.75], [-119.74, 36.76]] },
+  ],
+  "SS-301": [
+    { id: "ug-8", type: "undergrounded", label: "Sonoma Hwy Underground (1.9 mi)", coords: [[-122.73, 38.43], [-122.70, 38.45]] },
+    { id: "hp-11", type: "hardened_pole", label: "Pole #SN-5501 – Strengthened", coords: [-122.71, 38.44] },
+    { id: "hp-12", type: "hardened_pole", label: "Pole #SN-5512 – Strengthened", coords: [-122.69, 38.45] },
+    { id: "vc-8", type: "veg_completed", label: "Bennett Valley Veg Clear (1.4 mi)", coords: [[-122.74, 38.42], [-122.72, 38.43]] },
+    { id: "vp-8", type: "veg_planned", label: "Mark West Springs Veg (Q1 2027)", coords: [[-122.68, 38.46], [-122.66, 38.47]] },
+  ],
 };
 
 function getInfraForSubstation(ssId: string | undefined): InfraSegment[] {
