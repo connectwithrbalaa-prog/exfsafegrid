@@ -53,7 +53,7 @@ export default function Login() {
       setRole("customer");
       setAgentEmail(null);
       toast.success(`Signed in as ${c.name}`);
-      navigate("/");
+      navigate("/customer");
     } else {
       const agent = AGENT_NAMES.find((a) => a.name.toLowerCase() === selectedAgent.trim().toLowerCase());
       if (!agent) {
@@ -64,7 +64,7 @@ export default function Login() {
       setRole("agent");
       setAgentEmail(agent.email);
       toast.success(`Signed in as ${agent.name}`);
-      navigate("/");
+      navigate("/agent");
     }
   };
 

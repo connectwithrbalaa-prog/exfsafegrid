@@ -8,6 +8,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import MlChatBubble from "@/components/MlChatBubble";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import CustomerPortal from "./pages/CustomerPortal";
+import AgentDesktop from "./pages/AgentDesktop";
 import CommandCenter from "./pages/CommandCenter";
 import DemoPresentation from "./pages/DemoPresentation";
 import Documentation from "./pages/Documentation";
@@ -38,10 +40,12 @@ const App = () => (
           <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/docs" element={<Documentation />} />
               <Route path="/" element={<Index />} />
+              <Route path="/customer" element={<CustomerPortal />} />
+              <Route path="/agent" element={<AgentDesktop />} />
               <Route path="/command-center" element={<CommandCenter />} />
               <Route path="/demo" element={<DemoPresentation />} />
+              <Route path="/docs" element={<Documentation />} />
               <Route path="/status" element={<PspsStatus />} />
               <Route path="/crew" element={<FieldCrewApp />} />
               <Route path="/field-crew" element={<FieldCrewApp />} />
