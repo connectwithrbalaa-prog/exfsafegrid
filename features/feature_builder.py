@@ -67,13 +67,18 @@ def build_features_for_date(prediction_date: date, db) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def _load_precomputed(prediction_date: date, db) -> pd.DataFrame:
+    """Load the latest feature row per circuit on or before prediction_date."""
     try:
         return pd.read_sql(
             text("""
-                SELECT cf.*, uc.psa_id, uc.voltage_kv, uc.utility_name
+                SELECT DISTINCT ON (cf.circuit_id)
+                       cf.*, uc.psa_id, uc.voltage_kv, uc.utility_name,
+                       uc.hftd_tier, uc.county, uc.customer_count,
+                       uc.critical_customers, uc.length_miles
                 FROM circuit_features cf
                 JOIN utility_circuits uc ON uc.circuit_id = cf.circuit_id
-                WHERE cf.feature_date = :pred_date
+                WHERE cf.feature_date <= :pred_date
+                ORDER BY cf.circuit_id, cf.feature_date DESC
             """),
             db.bind,
             params={"pred_date": str(prediction_date)},
@@ -97,15 +102,26 @@ def _build_from_real_data(prediction_date: date, db) -> pd.DataFrame:
     weather = _get_raws_weather(prediction_date, db)
     outlooks_7d = _get_7day_outlooks(prediction_date, db)
     outlooks_monthly = _get_monthly_outlooks(prediction_date, db)
-    incident_proximity = _get_incident_proximity(prediction_date, db)
+    incident_result = _get_incident_proximity(prediction_date, db)
     perimeter_proximity = _get_perimeter_proximity(prediction_date, db)
     fault_history = _get_fault_history(prediction_date, db)
     customer_density = _get_customer_density(db)
 
+    # Unpack incident result — may be tuple (circuit_df, psa_df) or single df
+    incident_circuit = pd.DataFrame()
+    incident_psa = pd.DataFrame()
+    if isinstance(incident_result, tuple):
+        incident_circuit, incident_psa = incident_result
+    elif isinstance(incident_result, pd.DataFrame) and not incident_result.empty:
+        if "circuit_id" in incident_result.columns:
+            incident_circuit = incident_result
+        else:
+            incident_psa = incident_result
+
     # Check if we have ANY real data to work with
     has_real = any(not d.empty for d in [
         weather, outlooks_7d, outlooks_monthly,
-        incident_proximity, perimeter_proximity,
+        incident_circuit, incident_psa, perimeter_proximity,
     ])
     if not has_real:
         logger.info("No real RAWS/outlook/incident data found — skipping real build.")
@@ -152,18 +168,21 @@ def _build_from_real_data(prediction_date: date, db) -> pd.DataFrame:
         for i in range(1, 4):
             df[f"fp_monthly_m{i}"] = np.nan
 
-    # --- Incident proximity (joined by circuit_id or psa_id) ---
-    if not incident_proximity.empty:
-        df = df.merge(incident_proximity, on="psa_id", how="left")
+    # --- Incident proximity (circuit-level geospatial or PSA fallback) ---
+    if not incident_circuit.empty:
+        df = df.merge(incident_circuit, on="circuit_id", how="left")
+    if not incident_psa.empty:
+        df = df.merge(incident_psa, on="psa_id", how="left", suffixes=("", "_psa"))
     for col, default in [("active_incidents_50mi", 0), ("acres_burning_50mi", 0),
                           ("psa_acres_30d", 0), ("psa_acres_60d", 0), ("psa_acres_90d", 0),
                           ("psa_fires_30d", 0), ("psa_fires_60d", 0), ("psa_fires_90d", 0)]:
         if col not in df.columns:
             df[col] = default
 
-    # --- Perimeter proximity ---
+    # --- Perimeter proximity (circuit-level geospatial or PSA fallback) ---
     if not perimeter_proximity.empty:
-        df = df.merge(perimeter_proximity, on="psa_id", how="left")
+        join_col = "circuit_id" if "circuit_id" in perimeter_proximity.columns else "psa_id"
+        df = df.merge(perimeter_proximity, on=join_col, how="left")
 
     # --- Fault / ignition history (joined by circuit_id) ---
     if not fault_history.empty:
@@ -206,7 +225,11 @@ def _build_from_real_data(prediction_date: date, db) -> pd.DataFrame:
 def _load_circuits(db) -> pd.DataFrame:
     try:
         return pd.read_sql(
-            text("SELECT * FROM utility_circuits ORDER BY circuit_id"),
+            text("""SELECT circuit_id, psa_id, voltage_kv, hftd_tier,
+                           length_miles, utility_name, county, customer_count,
+                           critical_customers,
+                           (geom_point IS NOT NULL) AS has_geom_point
+                    FROM utility_circuits ORDER BY circuit_id"""),
             db.bind,
         )
     except Exception:
@@ -303,9 +326,64 @@ def _get_monthly_outlooks(prediction_date: date, db) -> pd.DataFrame:
 
 def _get_incident_proximity(prediction_date: date, db) -> pd.DataFrame:
     """
-    Count active incidents and burned acres per PSA.
-    Also compute lagged activity (30/60/90-day windows).
+    Count active incidents within 50 miles of each circuit using geom_point
+    (PostGIS ST_DWithin). Falls back to PSA-based grouping when geom_point
+    is unavailable.
     """
+    try:
+        # Try geospatial approach first (geom_point on utility_circuits)
+        df = pd.read_sql(
+            text("""
+                SELECT
+                    uc.circuit_id,
+                    COUNT(i.*)                           AS active_incidents_50mi,
+                    COALESCE(SUM(i.acres_burned), 0)     AS acres_burning_50mi
+                FROM utility_circuits uc
+                CROSS JOIN LATERAL (
+                    SELECT acres_burned
+                    FROM incidents i
+                    WHERE i.is_active = TRUE
+                      AND i.latitude IS NOT NULL
+                      AND ST_DWithin(
+                            uc.geom_point::geography,
+                            ST_SetSRID(ST_MakePoint(i.longitude, i.latitude), 4326)::geography,
+                            80467  -- 50 miles in metres
+                          )
+                ) i
+                WHERE uc.geom_point IS NOT NULL
+                GROUP BY uc.circuit_id
+            """),
+            db.bind,
+        )
+        logger.info("Incident proximity (geospatial): %d circuits", len(df))
+        if not df.empty:
+            # Also get PSA-level lagged activity
+            psa_df = pd.read_sql(
+                text("""
+                    SELECT psa_id,
+                        COUNT(*) FILTER (WHERE discovery_date >= :d30)  AS psa_fires_30d,
+                        COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d30), 0) AS psa_acres_30d,
+                        COUNT(*) FILTER (WHERE discovery_date >= :d60)  AS psa_fires_60d,
+                        COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d60), 0) AS psa_acres_60d,
+                        COUNT(*) FILTER (WHERE discovery_date >= :d90)  AS psa_fires_90d,
+                        COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d90), 0) AS psa_acres_90d
+                    FROM incidents
+                    WHERE is_active = TRUE AND psa_id IS NOT NULL AND psa_id != ''
+                    GROUP BY psa_id
+                """),
+                db.bind,
+                params={
+                    "d30": str(prediction_date - timedelta(days=30)),
+                    "d60": str(prediction_date - timedelta(days=60)),
+                    "d90": str(prediction_date - timedelta(days=90)),
+                },
+            )
+            # We return circuit-level proximity; PSA-level lags merged separately
+            return df, psa_df
+    except Exception as e:
+        logger.debug("Geospatial incident query failed, falling back to PSA: %s", e)
+
+    # Fallback: PSA-based grouping
     try:
         df = pd.read_sql(
             text("""
@@ -313,18 +391,14 @@ def _get_incident_proximity(prediction_date: date, db) -> pd.DataFrame:
                     psa_id,
                     COUNT(*)                           AS active_incidents_50mi,
                     COALESCE(SUM(acres_burned), 0)     AS acres_burning_50mi,
-                    -- 30-day window
                     COUNT(*) FILTER (WHERE discovery_date >= :d30)  AS psa_fires_30d,
                     COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d30), 0) AS psa_acres_30d,
-                    -- 60-day window
                     COUNT(*) FILTER (WHERE discovery_date >= :d60)  AS psa_fires_60d,
                     COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d60), 0) AS psa_acres_60d,
-                    -- 90-day window
                     COUNT(*) FILTER (WHERE discovery_date >= :d90)  AS psa_fires_90d,
                     COALESCE(SUM(acres_burned) FILTER (WHERE discovery_date >= :d90), 0) AS psa_acres_90d
                 FROM incidents
-                WHERE is_active = TRUE
-                  AND psa_id IS NOT NULL AND psa_id != ''
+                WHERE is_active = TRUE AND psa_id IS NOT NULL AND psa_id != ''
                 GROUP BY psa_id
             """),
             db.bind,
@@ -334,7 +408,7 @@ def _get_incident_proximity(prediction_date: date, db) -> pd.DataFrame:
                 "d90": str(prediction_date - timedelta(days=90)),
             },
         )
-        logger.info("Incident proximity: %d PSAs with active fires", len(df))
+        logger.info("Incident proximity (PSA fallback): %d PSAs", len(df))
         return df
     except Exception as e:
         logger.debug("Incident proximity query failed: %s", e)
@@ -342,7 +416,44 @@ def _get_incident_proximity(prediction_date: date, db) -> pd.DataFrame:
 
 
 def _get_perimeter_proximity(prediction_date: date, db) -> pd.DataFrame:
-    """Get latest perimeter acres per PSA from the perimeters table via incident join."""
+    """
+    Get nearest fire perimeter distance per circuit using geom_point,
+    plus total perimeter acres within proximity.
+    Falls back to PSA-based join when geom_point is unavailable.
+    """
+    try:
+        df = pd.read_sql(
+            text("""
+                SELECT
+                    uc.circuit_id,
+                    COUNT(DISTINCT p.incident_id)        AS perimeters_active,
+                    COALESCE(SUM(GREATEST(p.gis_acres, p.map_acres)), 0) AS perimeter_total_acres,
+                    MIN(ST_Distance(
+                        uc.geom_point::geography,
+                        ST_SetSRID(ST_MakePoint(i.longitude, i.latitude), 4326)::geography
+                    ) / 1609.34) AS nearest_perimeter_mi
+                FROM utility_circuits uc
+                JOIN incidents i ON i.is_active = TRUE AND i.latitude IS NOT NULL
+                JOIN perimeters p ON p.incident_id = i.incident_id
+                    AND p.date_current >= :lookback
+                WHERE uc.geom_point IS NOT NULL
+                  AND ST_DWithin(
+                        uc.geom_point::geography,
+                        ST_SetSRID(ST_MakePoint(i.longitude, i.latitude), 4326)::geography,
+                        160934  -- 100 miles in metres
+                      )
+                GROUP BY uc.circuit_id
+            """),
+            db.bind,
+            params={"lookback": str(prediction_date - timedelta(days=7))},
+        )
+        logger.info("Perimeter proximity (geospatial): %d circuits", len(df))
+        if not df.empty:
+            return df
+    except Exception as e:
+        logger.debug("Geospatial perimeter query failed, falling back to PSA: %s", e)
+
+    # Fallback: PSA-based
     try:
         df = pd.read_sql(
             text("""
@@ -359,7 +470,7 @@ def _get_perimeter_proximity(prediction_date: date, db) -> pd.DataFrame:
             db.bind,
             params={"lookback": str(prediction_date - timedelta(days=7))},
         )
-        logger.info("Perimeter proximity: %d PSAs", len(df))
+        logger.info("Perimeter proximity (PSA fallback): %d PSAs", len(df))
         return df
     except Exception as e:
         logger.debug("Perimeter proximity query failed: %s", e)
