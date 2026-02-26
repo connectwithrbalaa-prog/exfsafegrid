@@ -11,8 +11,10 @@ import {
   Shield, HeartPulse, MapPin, Radio, Building2,
   ChevronDown, ChevronUp, TrendingUp, Keyboard,
   Map, ClipboardList, Bot, Wrench, Search, Phone,
-  Activity, Layers,
+  Activity, Layers, RefreshCw,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
@@ -49,7 +51,11 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLSelectElement>(null);
 
+  const isMobile = useIsMobile();
   const redFlagActive = redFlagData[agentRegion]?.active ?? false;
+
+
+
 
   const QUICK_ACTIONS = ["Call Customer", "Apply REACH", "PSPS Alert", "Add Note"];
   useKeyboardShortcuts({
@@ -70,6 +76,24 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   }, []);
 
   useEffect(() => { fetchRedFlagStatus(); }, [fetchRedFlagStatus]);
+
+  const refreshAllData = useCallback(async () => {
+    await fetchRedFlagStatus();
+    const { data } = await supabase.from("customers").select("*").eq("region", agentRegion).order("name");
+    if (data) {
+      setCustomers(data as unknown as Customer[]);
+      if (selected) {
+        const updated = (data as unknown as Customer[]).find(c => c.id === selected.id);
+        if (updated) { setSelected(updated); setNotes(updated.agent_notes ?? ""); }
+      }
+    }
+    toast.success("Data refreshed");
+  }, [agentRegion, selected, fetchRedFlagStatus]);
+
+  const { pullDistance, isRefreshing: pullRefreshing } = usePullToRefresh({
+    onRefresh: refreshAllData,
+    enabled: isMobile,
+  });
 
   useEffect(() => {
     supabase.from("customers").select("*").eq("region", agentRegion).order("name")
@@ -137,7 +161,21 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 relative">
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-transform"
+          style={{ transform: `translateY(${pullDistance - 40}px)` }}
+        >
+          <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <RefreshCw
+              className={`w-4 h-4 text-primary ${pullRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: pullRefreshing ? undefined : `rotate(${pullDistance * 3}deg)` }}
+            />
+          </div>
+        </div>
+      )}
       {/* ── Top Bar: Region + Actions ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
