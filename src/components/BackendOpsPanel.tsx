@@ -365,7 +365,18 @@ export default function BackendOpsPanel() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium bg-purple-500/10 text-purple-300 border border-purple-500/20 hover:bg-purple-500/20 transition-colors disabled:opacity-40"
               >
                 {trainMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                Train Models
+                Train All Models
+              </button>
+              <button
+                onClick={() => trainMut.mutate({ model: "fire_spread", synthetic: true }, {
+                  onSuccess: () => toast.success("Fire Spread model trained (synthetic)"),
+                  onError: (e) => toast.error(e.message),
+                })}
+                disabled={trainMut.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium bg-orange-500/10 text-orange-300 border border-orange-500/20 hover:bg-orange-500/20 transition-colors disabled:opacity-40"
+              >
+                {trainMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                Train Fire Spread
               </button>
               <button
                 onClick={() => scoreMut.mutate({}, {
