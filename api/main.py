@@ -289,6 +289,84 @@ def get_monthly_outlooks(forecast_date: Optional[date] = Query(None),
             "count": len(rows), "outlooks": [dict(r._mapping) for r in rows]}
 
 
+@app.get("/api/agent/risk-12h", tags=["Agent"])
+def api_risk_12h(
+    circuit_id: str = Query(..., description="Circuit ID to query"),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    12-hour hourly ignition-risk trend for a circuit.
+
+    Derives RISING / FALLING / STABLE from the delta between the two most
+    recent daily model predictions, then extrapolates 12 hourly probability
+    points forward from now.
+
+    Response::
+
+        {
+          "circuit_id": "CIRCUIT_101",
+          "trend_label": "RISING",
+          "hourly": [
+            {"time": "2026-02-26T12:00Z", "prob": 0.32},
+            ...
+          ]
+        }
+    """
+    from agents.risk_sensor_agent import get_risk_12h
+    result = get_risk_12h(circuit_id, db)
+    if result is None:
+        raise HTTPException(404, f"No predictions found for circuit '{circuit_id}'. "
+                                 "Run POST /models/score to generate predictions first.")
+    return result
+
+
+@app.get("/api/agent/nearby-sensors", tags=["Agent"])
+def api_nearby_sensors(
+    lat: float = Query(..., description="Latitude (decimal degrees)"),
+    lon: float = Query(..., description="Longitude (decimal degrees)"),
+    radius_miles: int = Query(25, ge=1, le=150, description="Search radius in miles"),
+    summary: bool = Query(False, description="Generate a Claude one-sentence summary"),
+    circuit_id: Optional[str] = Query(None, description="Circuit ID for risk context in summary"),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    Return RAWS weather stations within *radius_miles* of (lat, lon).
+
+    Pass ``summary=true`` (and optionally ``circuit_id``) to include a
+    Claude-generated one-sentence operational summary of risk + conditions.
+
+    Response::
+
+        {
+          "lat": 34.05,
+          "lon": -118.25,
+          "radius_miles": 25,
+          "raws_stations": [
+            {"station_id": "...", "station_name": "...", "distance_miles": 4.2,
+             "temp_f": 87, "rh_pct": 12, "wind_speed_mph": 18, ...}
+          ],
+          "cameras": [],
+          "summary": "Risk is rising this afternoon due to high winds; RH at nearest station is 12%."
+        }
+    """
+    from agents.risk_sensor_agent import get_nearby_sensors, get_risk_12h, generate_summary
+
+    sensor_data = get_nearby_sensors(lat, lon, db, radius_miles)
+
+    if summary:
+        risk_data = None
+        if circuit_id:
+            try:
+                risk_data = get_risk_12h(circuit_id, db)
+            except Exception:
+                risk_data = None
+        sensor_data["summary"] = generate_summary(risk_data, sensor_data)
+    else:
+        sensor_data["summary"] = None
+
+    return sensor_data
+
+
 @app.post("/models/train", tags=["Management"])
 def train_models(req: TrainRequest, _: str = Depends(auth)):
     from models import train_psa_risk, train_ignition_spike
