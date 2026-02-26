@@ -10,6 +10,7 @@ import {
   User, Zap, Flame, DollarSign, MessageSquare, AlertTriangle,
   Shield, HeartPulse, MapPin, Radio, Building2,
   ChevronDown, ChevronUp, TrendingUp, Keyboard,
+  Map, ClipboardList, Bot, Wrench,
 } from "lucide-react";
 import AgentChatPanel from "@/components/AgentChatPanel";
 import SafetyModules from "@/components/SafetyModules";
@@ -40,9 +41,9 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
   const [redFlagData, setRedFlagData] = useState<RedFlagData>({});
   const [loadingRedFlag, setLoadingRedFlag] = useState(true);
-  const [showAdvancedTools, setShowAdvancedTools] = useState(false);
-  const [advancedTab, setAdvancedTab] = useState<"predictive" | "hardship">("predictive");
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [activeSection, setActiveSection] = useState<"overview" | "safety" | "chat" | "tools">("overview");
+  const [advancedTab, setAdvancedTab] = useState<"predictive" | "hardship">("predictive");
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLSelectElement>(null);
 
@@ -72,9 +73,7 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
     setLoadingRedFlag(false);
   }, []);
 
-  useEffect(() => {
-    fetchRedFlagStatus();
-  }, [fetchRedFlagStatus]);
+  useEffect(() => { fetchRedFlagStatus(); }, [fetchRedFlagStatus]);
 
   // Fetch customers filtered by agent's region
   useEffect(() => {
@@ -87,7 +86,6 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         if (data) setCustomers(data as unknown as Customer[]);
       });
 
-    // Realtime: live updates across all agents
     const channel = supabase
       .channel("customers-realtime")
       .on(
@@ -95,24 +93,14 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         { event: "UPDATE", schema: "public", table: "customers" },
         (payload) => {
           const updated = payload.new as unknown as Customer;
-          // Update customer list
-          setCustomers((prev) =>
-            prev.map((c) => (c.id === updated.id ? updated : c))
-          );
-          // Update selected customer if it's the one that changed
-          setSelected((prev) =>
-            prev && prev.id === updated.id ? updated : prev
-          );
-          if (selected?.id === updated.id) {
-            setNotes(updated.agent_notes ?? "");
-          }
+          setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+          setSelected((prev) => prev && prev.id === updated.id ? updated : prev);
+          if (selected?.id === updated.id) setNotes(updated.agent_notes ?? "");
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [agentRegion]);
 
   const sortedCustomers = sortCustomers(customers, redFlagActive);
@@ -143,8 +131,11 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
     } else if (label === "PSPS Alert") {
       toast.success(`PSPS alert sent to ${selected.name}`);
     } else if (label === "Add Note") {
-      notesRef.current?.scrollIntoView({ behavior: "smooth" });
-      notesRef.current?.focus();
+      setActiveSection("overview");
+      setTimeout(() => {
+        notesRef.current?.scrollIntoView({ behavior: "smooth" });
+        notesRef.current?.focus();
+      }, 100);
       return;
     } else {
       toast.success(`Action logged: ${label} for ${selected.name}`);
@@ -169,6 +160,14 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   };
 
   const priority = selected ? getRedFlagPriority(selected) : 0;
+  const ss = selected ? getSubstationForZip(selected.zip_code) : null;
+
+  const SECTION_TABS = [
+    { key: "overview" as const, label: "Overview", icon: ClipboardList },
+    { key: "safety" as const, label: "Safety & Actions", icon: Shield },
+    { key: "chat" as const, label: "AI Assistant", icon: Bot },
+    { key: "tools" as const, label: "Advanced Tools", icon: Wrench },
+  ];
 
   return (
     <div className="space-y-4">
@@ -179,30 +178,39 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           <span className="text-sm font-semibold text-foreground">Region: {agentRegion}</span>
           <span className="text-xs text-muted-foreground">({customers.length} customers)</span>
         </div>
-        <button
-          onClick={fetchRedFlagStatus}
-          disabled={loadingRedFlag}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-        >
-          <Radio className={`w-3.5 h-3.5 ${loadingRedFlag ? "animate-spin" : ""}`} />
-          {loadingRedFlag ? "Checking…" : "Refresh Weather Alerts"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowShortcutsHelp(true); }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Shortcuts</span>
+          </button>
+          <button
+            onClick={fetchRedFlagStatus}
+            disabled={loadingRedFlag}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <Radio className={`w-3.5 h-3.5 ${loadingRedFlag ? "animate-spin" : ""}`} />
+            {loadingRedFlag ? "Checking…" : "Refresh Alerts"}
+          </button>
+        </div>
       </div>
 
       {redFlagActive && (
-        <div className="flex items-center gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-destructive/50 bg-destructive/10">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
           <div>
-            <p className="text-sm font-bold text-destructive">🔴 Red Flag Warning Active — {agentRegion}</p>
+            <p className="text-sm font-bold text-destructive">🔴 Red Flag Warning — {agentRegion}</p>
             <p className="text-xs text-destructive/80 mt-0.5">
-              {redFlagData[agentRegion]?.headline || "Elevated fire weather conditions. Customers re-ranked by risk priority."}
+              {redFlagData[agentRegion]?.headline || "Elevated fire weather. Customers re-ranked by risk priority."}
             </p>
           </div>
         </div>
       )}
 
       {!redFlagActive && !loadingRedFlag && (
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/50">
+        <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/50">
           <Shield className="w-4 h-4 text-success flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
             No active Red Flag Warnings for {agentRegion}. Customers sorted alphabetically.
@@ -210,150 +218,160 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
         </div>
       )}
 
-      {/* Wildfire Map — full width */}
-      {(() => {
-        const ss = selected ? getSubstationForZip(selected.zip_code) : null;
-        return (
-          <CustomerWildfireMap
-            customerZip={selected?.zip_code}
-            assetLat={ss?.latitude ?? 37.20}
-            assetLng={ss?.longitude ?? -119.30}
-            hftdTier={selected?.hftd_tier ?? "None"}
-          />
-        );
-      })()}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6">
-        {/* LEFT COLUMN — customer selector + details */}
-        <div className="md:col-span-1 lg:col-span-5 space-y-4 lg:space-y-5">
-          {/* Customer selector */}
-          <div className="p-5 rounded-lg border border-border bg-card space-y-4">
-            <label htmlFor="agent-customer-select" className="text-sm font-semibold text-card-foreground">
-              Select Customer {redFlagActive && <span className="text-xs text-destructive ml-1">(Priority Ranked)</span>}
-            </label>
-            <select
-              id="agent-customer-select"
-              ref={searchRef}
-              value={selected?.id ?? ""}
-              onChange={(e) => handleSelect(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">— Choose a customer —</option>
-              {sortedCustomers.map((c) => {
-                const p = redFlagActive ? getRedFlagPriority(c) : 0;
-                const prefix = p > 0 ? `[P${p}] ` : "";
-                return (
-                  <option key={c.id} value={c.id}>
-                    {prefix}{c.name} — ZIP {c.zip_code} — HFTD {c.hftd_tier}
-                  </option>
-                );
-              })}
-            </select>
+      {/* Customer Selector — always visible */}
+      <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
+        <User className="w-4 h-4 text-primary flex-shrink-0" />
+        <select
+          id="agent-customer-select"
+          ref={searchRef}
+          value={selected?.id ?? ""}
+          onChange={(e) => handleSelect(e.target.value)}
+          className="flex-1 px-3 py-1.5 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">— Choose a customer —</option>
+          {sortedCustomers.map((c) => {
+            const p = redFlagActive ? getRedFlagPriority(c) : 0;
+            const prefix = p > 0 ? `[P${p}] ` : "";
+            return (
+              <option key={c.id} value={c.id}>
+                {prefix}{c.name} — ZIP {c.zip_code} — HFTD {c.hftd_tier}
+              </option>
+            );
+          })}
+        </select>
+        {selected && (
+          <div className="hidden sm:flex items-center gap-2">
+            <span className={`text-xs font-semibold ${riskColor(selected.wildfire_risk)}`}>
+              🔥 {selected.wildfire_risk}
+            </span>
+            {selected.medical_baseline && (
+              <span className="text-xs font-bold text-destructive flex items-center gap-1">
+                <HeartPulse className="w-3 h-3" /> MBL
+              </span>
+            )}
           </div>
+        )}
+      </div>
 
-          {/* Selected customer detail cards */}
+      {/* Section Tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
+        {SECTION_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActiveSection(t.key)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+              activeSection === t.key
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            }`}
+          >
+            <t.icon className="w-3.5 h-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ═══════ OVERVIEW ═══════ */}
+      {activeSection === "overview" && (
+        <div className="space-y-4">
           {selected ? (
-            <div className="space-y-4">
+            <>
+              {/* Priority badge */}
               {redFlagActive && priority > 0 && (
-                <div className="flex items-center gap-2 p-3 rounded-lg border border-border bg-card">
+                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-border bg-card">
                   <AlertTriangle className={`w-4 h-4 ${getPriorityColor(priority)}`} />
                   <span className={`text-sm font-bold ${getPriorityColor(priority)}`}>
                     {getPriorityLabel(priority)}
                   </span>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <DetailCard icon={User} label="Name" value={selected.name} />
-                <DetailCard icon={Zap} label="ZIP Code" value={selected.zip_code} />
-                <DetailCard icon={MapPin} label="Region" value={selected.region} />
-                <DetailCard icon={Flame} label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
-                <DetailCard icon={Shield} label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
-                <DetailCard icon={HeartPulse} label="Medical Baseline" value={selected.medical_baseline ? "Enrolled" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
-                <DetailCard icon={DollarSign} label="Arrears" value={selected.arrears_status === "Yes" ? `Yes — $${selected.arrears_amount}` : "No"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
-                <DetailCard icon={AlertTriangle} label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
-                <DetailCard icon={Zap} label="Bill Trend" value={selected.bill_trend} />
-              </div>
 
-              {/* Substation & Zone Summary */}
-              {(() => {
-                const ss = getSubstationForZip(selected.zip_code);
-                return (
-                  <div className="p-4 rounded-lg border border-border bg-card space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-info" />
-                      <h3 className="text-xs font-semibold text-card-foreground">Serving Infrastructure</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Substation</span>
-                        <p className="font-semibold text-card-foreground">{ss.name}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Zone</span>
-                        <p className="font-semibold text-card-foreground">{ss.zone}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Voltage</span>
-                        <p className="font-medium text-card-foreground">{ss.voltage}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Capacity</span>
-                        <p className="font-medium text-card-foreground">{ss.capacityMW} MW</p>
-                      </div>
+              {/* Customer Details + Infrastructure — side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Customer Profile */}
+                <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                  <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                    <User className="w-4 h-4 text-primary" /> Customer Profile
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CompactDetail label="Name" value={selected.name} />
+                    <CompactDetail label="ZIP" value={selected.zip_code} />
+                    <CompactDetail label="Region" value={selected.region} />
+                    <CompactDetail label="Wildfire Risk" value={selected.wildfire_risk} color={riskColor(selected.wildfire_risk)} />
+                    <CompactDetail label="HFTD Tier" value={selected.hftd_tier} color={hftdColor(selected.hftd_tier)} />
+                    <CompactDetail label="Medical Baseline" value={selected.medical_baseline ? "Enrolled" : "No"} color={selected.medical_baseline ? "text-info" : undefined} />
+                    <CompactDetail label="Arrears" value={selected.arrears_status === "Yes" ? `$${selected.arrears_amount}` : "None"} color={selected.arrears_status === "Yes" ? "text-warning" : "text-success"} />
+                    <CompactDetail label="Grid Stress" value={selected.grid_stress_level} color={riskColor(selected.grid_stress_level)} />
+                  </div>
+                </div>
+
+                {/* Infrastructure */}
+                {ss && (
+                  <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                    <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-info" /> Serving Infrastructure
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <CompactDetail label="Substation" value={ss.name} />
+                      <CompactDetail label="Zone" value={ss.zone} />
+                      <CompactDetail label="Voltage" value={ss.voltage} />
+                      <CompactDetail label="Capacity" value={`${ss.capacityMW} MW`} />
                       <div className="col-span-2">
-                        <span className="text-muted-foreground">Status</span>
-                        <p className={`font-semibold ${ss.status === "Online" ? "text-success" : ss.status === "Reduced" ? "text-warning" : "text-destructive"}`}>
-                          {ss.status === "Online" ? "🟢" : ss.status === "Reduced" ? "🟡" : "🔴"} {ss.status}
-                        </p>
+                        <CompactDetail
+                          label="Status"
+                          value={`${ss.status === "Online" ? "🟢" : ss.status === "Reduced" ? "🟡" : "🔴"} ${ss.status}`}
+                          color={ss.status === "Online" ? "text-success" : ss.status === "Reduced" ? "text-warning" : "text-destructive"}
+                        />
                       </div>
                     </div>
                   </div>
-                );
-              })()}
+                )}
+              </div>
 
-              {/* Agent Notes — inline with details */}
-              <div className="p-5 rounded-lg border border-border bg-card space-y-3">
+              {/* Map */}
+              <CustomerWildfireMap
+                customerZip={selected.zip_code}
+                assetLat={ss?.latitude ?? 37.20}
+                assetLng={ss?.longitude ?? -119.30}
+                hftdTier={selected.hftd_tier ?? "None"}
+              />
+
+              {/* Agent Notes */}
+              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
                 <h3 className="text-sm font-semibold text-card-foreground">Agent Notes</h3>
                 <textarea
                   ref={notesRef}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  disabled={!selected}
                   placeholder="Add notes about this customer..."
-                  className="w-full h-24 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 resize-none"
+                  className="w-full h-20 px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
                 <button
                   onClick={saveNotes}
-                  disabled={!selected || savingNotes}
-                  className="w-full px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+                  disabled={savingNotes}
+                  className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
                 >
                   {savingNotes ? "Saving…" : "Save Notes"}
                 </button>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="flex items-center justify-center h-40 rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-              Select a customer above to view their details
+            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
+              <User className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Select a customer above to view their details</p>
             </div>
           )}
         </div>
+      )}
 
-        {/* MIDDLE COLUMN — Safety modules (tabbed) + Quick Actions */}
-        <div className="md:col-span-1 lg:col-span-4 space-y-4">
-          {selected && (
+      {/* ═══════ SAFETY & ACTIONS ═══════ */}
+      {activeSection === "safety" && (
+        <div className="space-y-4">
+          {selected ? (
             <>
-              {/* Compact Customer Summary Bar */}
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-                <User className="w-4 h-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-semibold text-card-foreground truncate">{selected.name}</span>
-                <span className={`text-xs font-medium ml-auto ${riskColor(selected.wildfire_risk)}`}>
-                  🔥 {selected.wildfire_risk}
-                </span>
-              </div>
-
-              {/* Medical Priority Badge */}
+              {/* Medical Baseline Alert */}
               {selected.medical_baseline && (
-                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10 shadow-md shadow-destructive/10">
+                <div className="p-3 rounded-lg border-2 border-destructive bg-destructive/10">
                   <div className="flex items-center gap-2">
                     <HeartPulse className="w-5 h-5 text-destructive animate-pulse" />
                     <span className="text-xs font-bold text-destructive">🚨 MEDICAL BASELINE</span>
@@ -375,52 +393,62 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 </div>
               )}
 
-              {/* Tabbed Safety Modules */}
+              {/* Quick Actions */}
+              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+                <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { emoji: "📞", label: "Call Customer" },
+                    { emoji: "💰", label: "Apply REACH" },
+                    { emoji: "⚠️", label: "PSPS Alert" },
+                    { emoji: "📝", label: "Add Note" },
+                  ].map((action) => {
+                    const done = completedActions.has(action.label);
+                    return (
+                      <button
+                        key={action.label}
+                        onClick={() => handleQuickAction(action.label)}
+                        className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors ${
+                          done
+                            ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                            : "border-border hover:bg-secondary text-foreground"
+                        }`}
+                      >
+                        <span>{action.emoji}</span>
+                        {action.label}
+                        {done && <span className="ml-auto text-xs">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Safety Modules */}
               <SafetyModules customer={selected} />
+
+              {/* Hazard Report */}
+              <ReportHazard customerName={selected.name} />
             </>
-          )}
-
-          {/* Quick Actions */}
-          <div className="p-5 rounded-lg border border-border bg-card space-y-3">
-            <h3 className="text-sm font-semibold text-card-foreground">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { emoji: "📞", label: "Call Customer" },
-                { emoji: "💰", label: "Apply REACH" },
-                { emoji: "⚠️", label: "PSPS Alert" },
-                { emoji: "📝", label: "Add Note" },
-              ].map((action) => {
-                const done = completedActions.has(action.label);
-                return (
-                  <button
-                    key={action.label}
-                    disabled={!selected}
-                    onClick={() => handleQuickAction(action.label)}
-                    className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                      done
-                        ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
-                        : "border-border hover:bg-secondary text-foreground"
-                    }`}
-                  >
-                    <span>{action.emoji}</span>
-                    {action.label}
-                    {done && <span className="ml-auto text-xs">✓</span>}
-                  </button>
-                );
-              })}
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 rounded-lg border border-dashed border-border text-muted-foreground gap-2">
+              <Shield className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Select a customer to access safety modules</p>
             </div>
-          </div>
+          )}
         </div>
+      )}
 
-        {/* RIGHT COLUMN — AI Chat + Requests + Hazard */}
-        <div className="md:col-span-2 lg:col-span-3 space-y-4">
+      {/* ═══════ AI ASSISTANT ═══════ */}
+      {activeSection === "chat" && (
+        <div className="space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-semibold text-card-foreground">AI Assistant</h3>
+              {selected && <span className="text-xs text-muted-foreground ml-auto">Customer: {selected.name}</span>}
             </div>
             {selected ? (
-              <div className="h-[400px]">
+              <div className="h-[500px]">
                 <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
               </div>
             ) : (
@@ -431,67 +459,47 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
           </div>
 
           <AgentRequestsPanel />
-          <ReportHazard customerName={selected?.name} />
         </div>
-      </div>
+      )}
 
-      {/* Advanced Tools Section */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <button
-          onClick={() => setShowAdvancedTools(!showAdvancedTools)}
-          className="w-full flex items-center justify-between px-5 py-3 hover:bg-secondary/50 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-card-foreground">Advanced Tools</span>
-            <span className="text-xs text-muted-foreground">Predictive Outage · Hardship Triage</span>
+      {/* ═══════ ADVANCED TOOLS ═══════ */}
+      {activeSection === "tools" && (
+        <div className="space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/30">
+            {[
+              { key: "predictive" as const, label: "Predictive Outage" },
+              { key: "hardship" as const, label: "Hardship Triage" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setAdvancedTab(t.key)}
+                className={`flex-1 py-2 text-xs font-semibold rounded-md transition-colors ${
+                  advancedTab === t.key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowShortcutsHelp(true); }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              title="Keyboard shortcuts (?)"
-            >
-              <Keyboard className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Shortcuts</span>
-            </button>
-            {showAdvancedTools ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            {advancedTab === "predictive" ? (
+              <PredictiveOutagePanel customers={customers} />
+            ) : (
+              <HardshipTriagePanel
+                customers={customers}
+                onCustomerUpdate={(updated) => {
+                  setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+                  if (selected?.id === updated.id) setSelected(updated);
+                }}
+              />
+            )}
           </div>
-        </button>
-        {showAdvancedTools && (
-          <div className="border-t border-border">
-            <div className="flex border-b border-border">
-              {[
-                { id: "predictive", label: "Predictive Outage Intelligence" },
-                { id: "hardship", label: "Hardship Triage" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setAdvancedTab(tab.id as typeof advancedTab)}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
-                    advancedTab === tab.id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <div className="p-4">
-              {advancedTab === "predictive" ? (
-                <PredictiveOutagePanel customers={customers} />
-              ) : (
-                <HardshipTriagePanel
-                  customers={customers}
-                  onCustomerUpdate={(updated) => {
-                    setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
-                    if (selected?.id === updated.id) setSelected(updated);
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Help Modal */}
       {showShortcutsHelp && (
@@ -530,6 +538,8 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
   );
 }
 
+/* ── Helpers ────────────────────────────── */
+
 function riskColor(level: string) {
   if (level === "High") return "text-destructive";
   if (level === "Medium") return "text-warning";
@@ -542,6 +552,15 @@ function hftdColor(tier: string) {
   return "text-muted-foreground";
 }
 
+function CompactDetail({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="py-1.5">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className={`text-sm font-semibold ${color ?? "text-card-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
 function DetailCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string; color?: string }) {
   return (
     <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
@@ -552,15 +571,6 @@ function DetailCard({ icon: Icon, label, value, color }: { icon: React.ElementTy
         <p className="text-xs text-muted-foreground font-medium">{label}</p>
         <p className="text-sm font-bold text-card-foreground">{value}</p>
       </div>
-    </div>
-  );
-}
-
-function ProfileRow({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={`font-medium ${color || "text-foreground"}`}>{value}</dd>
     </div>
   );
 }
