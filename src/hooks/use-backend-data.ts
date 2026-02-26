@@ -55,9 +55,12 @@ export const useCircuitIgnitionRisk = (params?: CircuitIgnitionParams) =>
 export const useBriefing = (date?: string) =>
   useQuery({
     queryKey: ["briefing", date],
-    queryFn: () => getBriefing(date),
+    queryFn: () => getBriefing(date).catch((e: Error) => {
+      if (e.message.includes("404")) return null;
+      throw e;
+    }),
     staleTime: STALE,
-    retry: 1,
+    retry: (count, error) => !String(error).includes("404") && count < 1,
   });
 
 export const useGenerateBriefing = () => {
@@ -72,9 +75,12 @@ export const useGenerateBriefing = () => {
 export const usePspsWatchlist = (params?: { watchlist_date?: string; horizon?: string }) =>
   useQuery({
     queryKey: ["psps-watchlist", params],
-    queryFn: () => getPspsWatchlist(params),
+    queryFn: () => getPspsWatchlist(params).catch((e: Error) => {
+      if (e.message.includes("404")) return null;
+      throw e;
+    }),
     staleTime: STALE,
-    retry: 1,
+    retry: (count, error) => !String(error).includes("404") && count < 1,
   });
 
 export const useGenerateWatchlist = () => {
