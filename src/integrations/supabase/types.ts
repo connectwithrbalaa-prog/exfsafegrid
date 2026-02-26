@@ -313,6 +313,39 @@ export type Database = {
         }
         Relationships: []
       }
+      risk_thresholds: {
+        Row: {
+          band_name: string
+          color_hex: string
+          display_order: number
+          id: string
+          min_probability: number
+          model_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          band_name: string
+          color_hex?: string
+          display_order?: number
+          id?: string
+          min_probability: number
+          model_name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          band_name?: string
+          color_hex?: string
+          display_order?: number
+          id?: string
+          min_probability?: number
+          model_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
