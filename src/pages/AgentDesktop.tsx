@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import AgentView from "@/components/AgentView";
 import { useCustomer } from "@/hooks/use-customer";
-import { LogOut, Presentation, HardHat, Moon, Sun } from "lucide-react";
+import { Presentation, HardHat, Moon, Sun } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import TopNav from "@/components/TopNav";
 
@@ -48,14 +48,6 @@ export default function AgentDesktop() {
             >
               <HardHat className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Field</span>
-            </button>
-            <div className="w-px h-5 bg-border mx-1" />
-            <button
-              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
