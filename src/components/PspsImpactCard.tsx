@@ -137,9 +137,36 @@ export default function PspsImpactCard({ customer }: Props) {
               <Clock className="w-3 h-3 text-muted-foreground" />
               <p className="text-[10px] text-muted-foreground font-medium">Expected Outage Window</p>
             </div>
-            <p className={`text-sm font-bold mt-1 ${outageWindow ? "text-card-foreground" : "text-muted-foreground"}`}>
-              {outageWindow ?? "N/A"}
-            </p>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className={`text-sm font-bold mt-1 cursor-help ${outageWindow ? "text-card-foreground" : "text-muted-foreground"}`}>
+                    {outageWindow ?? "N/A"}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[240px] space-y-1.5 p-3">
+                  <p className="text-[11px] font-semibold text-popover-foreground">How This Is Estimated</p>
+                  <ul className="space-y-0.5 text-[10px] text-muted-foreground">
+                    <li className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
+                      Grid Stress: {customer.grid_stress_level}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
+                      {customer.grid_stress_level === "High"
+                        ? "High stress → wider window (14:00–22:00)"
+                        : customer.grid_stress_level === "Medium"
+                          ? "Medium stress → moderate window (16:00–20:00)"
+                          : "Low stress → narrow window (18:00–21:00)"}
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
+                      {outageWindow ? "Based on peak fire-weather hours" : "No active event — no window projected"}
+                    </li>
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="px-3 py-2.5 rounded-lg border border-border bg-muted/20">
             <div className="flex items-center gap-1.5">
