@@ -12,6 +12,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import TopNav from "@/components/TopNav";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 interface ZipStatus {
   zip_code: string;
@@ -112,8 +113,26 @@ export default function PspsStatus() {
 
   const gcfg = GLOBAL_STYLE[globalStatus];
 
+  const { pullDistance, isRefreshing: pullRefreshing } = usePullToRefresh({
+    onRefresh: fetchStatuses,
+    enabled: isMobile,
+  });
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 relative">
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-transform"
+          style={{ transform: `translateY(${pullDistance - 40}px)` }}
+        >
+          <div className="w-9 h-9 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+            <RefreshCw className={`w-4 h-4 text-blue-500 ${pullRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: pullRefreshing ? undefined : `rotate(${pullDistance * 3}deg)` }}
+            />
+          </div>
+        </div>
+      )}
       <TopNav />
 
       {/* Global status — compact on mobile */}

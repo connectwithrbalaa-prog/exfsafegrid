@@ -14,6 +14,7 @@ import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useCustomer } from "@/hooks/use-customer";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 interface GpsPos { lat: number; lng: number; accuracy: number; timestamp: number }
 
@@ -85,6 +86,23 @@ export default function FieldCrewApp() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const watchRef = useRef<number | null>(null);
+
+  const refreshFeed = useCallback(async () => {
+    const { data } = await supabase.from("hazard_reports").select("*").order("created_at", { ascending: false }).limit(20);
+    if (data) {
+      setSubmissions(data.map((r: any) => ({
+        id: r.id, type: r.hazard_type || "Unknown", description: r.description || "",
+        lat: r.latitude || 0, lng: r.longitude || 0, submitted_at: new Date(r.created_at), synced: true,
+        photo_url: r.photo_url || null,
+      })));
+    }
+    toast.success("Feed refreshed");
+  }, []);
+
+  const { pullDistance, isRefreshing: pullRefreshing } = usePullToRefresh({
+    onRefresh: refreshFeed,
+    enabled: true,
+  });
 
   const completedCount = items.filter((i) => i.completed).length;
   const progress = Math.round((completedCount / items.length) * 100);
@@ -234,7 +252,20 @@ export default function FieldCrewApp() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white select-none">
+    <div className="min-h-screen bg-gray-950 text-white select-none relative">
+      {/* Pull-to-refresh indicator */}
+      {pullDistance > 0 && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-transform"
+          style={{ transform: `translateY(${pullDistance - 40}px)` }}
+        >
+          <div className="w-9 h-9 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
+            <RefreshCw className={`w-4 h-4 text-orange-400 ${pullRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: pullRefreshing ? undefined : `rotate(${pullDistance * 3}deg)` }}
+            />
+          </div>
+        </div>
+      )}
       <TopNav variant="dark" />
 
       {/* Compact status strip */}
