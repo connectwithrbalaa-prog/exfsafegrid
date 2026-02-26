@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -18,11 +19,18 @@ import AfterActionReport from "@/components/AfterActionReport";
 import ComplianceDashboard from "@/components/ComplianceDashboard";
 import VegetationRiskPanel from "@/components/VegetationRiskPanel";
 import SmsAlertsPanel from "@/components/SmsAlertsPanel";
+import BackendOpsPanel from "@/components/BackendOpsPanel";
+import RiskAlertsPanel from "@/components/RiskAlertsPanel";
+import CircuitOutagePanel from "@/components/CircuitOutagePanel";
+import RiskThresholdSettings from "@/components/RiskThresholdSettings";
+import FieldOpsPanel from "@/components/FieldOpsPanel";
 import DailyBriefingPanel from "@/components/DailyBriefingPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
+import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
+import TopNav from "@/components/TopNav";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -137,8 +145,8 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "briefing">("assets");
-  const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string }[]>([]);
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds" | "field-ops" | "briefing">("assets");
+  const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
   const [hftdFilter, setHftdFilter] = useState<string>("All");
@@ -149,10 +157,121 @@ export default function CommandCenter() {
   const weatherMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [showSpreadPrediction, setShowSpreadPrediction] = useState(false);
   const spreadMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const [showIgnitionHeatmap, setShowIgnitionHeatmap] = useState(false);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const fireHistoryRef = useRef<Map<string, number>>(new Map());
+
+  // Backend ML predictions
+  const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
+  const psaRiskQuery = usePsaRisk({ limit: 500 });
+
+
+  // Build lookup maps: circuit_id → prediction data
+  const circuitRiskMap = useMemo(() => {
+    const map = new Map<string, { prob: number; band: string }>();
+    if (circuitRiskQuery.data?.results) {
+      for (const r of circuitRiskQuery.data.results) {
+        map.set(r.circuit_id, { prob: r.prob_spike, band: r.risk_band });
+      }
+    }
+    return map;
+  }, [circuitRiskQuery.data]);
+
+  const psaRiskMap = useMemo(() => {
+    const map = new Map<string, { prob: number; bucket: string }>();
+    if (psaRiskQuery.data?.results) {
+      for (const r of psaRiskQuery.data.results) {
+        map.set(r.circuit_id, { prob: r.prob_above_normal, bucket: r.risk_bucket });
+      }
+    }
+    return map;
+  }, [psaRiskQuery.data]);
+
+  // Asset name lookup for alerts panel
+  const assetNamesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const ss of SUBSTATIONS) map.set(ss.id, ss.name);
+    for (const tl of TRANSMISSION_LINES) map.set(tl.id, tl.name);
+    return map;
+  }, []);
+
+  // Global breach detection → toast notifications + audio alerts
+  const globalBreachRef = useRef<Set<string>>(new Set());
+  const [riskThreshold] = useState(0.5);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const playAlertTone = useCallback((critical: boolean) => {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+
+      // Two-tone urgent beep pattern
+      const freqs = critical ? [880, 1100, 880] : [660, 880];
+      const beepDur = critical ? 0.12 : 0.15;
+      const gap = 0.06;
+
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = critical ? "square" : "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * (beepDur + gap));
+        gain.gain.linearRampToValueAtTime(0.15, now + i * (beepDur + gap) + 0.01);
+        gain.gain.setValueAtTime(0.15, now + i * (beepDur + gap) + beepDur - 0.02);
+        gain.gain.linearRampToValueAtTime(0, now + i * (beepDur + gap) + beepDur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + i * (beepDur + gap));
+        osc.stop(now + i * (beepDur + gap) + beepDur);
+      });
+    } catch (_) { /* AudioContext not available */ }
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    if (circuitRiskMap.size === 0) return;
+
+    const newBreaches: { name: string; prob: number; band: string }[] = [];
+    const currentSet = new Set<string>();
+    let hasCritical = false;
+
+    circuitRiskMap.forEach(({ prob, band }, circuitId) => {
+      if (prob >= riskThreshold) {
+        currentSet.add(circuitId);
+        if (!globalBreachRef.current.has(circuitId)) {
+          newBreaches.push({ name: assetNamesMap.get(circuitId) || circuitId, prob, band });
+          if (prob >= 0.75) hasCritical = true;
+        }
+      }
+    });
+
+    globalBreachRef.current = currentSet;
+
+    if (newBreaches.length > 0) {
+      // Play sound for critical breaches (≥75%)
+      if (hasCritical) playAlertTone(true);
+      else playAlertTone(false);
+
+      if (newBreaches.length <= 5) {
+        newBreaches.forEach((b) => {
+          const isCrit = b.prob >= 0.75;
+          (isCrit ? toast.error : toast.warning)(
+            `${isCrit ? "🔴" : "⚡"} ${b.name} — ${(b.prob * 100).toFixed(0)}% ignition risk (${b.band})`,
+            { duration: isCrit ? 12000 : 8000, description: isCrit ? "CRITICAL: Immediate attention required" : "Circuit risk threshold exceeded" }
+          );
+        });
+      } else {
+        toast.warning(`⚡ ${newBreaches.length} circuits exceeded ${(riskThreshold * 100).toFixed(0)}% ignition risk`, {
+          duration: 8000,
+          description: `Highest: ${newBreaches[0].name} at ${(newBreaches[0].prob * 100).toFixed(0)}%`,
+        });
+      }
+    }
+  }, [circuitRiskMap, riskThreshold, assetNamesMap, playAlertTone]);
+
 
   /* ── Fetch ──────────────────────────────────────────────── */
 
@@ -185,7 +304,7 @@ export default function CommandCenter() {
   // Fetch customers for HFTD distribution
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("customers").select("hftd_tier, zip_code");
+      const { data } = await supabase.from("customers").select("hftd_tier, zip_code, medical_baseline, has_portable_battery, has_permanent_battery");
       if (data) setCustomers(data);
     })();
   }, []);
@@ -300,6 +419,115 @@ export default function CommandCenter() {
     });
   }, [showSpreadPrediction, fires, weatherData]);
 
+  // Ignition risk heatmap layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const SOURCE_ID = "ignition-heatmap-src";
+    const LAYER_ID = "ignition-heatmap-layer";
+
+    // Remove existing layer/source
+    if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
+    if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+
+    if (!showIgnitionHeatmap || circuitRiskMap.size === 0) return;
+
+    // Build GeoJSON from substations + their ignition risk probabilities
+    const features: GeoJSON.Feature[] = [];
+    for (const ss of SUBSTATIONS) {
+      const risk = circuitRiskMap.get(ss.id);
+      if (risk) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [ss.longitude, ss.latitude] },
+          properties: { prob: risk.prob, band: risk.band, name: ss.name },
+        });
+      }
+    }
+    // Also add transmission line midpoints
+    for (const tl of TRANSMISSION_LINES) {
+      const risk = circuitRiskMap.get(tl.id);
+      if (risk && tl.coordinates.length > 0) {
+        const mid = tl.coordinates[Math.floor(tl.coordinates.length / 2)];
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: mid },
+          properties: { prob: risk.prob, band: risk.band, name: tl.name },
+        });
+      }
+    }
+
+    if (features.length === 0) return;
+
+    map.addSource(SOURCE_ID, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features },
+    });
+
+    map.addLayer({
+      id: LAYER_ID,
+      type: "heatmap",
+      source: SOURCE_ID,
+      paint: {
+        "heatmap-weight": ["get", "prob"],
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 2.5],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 30, 12, 60, 14, 80],
+        "heatmap-color": [
+          "interpolate", ["linear"], ["heatmap-density"],
+          0, "rgba(0,0,0,0)",
+          0.15, "rgba(253,240,148,0.4)",
+          0.35, "rgba(252,186,3,0.55)",
+          0.55, "rgba(249,115,22,0.7)",
+          0.75, "rgba(220,38,38,0.8)",
+          1, "rgba(185,28,28,0.9)",
+        ],
+        "heatmap-opacity": 0.75,
+      },
+    });
+
+    // Clickable circle layer on top for inspect
+    const CIRCLE_LAYER = "ignition-heatmap-circles";
+    map.addLayer({
+      id: CIRCLE_LAYER,
+      type: "circle",
+      source: SOURCE_ID,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 8, 14, 14],
+        "circle-color": "transparent",
+        "circle-stroke-width": 0,
+      },
+    });
+
+    map.on("mouseenter", CIRCLE_LAYER, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", CIRCLE_LAYER, () => { map.getCanvas().style.cursor = ""; });
+
+    map.on("click", CIRCLE_LAYER, (e) => {
+      const f = e.features?.[0];
+      if (!f || !f.properties) return;
+      const { name, prob, band } = f.properties;
+      const pct = (prob * 100).toFixed(1);
+      const bandColor = band === "Critical" ? "#DC2626" : band === "High" ? "#F97316" : band === "Elevated" ? "#EAB308" : "#34D399";
+      const coords = (f.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+      new mapboxgl.Popup({ offset: 14, maxWidth: "220px" })
+        .setLngLat(coords)
+        .setHTML(
+          `<div style="font-family:system-ui;font-size:13px;color:#e2e8f0">
+            <div style="font-weight:700;color:${bandColor}">${name}</div>
+            <div style="margin-top:4px;font-size:12px;color:#94a3b8">
+              Ignition Probability: <b style="color:${bandColor}">${pct}%</b><br/>
+              Risk Band: <b style="color:${bandColor}">${band}</b>
+            </div>
+          </div>`
+        )
+        .addTo(map);
+    });
+
+    return () => {
+      if (map.getLayer(CIRCLE_LAYER)) map.removeLayer(CIRCLE_LAYER);
+    };
+  }, [showIgnitionHeatmap, circuitRiskMap]);
+
   /* ── Enrich fires relative to ALL assets ───────────────── */
 
   const enriched = useMemo<EnrichedFire[]>(() => {
@@ -394,11 +622,19 @@ export default function CommandCenter() {
         cmp = da - db;
       } else if (col === "name") {
         cmp = a.name.localeCompare(b.name);
+      } else if (col === "ignition") {
+        const ia = circuitRiskMap.get(a.id)?.prob ?? -1;
+        const ib = circuitRiskMap.get(b.id)?.prob ?? -1;
+        cmp = ia - ib;
+      } else if (col === "psa") {
+        const pa = psaRiskMap.get(a.id)?.prob ?? -1;
+        const pb = psaRiskMap.get(b.id)?.prob ?? -1;
+        cmp = pa - pb;
       }
       return desc ? -cmp : cmp;
     });
     return filtered;
-  }, [assetRisks, assetSort, ssHftdTiers, hftdFilter, riskFilter]);
+  }, [assetRisks, assetSort, ssHftdTiers, hftdFilter, riskFilter, circuitRiskMap, psaRiskMap]);
 
   /* ── Map ────────────────────────────────────────────────── */
 
@@ -697,6 +933,7 @@ export default function CommandCenter() {
 
   return (
     <div className="min-h-screen bg-[hsl(220,25%,6%)] text-[hsl(210,40%,93%)]">
+      <TopNav variant="dark" />
       {/* Header */}
       <header className="border-b border-white/[0.08] bg-[hsl(220,25%,8%)]">
         <div className="max-w-[1600px] mx-auto px-6 flex items-center justify-between h-14">
@@ -877,6 +1114,29 @@ export default function CommandCenter() {
                 <Flame className="w-3 h-3" />
                 Spread
               </button>
+              <button
+                onClick={() => setShowIgnitionHeatmap(!showIgnitionHeatmap)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  showIgnitionHeatmap
+                    ? "bg-orange-500/15 border-orange-500/30 text-orange-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+              >
+                <Activity className="w-3 h-3" />
+                Ignition Risk
+              </button>
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                  soundEnabled
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                }`}
+                title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+              >
+                {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                Sound
+              </button>
             </div>
             <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
               <span className="flex items-center gap-1.5">
@@ -932,143 +1192,104 @@ export default function CommandCenter() {
                 <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
               </div>
             )}
+            {showIgnitionHeatmap && (
+              <div className="absolute bottom-3 left-3 z-[900] rounded-lg border border-white/10 bg-black/80 backdrop-blur-sm px-3 py-2.5 text-[10px] font-medium text-white/70">
+                <div className="mb-1.5 text-[11px] font-semibold text-orange-300 flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> Ignition Risk 24h
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>Low</span>
+                  <div className="h-2.5 w-32 rounded-sm" style={{
+                    background: "linear-gradient(to right, rgba(253,240,148,0.6), rgba(252,186,3,0.7), rgba(249,115,22,0.85), rgba(220,38,38,0.9), rgba(185,28,28,1))"
+                  }} />
+                  <span>Critical</span>
+                </div>
+                <div className="flex justify-between mt-1 text-[9px] text-white/40 w-full" style={{ paddingLeft: 22, paddingRight: 32 }}>
+                  <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ── Tabs: Grid Assets / HVRA Registry ─────────────── */}
         <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-4">
-            <button
-              onClick={() => setActiveTab("assets")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Zap className="w-4 h-4 text-blue-400" />
-              Grid Asset Status
-            </button>
-            <button
-              onClick={() => setActiveTab("hvra")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <MapPin className="w-4 h-4 text-purple-400" />
-              HVRA Registry
-            </button>
-            <button
-              onClick={() => setActiveTab("nvc")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
-              NVC Risk Scores
-            </button>
-            <button
-              onClick={() => setActiveTab("evac")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Route className="w-4 h-4 text-amber-400" />
-              Evacuation
-            </button>
-            <button
-              onClick={() => setActiveTab("resources")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Shield className="w-4 h-4 text-red-400" />
-              Resources
-            </button>
-            <button
-              onClick={() => setActiveTab("insurance")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "insurance" ? "border-teal-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <DollarSign className="w-4 h-4 text-teal-400" />
-              Insurance Risk
-            </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Clock className="w-4 h-4 text-orange-400" />
-              Fire History
-            </button>
-            <button
-              onClick={() => setActiveTab("behavior")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Flame className="w-4 h-4 text-rose-400" />
-              Fire Behavior
-            </button>
-            <button
-              onClick={() => setActiveTab("alerts")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Bell className="w-4 h-4 text-yellow-400" />
-              Community Alerts
-            </button>
-            <button
-              onClick={() => setActiveTab("sms")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Bell className="w-4 h-4 text-sky-400" />
-              SMS Alerts
-            </button>
-            <button
-              onClick={() => setActiveTab("after-action")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <FileText className="w-4 h-4 text-violet-400" />
-              After-Action
-            </button>
-            <button
-              onClick={() => setActiveTab("compliance")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Shield className="w-4 h-4 text-cyan-400" />
-              Compliance
-            </button>
-            <button
-              onClick={() => setActiveTab("vegetation")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <Activity className="w-4 h-4 text-green-400" />
-              Vegetation
-            </button>
-            <button
-              onClick={() => setActiveTab("briefing")}
-              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
-                activeTab === "briefing" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
-              }`}
-            >
-              <FileText className="w-4 h-4 text-red-400" />
-              Daily Briefing
-            </button>
+          <div className="relative border-b border-white/[0.06]">
+            <div className="px-5 py-3 flex items-center gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              <button onClick={() => setActiveTab("assets")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Zap className="w-4 h-4 text-blue-400" /> Grid Asset Status
+              </button>
+              <button onClick={() => setActiveTab("hvra")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <MapPin className="w-4 h-4 text-purple-400" /> HVRA Registry
+              </button>
+              <button onClick={() => setActiveTab("nvc")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <BarChart3 className="w-4 h-4 text-emerald-400" /> NVC Risk Scores
+              </button>
+              <button onClick={() => setActiveTab("evac")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Route className="w-4 h-4 text-amber-400" /> Evacuation
+              </button>
+              <button onClick={() => setActiveTab("resources")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Shield className="w-4 h-4 text-red-400" /> Resources
+              </button>
+              <button onClick={() => setActiveTab("insurance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "insurance" ? "border-teal-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <DollarSign className="w-4 h-4 text-teal-400" /> Insurance Risk
+              </button>
+              <button onClick={() => setActiveTab("history")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Clock className="w-4 h-4 text-orange-400" /> Fire History
+              </button>
+              <button onClick={() => setActiveTab("behavior")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Flame className="w-4 h-4 text-rose-400" /> Fire Behavior
+              </button>
+              <button onClick={() => setActiveTab("alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Bell className="w-4 h-4 text-yellow-400" /> Community Alerts
+              </button>
+              <button onClick={() => setActiveTab("sms")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Bell className="w-4 h-4 text-sky-400" /> SMS Alerts
+              </button>
+              <button onClick={() => setActiveTab("after-action")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <FileText className="w-4 h-4 text-violet-400" /> After-Action
+              </button>
+              <button onClick={() => setActiveTab("compliance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Shield className="w-4 h-4 text-cyan-400" /> Compliance
+              </button>
+              <button onClick={() => setActiveTab("vegetation")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Activity className="w-4 h-4 text-green-400" /> Vegetation
+              </button>
+              <button onClick={() => setActiveTab("backend")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "backend" ? "border-indigo-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Server className="w-4 h-4 text-indigo-400" /> Backend Ops
+              </button>
+              <button onClick={() => setActiveTab("risk-alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <AlertTriangle className="w-4 h-4 text-orange-400" /> Risk Alerts
+              </button>
+              <button onClick={() => setActiveTab("outage")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
+              </button>
+              <button onClick={() => setActiveTab("field-ops")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "field-ops" ? "border-lime-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Shield className="w-4 h-4 text-lime-400" /> Field Ops
+              </button>
+              <button onClick={() => setActiveTab("thresholds")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Settings className="w-4 h-4 text-amber-400" /> Thresholds
+              </button>
+              <button onClick={() => setActiveTab("briefing")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "briefing" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <FileText className="w-4 h-4 text-red-400" /> Daily Briefing
+              </button>
+            </div>
+            {/* Right fade gradient scroll indicator */}
+            <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none bg-gradient-to-l from-[hsl(220,25%,9%)] to-transparent" />
           </div>
 
           {activeTab === "assets" ? (
             <>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-b border-white/[0.06]">
+                {sortedAssetRisks.length > 0 && (
+                  <button
+                    onClick={() => downloadCsv(formatAssetRiskCsv(sortedAssetRisks), `grid-asset-risk-rankings.csv`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors ml-auto order-last"
+                  >
+                    <Download className="w-3 h-3" />
+                    Export CSV
+                  </button>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">HFTD:</span>
                   {["All", "Tier 3", "Tier 2", "Tier 1", "None"].map((tier) => {
@@ -1139,6 +1360,8 @@ export default function CommandCenter() {
                         { key: "hftd", label: "HFTD Tier" },
                         { key: "fire", label: "Nearest Fire" },
                         { key: "risk", label: "Risk Level" },
+                        { key: "ignition", label: "Ignition Risk 24h" },
+                        { key: "psa", label: "PSA Risk" },
                         { key: "", label: "Trend" },
                         { key: "", label: "Recommended Action" },
                       ] as { key: string; label: string }[]).map((h) => (
@@ -1161,7 +1384,7 @@ export default function CommandCenter() {
                     {sortedAssetRisks.map((a) => {
                       const ssData = SUBSTATIONS.find((s) => s.id === a.id);
                       return (
-                        <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                        <tr key={a.id} className={`transition-colors ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
                           <td className="px-5 py-3 font-medium">{a.name}</td>
                           <td className="px-5 py-3 text-white/50">
                             <span className="inline-flex items-center gap-1">
@@ -1191,6 +1414,39 @@ export default function CommandCenter() {
                             <RiskBadge risk={a.risk} />
                           </td>
                           <td className="px-5 py-3">
+                            {(() => {
+                              const cr = circuitRiskMap.get(a.id);
+                              if (!cr) return <span className="text-white/20 text-xs">—</span>;
+                              const pct = (cr.prob * 100).toFixed(1);
+                              const color = cr.band === "CRITICAL" ? "bg-red-500/20 text-red-300" :
+                                cr.band === "HIGH" ? "bg-orange-500/15 text-orange-300" :
+                                cr.band === "ELEVATED" ? "bg-amber-500/15 text-amber-300" :
+                                "bg-emerald-500/15 text-emerald-300";
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>
+                                  {pct}% <span className="text-[9px] font-normal opacity-70">{cr.band}</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-5 py-3">
+                            {(() => {
+                              const pr = psaRiskMap.get(a.id);
+                              if (!pr) return <span className="text-white/20 text-xs">—</span>;
+                              const pct = (pr.prob * 100).toFixed(0);
+                              const color = pr.bucket === "CRITICAL" ? "text-red-400" :
+                                pr.bucket === "HIGH" ? "text-orange-400" :
+                                pr.bucket === "ELEVATED" ? "text-amber-400" :
+                                "text-emerald-400";
+                              return (
+                                <span className="text-xs">
+                                  <span className={`font-bold ${color}`}>{pct}%</span>
+                                  <span className="text-white/30 ml-1">{pr.bucket}</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-5 py-3">
                             <TrendBadge trend={a.trend} />
                           </td>
                           <td className="px-5 py-3">
@@ -1203,7 +1459,7 @@ export default function CommandCenter() {
                 </table>
               </div>
               <div className="px-5 py-2 border-t border-white/[0.04] text-[10px] text-white/20">
-                Risk calculated from fire proximity, intensity (FRP), and approach trend
+                Risk calculated from fire proximity, intensity (FRP), approach trend · ML columns from backend (Ignition Spike 24h, PSA Activity Risk)
               </div>
             </>
           ) : activeTab === "hvra" ? (
@@ -1250,13 +1506,33 @@ export default function CommandCenter() {
             <div className="p-5">
               <ComplianceDashboard />
             </div>
-          ) : activeTab === "vegetation" ? (
+           ) : activeTab === "backend" ? (
             <div className="p-5">
-              <VegetationRiskPanel />
+              <BackendOpsPanel />
+            </div>
+          ) : activeTab === "risk-alerts" ? (
+            <div className="p-5">
+              <RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} />
+            </div>
+          ) : activeTab === "outage" ? (
+            <div className="p-5">
+              <CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} />
+            </div>
+          ) : activeTab === "field-ops" ? (
+            <div className="p-5">
+              <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />
+            </div>
+          ) : activeTab === "thresholds" ? (
+            <div className="p-5">
+              <RiskThresholdSettings />
+            </div>
+          ) : activeTab === "briefing" ? (
+            <div className="p-5">
+              <DailyBriefingPanel />
             </div>
           ) : (
             <div className="p-5">
-              <DailyBriefingPanel />
+              <VegetationRiskPanel />
             </div>
           )}
         </div>
