@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ChatPanel from "@/components/ChatPanel";
 import CustomerRequestForms from "@/components/CustomerRequestForms";
@@ -15,6 +15,7 @@ import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 
 export default function CustomerPortal() {
   const { customer, setCustomer, setRole, setAgentEmail } = useCustomer();
@@ -22,10 +23,6 @@ export default function CustomerPortal() {
   const isMobile = useIsMobile();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"home" | "map" | "chat" | "services">("home");
-
-  useEffect(() => {
-    if (!customer) navigate("/login", { replace: true });
-  }, [customer, navigate]);
 
   const refreshData = useCallback(async () => {
     if (!customer) return;
@@ -40,6 +37,16 @@ export default function CustomerPortal() {
     setCustomer(data as unknown as Customer);
     toast.success("Data refreshed");
   }, [customer, setCustomer]);
+
+  const { pullDistance, isRefreshing: pullRefreshing } = usePullToRefresh({
+    onRefresh: refreshData,
+    enabled: isMobile,
+  });
+
+  useEffect(() => {
+    if (!customer) navigate("/login", { replace: true });
+  }, [customer, navigate]);
+
 
   if (!customer) return null;
 
@@ -65,7 +72,20 @@ export default function CustomerPortal() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Pull-to-refresh indicator */}
+      {isMobile && pullDistance > 0 && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center transition-transform"
+          style={{ transform: `translateY(${pullDistance - 40}px)` }}
+        >
+          <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <RefreshCw className={`w-4 h-4 text-primary ${pullRefreshing ? "animate-spin" : ""}`}
+              style={{ transform: pullRefreshing ? undefined : `rotate(${pullDistance * 3}deg)` }}
+            />
+          </div>
+        </div>
+      )}
       <TopNav />
 
       {/* Compact Header */}
