@@ -2,64 +2,14 @@
  * DailyBriefingPanel — renders the Claude-generated ops briefing as a
  * formatted document rather than raw JSON/markdown text.
  *
- * Fetches markdown_text from GET /briefing and converts it to readable HTML
- * using a lightweight inline renderer — no external markdown library needed.
+ * Fetches markdown_text from GET /briefing and converts it to readable HTML.
+ * Styles live in src/index.css (.briefing-doc).
  */
 
 import { useState } from "react";
 import { useDailyBriefing } from "@/hooks/use-api";
+import { renderMarkdown } from "@/lib/render-markdown";
 import { RefreshCw, FileText, Calendar, Cpu, AlertCircle } from "lucide-react";
-
-/* ── Simple markdown → HTML converter ───────────────────────── */
-
-function mdToHtml(md: string): string {
-  const lines = md.split("\n");
-  const out: string[] = [];
-  let inList: "ul" | "ol" | null = null;
-
-  const closeList = () => {
-    if (inList === "ul") { out.push("</ul>"); inList = null; }
-    if (inList === "ol") { out.push("</ol>"); inList = null; }
-  };
-
-  const inline = (s: string) =>
-    s
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/`(.+?)`/g, "<code>$1</code>");
-
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-
-    if (line.startsWith("# ")) {
-      closeList();
-      out.push(`<h1>${inline(line.slice(2))}</h1>`);
-    } else if (line.startsWith("## ")) {
-      closeList();
-      out.push(`<h2>${inline(line.slice(3))}</h2>`);
-    } else if (line.startsWith("### ")) {
-      closeList();
-      out.push(`<h3>${inline(line.slice(4))}</h3>`);
-    } else if (/^\d+\.\s/.test(line)) {
-      if (inList !== "ol") { closeList(); out.push("<ol>"); inList = "ol"; }
-      out.push(`<li>${inline(line.replace(/^\d+\.\s/, ""))}</li>`);
-    } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      if (inList !== "ul") { closeList(); out.push("<ul>"); inList = "ul"; }
-      out.push(`<li>${inline(line.slice(2))}</li>`);
-    } else if (line === "---" || line === "***") {
-      closeList();
-      out.push("<hr/>");
-    } else if (line.trim() === "") {
-      closeList();
-      out.push("<br/>");
-    } else {
-      closeList();
-      out.push(`<p>${inline(line)}</p>`);
-    }
-  }
-  closeList();
-  return out.join("\n");
-}
 
 /* ── Component ────────────────────────────────────────────────── */
 
@@ -75,7 +25,7 @@ export default function DailyBriefingPanel() {
     setQueriedDate(v || undefined);
   };
 
-  const bodyHtml = data?.markdown_text ? mdToHtml(data.markdown_text) : "";
+  const bodyHtml = data?.markdown_text ? renderMarkdown(data.markdown_text) : "";
 
   return (
     <div className="space-y-4">
@@ -151,20 +101,6 @@ export default function DailyBriefingPanel() {
         </div>
       )}
 
-      <style>{`
-        .briefing-doc { font-family: Georgia, 'Times New Roman', serif; color: rgba(255,255,255,0.88); line-height: 1.75; max-width: 820px; }
-        .briefing-doc h1 { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; border-bottom: 2px solid rgba(220,38,38,0.5); padding-bottom: 8px; margin: 0 0 1rem; }
-        .briefing-doc h2 { font-size: 1.05rem; font-weight: 700; color: #bfdbfe; border-left: 3px solid rgba(220,38,38,0.7); padding-left: 10px; margin: 1.6rem 0 0.6rem; }
-        .briefing-doc h3 { font-size: 0.95rem; font-weight: 600; color: #e2e8f0; margin: 1.2rem 0 0.4rem; }
-        .briefing-doc p { margin: 0.4rem 0; font-size: 0.9rem; }
-        .briefing-doc ul, .briefing-doc ol { padding-left: 1.5rem; margin: 0.5rem 0; }
-        .briefing-doc li { margin-bottom: 0.35rem; font-size: 0.9rem; }
-        .briefing-doc strong { color: #f1f5f9; font-weight: 700; }
-        .briefing-doc em { color: rgba(255,255,255,0.45); font-style: italic; font-size: 0.82rem; }
-        .briefing-doc code { background: rgba(255,255,255,0.08); border-radius: 4px; padding: 1px 5px; font-family: monospace; font-size: 0.82rem; color: #93c5fd; }
-        .briefing-doc hr { border: none; border-top: 1px solid rgba(255,255,255,0.10); margin: 1.5rem 0; }
-        .briefing-doc br { display: block; margin: 0.2rem 0; content: ''; }
-      `}</style>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User } from "lucide-react";
 import { streamAgentChat } from "@/lib/agent-chat-stream";
 import { toast } from "sonner";
+import { renderMarkdown } from "@/lib/render-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -92,15 +93,16 @@ export default function AgentChatPanel({ customerContext }: AgentChatPanelProps)
                 <Bot className="w-3 h-3 text-muted-foreground" />
               </div>
             )}
-            <div
-              className={`max-w-[90%] px-2.5 py-1.5 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
-                m.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
-                  : "bg-muted text-foreground rounded-bl-sm"
-              }`}
-            >
-              {m.content}
-            </div>
+            {m.role === "assistant" ? (
+              <div
+                className="max-w-[90%] px-2.5 py-1.5 rounded-xl rounded-bl-sm text-xs leading-relaxed bg-muted text-foreground chat-md"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+              />
+            ) : (
+              <div className="max-w-[90%] px-2.5 py-1.5 rounded-xl rounded-br-sm text-xs leading-relaxed whitespace-pre-wrap bg-primary text-primary-foreground">
+                {m.content}
+              </div>
+            )}
           </div>
         ))}
 

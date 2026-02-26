@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Flame, Zap, DollarSign, Heart, Activity } from "lucide-react";
 import { streamChat } from "@/lib/chat-stream";
 import { toast } from "sonner";
+import { renderMarkdown } from "@/lib/render-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -111,15 +112,16 @@ export default function ChatPanel({ customerContext }: ChatPanelProps) {
                 <Bot className="w-3 h-3 text-muted-foreground" />
               </div>
             )}
-            <div
-              className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                m.role === "user"
-                  ? "bg-chat-user text-chat-user-foreground rounded-br-md"
-                  : "bg-chat-bot text-chat-bot-foreground rounded-bl-md"
-              }`}
-            >
-              {m.content}
-            </div>
+            {m.role === "assistant" ? (
+              <div
+                className="max-w-[80%] px-3 py-2 rounded-2xl rounded-bl-md text-sm leading-relaxed bg-chat-bot text-chat-bot-foreground chat-md"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(m.content) }}
+              />
+            ) : (
+              <div className="max-w-[80%] px-3 py-2 rounded-2xl rounded-br-md text-sm leading-relaxed whitespace-pre-wrap bg-chat-user text-chat-user-foreground">
+                {m.content}
+              </div>
+            )}
             {m.role === "user" && (
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary flex items-center justify-center mt-0.5">
                 <User className="w-3 h-3 text-primary-foreground" />
