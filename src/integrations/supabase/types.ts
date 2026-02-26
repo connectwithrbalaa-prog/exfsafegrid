@@ -95,6 +95,47 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_id: string
+          id: string
+          message: string | null
+          sent_at: string
+          status: string
+          type: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          message?: string | null
+          sent_at?: string
+          status?: string
+          type?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          message?: string | null
+          sent_at?: string
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_notifications_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_requests: {
         Row: {
           agent_response: string | null
