@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -28,6 +28,7 @@ import CircuitOutagePanel from "@/components/CircuitOutagePanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
+import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import TopNav from "@/components/TopNav";
 import mapboxgl from "mapbox-gl";
@@ -1389,6 +1390,15 @@ export default function CommandCenter() {
           {activeTab === "assets" ? (
             <>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-b border-white/[0.06]">
+                {sortedAssetRisks.length > 0 && (
+                  <button
+                    onClick={() => downloadCsv(formatAssetRiskCsv(sortedAssetRisks), `grid-asset-risk-rankings.csv`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors ml-auto order-last"
+                  >
+                    <Download className="w-3 h-3" />
+                    Export CSV
+                  </button>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">HFTD:</span>
                   {["All", "Tier 3", "Tier 2", "Tier 1", "None"].map((tier) => {
