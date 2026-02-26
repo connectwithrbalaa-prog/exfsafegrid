@@ -146,6 +146,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [section, setSection] = useState<"overview" | "operations" | "risk">("overview");
   const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds" | "field-ops">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
@@ -986,557 +987,283 @@ export default function CommandCenter() {
       </header>
 
       <main className="max-w-[1600px] mx-auto px-6 py-5 space-y-5">
-        {/* ── Breadcrumb Navigation ───────────────────────── */}
-        <nav className="flex items-center gap-2 text-xs text-white/50 mb-2">
-          <button
-            onClick={() => navigate("/")}
-            className="hover:text-white/80 transition-colors"
-          >
-            Dashboard
-          </button>
-          <span className="text-white/30">/</span>
-          <span className="text-white/70">Command Center</span>
-        </nav>
-
-        {/* ── Executive Summary Cards ───────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <ExecCard
-            icon={<Activity className="w-5 h-5 text-orange-400" />}
-            label="Active Fires"
-            sublabel="within 50 km of assets"
-            value={loading ? "…" : String(enriched.length)}
-            loading={loading}
-          />
-          <ExecCard
-            icon={<Zap className="w-5 h-5 text-blue-400" />}
-            label="Assets at Risk"
-            sublabel="high or critical exposure"
-            value={loading ? "…" : String(assetsAtRisk)}
-            loading={loading}
-            highlight={assetsAtRisk > 0}
-          />
-          <ExecCard
-            icon={<AlertTriangle className="w-5 h-5 text-red-400" />}
-            label="Critical Alerts"
-            sublabel="requiring immediate action"
-            value={loading ? "…" : String(criticalCount)}
-            loading={loading}
-            highlight={criticalCount > 0}
-          />
-          <div className={`rounded-xl border p-4 flex flex-col justify-between ${gridCfg.bg}`}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`w-2.5 h-2.5 rounded-full ${gridCfg.dot}`} />
-              <span className="text-[10px] uppercase tracking-widest text-white/40 font-medium">Grid Status</span>
-            </div>
-            <span className={`text-xl font-bold ${gridCfg.color}`}>{loading ? "…" : gridCfg.label}</span>
-          </div>
+        {/* ── Top-level Section Tabs ─────────────────────────── */}
+        <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-lg p-1">
+          {([
+            { key: "overview" as const, label: "Overview", icon: Activity },
+            { key: "operations" as const, label: "Operations", icon: Shield },
+            { key: "risk" as const, label: "Risk & Planning", icon: BarChart3 },
+          ]).map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSection(s.key)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                section === s.key
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+              }`}
+            >
+              <s.icon className="w-4 h-4" />
+              {s.label}
+            </button>
+          ))}
         </div>
 
-        {/* ── HFTD Tier Distribution ────────────────────────── */}
-        {customers.length > 0 && (
-          <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-4 h-4 text-orange-400" />
-              <h2 className="text-sm font-semibold">Customer HFTD Tier Distribution</h2>
-              <span className="text-[10px] text-white/30 ml-2">{customers.length} customers</span>
+        {/* ════════════════ OVERVIEW ════════════════ */}
+        {section === "overview" && (
+          <>
+            {/* Executive Summary Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <ExecCard icon={<Activity className="w-5 h-5 text-orange-400" />} label="Active Fires" sublabel="within 50 km of assets" value={loading ? "…" : String(enriched.length)} loading={loading} />
+              <ExecCard icon={<Zap className="w-5 h-5 text-blue-400" />} label="Assets at Risk" sublabel="high or critical exposure" value={loading ? "…" : String(assetsAtRisk)} loading={loading} highlight={assetsAtRisk > 0} />
+              <ExecCard icon={<AlertTriangle className="w-5 h-5 text-red-400" />} label="Critical Alerts" sublabel="requiring immediate action" value={loading ? "…" : String(criticalCount)} loading={loading} highlight={criticalCount > 0} />
+              <div className={`rounded-xl border p-4 flex flex-col justify-between ${gridCfg.bg}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-2.5 h-2.5 rounded-full ${gridCfg.dot}`} />
+                  <span className="text-[10px] uppercase tracking-widest text-white/40 font-medium">Grid Status</span>
+                </div>
+                <span className={`text-xl font-bold ${gridCfg.color}`}>{loading ? "…" : gridCfg.label}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-8">
-              <div style={{ width: 160, height: 160 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={hftdDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={70}
-                      dataKey="value"
-                      strokeWidth={2}
-                      stroke="hsl(220,25%,9%)"
-                    >
-                      {hftdDistribution.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "hsl(220,25%,12%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#e2e8f0" }}
-                      formatter={(value: number, name: string) => [`${value} customers`, HFTD_TIER_CONFIG[name]?.label || name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex flex-col gap-2">
-                {hftdDistribution.map((d) => (
-                  <div key={d.name} className="flex items-center gap-3">
-                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
-                    <span className="text-xs text-white/60 w-28">{HFTD_TIER_CONFIG[d.name]?.label || d.name}</span>
-                    <span className="text-sm font-bold">{d.value}</span>
-                    <span className="text-[10px] text-white/30">
-                      ({customers.length > 0 ? Math.round((d.value / customers.length) * 100) : 0}%)
-                    </span>
+
+            {/* HFTD Distribution */}
+            {customers.length > 0 && (
+              <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-4 h-4 text-orange-400" />
+                  <h2 className="text-sm font-semibold">Customer HFTD Tier Distribution</h2>
+                  <span className="text-[10px] text-white/30 ml-2">{customers.length} customers</span>
+                </div>
+                <div className="flex items-center gap-8">
+                  <div style={{ width: 160, height: 160 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={hftdDistribution} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" strokeWidth={2} stroke="hsl(220,25%,9%)">
+                          {hftdDistribution.map((entry, i) => (<Cell key={i} fill={entry.color} />))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: "hsl(220,25%,12%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12, color: "#e2e8f0" }} formatter={(value: number, name: string) => [`${value} customers`, HFTD_TIER_CONFIG[name]?.label || name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
+                  <div className="flex flex-col gap-2">
+                    {hftdDistribution.map((d) => (
+                      <div key={d.name} className="flex items-center gap-3">
+                        <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
+                        <span className="text-xs text-white/60 w-28">{HFTD_TIER_CONFIG[d.name]?.label || d.name}</span>
+                        <span className="text-sm font-bold">{d.value}</span>
+                        <span className="text-[10px] text-white/30">({customers.length > 0 ? Math.round((d.value / customers.length) * 100) : 0}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Interactive Map */}
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-400" /> Operational Map
+                  </h2>
+                  <button onClick={() => setShowEvacRoutes(!showEvacRoutes)} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${showEvacRoutes ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300" : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"}`}>
+                    <Route className="w-3 h-3" /> Evac
+                  </button>
+                  <button onClick={() => setShowWeather(!showWeather)} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${showWeather ? "bg-sky-500/15 border-sky-500/30 text-sky-300" : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"}`}>
+                    <Cloud className="w-3 h-3" /> Weather
+                  </button>
+                  <button onClick={() => setShowSpreadPrediction(!showSpreadPrediction)} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${showSpreadPrediction ? "bg-rose-500/15 border-rose-500/30 text-rose-300" : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"}`}>
+                    <Flame className="w-3 h-3" /> Spread
+                  </button>
+                  <button onClick={() => setShowIgnitionHeatmap(!showIgnitionHeatmap)} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${showIgnitionHeatmap ? "bg-orange-500/15 border-orange-500/30 text-orange-300" : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"}`}>
+                    <Activity className="w-3 h-3" /> Ignition
+                  </button>
+                  <button onClick={() => setSoundEnabled(!soundEnabled)} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${soundEnabled ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300" : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"}`}>
+                    {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />} Sound
+                  </button>
+                </div>
+              </div>
+              <div style={{ height: 480 }} className="relative w-full">
+                <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
+                {loading && (
+                  <div className="absolute inset-0 z-[1000] bg-black/50 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
+                  </div>
+                )}
+                {showIgnitionHeatmap && (
+                  <div className="absolute bottom-3 left-3 z-[900] rounded-lg border border-white/10 bg-black/80 backdrop-blur-sm px-3 py-2.5 text-[10px] font-medium text-white/70">
+                    <div className="mb-1.5 text-[11px] font-semibold text-orange-300 flex items-center gap-1"><Activity className="w-3 h-3" /> Ignition Risk 24h</div>
+                    <div className="flex items-center gap-1.5">
+                      <span>Low</span>
+                      <div className="h-2.5 w-32 rounded-sm" style={{ background: "linear-gradient(to right, rgba(253,240,148,0.6), rgba(252,186,3,0.7), rgba(249,115,22,0.85), rgba(220,38,38,0.9), rgba(185,28,28,1))" }} />
+                      <span>Critical</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Grid Assets / Risk Alerts / Outage — sub-tabs */}
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] flex items-center gap-4">
+                <button onClick={() => setActiveTab("assets")} className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                  <Zap className="w-4 h-4 text-blue-400" /> Grid Assets
+                </button>
+                <button onClick={() => setActiveTab("risk-alerts")} className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                  <AlertTriangle className="w-4 h-4 text-orange-400" /> Risk Alerts
+                </button>
+                <button onClick={() => setActiveTab("outage")} className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                  <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
+                </button>
+              </div>
+              {activeTab === "assets" ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-b border-white/[0.06]">
+                    {sortedAssetRisks.length > 0 && (
+                      <button onClick={() => downloadCsv(formatAssetRiskCsv(sortedAssetRisks), `grid-asset-risk-rankings.csv`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors ml-auto order-last">
+                        <Download className="w-3 h-3" /> Export CSV
+                      </button>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">HFTD:</span>
+                      {["All", "Tier 3", "Tier 2", "Tier 1", "None"].map((tier) => {
+                        const isActive = hftdFilter === tier;
+                        const dotColor = tier === "All" ? undefined : HFTD_TIER_CONFIG[tier]?.color;
+                        return (
+                          <button key={tier} onClick={() => setHftdFilter(tier)} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${isActive ? "bg-white/10 border-white/20 text-white" : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"}`}>
+                            {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
+                            {tier === "All" ? "All" : tier}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <span className="text-white/10">|</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Risk:</span>
+                      {(["All", "Critical", "High", "Medium", "Low"] as string[]).map((level) => {
+                        const isActive = riskFilter === level;
+                        const dotColor = level === "All" ? undefined : RISK_COLORS[level as RiskLevel];
+                        return (
+                          <button key={level} onClick={() => setRiskFilter(level)} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${isActive ? "bg-white/10 border-white/20 text-white" : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"}`}>
+                            {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(hftdFilter !== "All" || riskFilter !== "All") && (
+                      <div className="flex items-center gap-2 ml-auto">
+                        <span className="text-[10px] text-white/30">{sortedAssetRisks.length} of {assetRisks.length} assets</span>
+                        <button onClick={() => { setHftdFilter("All"); setRiskFilter("All"); }} className="text-[10px] text-white/40 hover:text-white/70 underline transition-colors">Clear filters</button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
+                          {([
+                            { key: "name", label: "Asset" }, { key: "", label: "Type" }, { key: "", label: "kV" },
+                            { key: "", label: "Cap" }, { key: "", label: "Zone" }, { key: "hftd", label: "HFTD" },
+                            { key: "fire", label: "Fire Dist" }, { key: "risk", label: "Risk" },
+                            { key: "ignition", label: "Ign 24h" }, { key: "psa", label: "PSA" },
+                            { key: "", label: "Trend" }, { key: "", label: "Action" },
+                          ] as { key: string; label: string }[]).map((h) => (
+                            <th key={h.label} className={`px-4 py-3 font-medium ${h.key ? "cursor-pointer hover:text-white/60 select-none" : ""}`} onClick={h.key ? () => setAssetSort((prev) => ({ col: h.key, desc: prev.col === h.key ? !prev.desc : true })) : undefined}>
+                              <span className="inline-flex items-center gap-1">{h.label}{h.key && assetSort.col === h.key && <span className="text-white/50">{assetSort.desc ? "▼" : "▲"}</span>}</span>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {sortedAssetRisks.map((a) => {
+                          const ssData = SUBSTATIONS.find((s) => s.id === a.id);
+                          return (
+                            <tr key={a.id} className={`transition-colors ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
+                              <td className="px-4 py-3 font-medium">{a.name}</td>
+                              <td className="px-4 py-3 text-white/50"><span className="inline-flex items-center gap-1">{a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}{a.type}</span></td>
+                              <td className="px-4 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
+                              <td className="px-4 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
+                              <td className="px-4 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
+                              <td className="px-4 py-3">{(() => { const tier = ssHftdTiers[a.id] || "None"; const color = HFTD_TIER_CONFIG[tier]?.color || "#6B7280"; return (<span className="inline-flex items-center gap-1.5 text-xs font-medium"><span className="w-2 h-2 rounded-full" style={{ background: color }} />{tier}</span>); })()}</td>
+                              <td className="px-4 py-3">{a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "—"}</td>
+                              <td className="px-4 py-3"><RiskBadge risk={a.risk} /></td>
+                              <td className="px-4 py-3">{(() => { const cr = circuitRiskMap.get(a.id); if (!cr) return <span className="text-white/20 text-xs">—</span>; const pct = (cr.prob * 100).toFixed(1); const color = cr.band === "CRITICAL" ? "bg-red-500/20 text-red-300" : cr.band === "HIGH" ? "bg-orange-500/15 text-orange-300" : cr.band === "ELEVATED" ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"; return (<span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>{pct}%</span>); })()}</td>
+                              <td className="px-4 py-3">{(() => { const pr = psaRiskMap.get(a.id); if (!pr) return <span className="text-white/20 text-xs">—</span>; const pct = (pr.prob * 100).toFixed(0); const color = pr.bucket === "CRITICAL" ? "text-red-400" : pr.bucket === "HIGH" ? "text-orange-400" : pr.bucket === "ELEVATED" ? "text-amber-400" : "text-emerald-400"; return (<span className={`text-xs font-bold ${color}`}>{pct}%</span>); })()}</td>
+                              <td className="px-4 py-3"><TrendBadge trend={a.trend} /></td>
+                              <td className="px-4 py-3"><ActionBadge action={a.action} /></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : activeTab === "risk-alerts" ? (
+                <div className="p-5"><RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} /></div>
+              ) : activeTab === "outage" ? (
+                <div className="p-5"><CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} /></div>
+              ) : null}
+            </div>
+          </>
+        )}
+
+        {/* ════════════════ OPERATIONS ════════════════ */}
+        {section === "operations" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <ResourceTracker />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <EvacuationPanel />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <CommunityAlertsPanel fires={fires} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <SmsAlertsPanel />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <AfterActionReport />
             </div>
           </div>
         )}
 
-        {/* ── Interactive Map ───────────────────────────────── */}
-        <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-400" />
-                Operational Map — Fire, Asset & Evacuation Overlay
-              </h2>
-              <button
-                onClick={() => setShowEvacRoutes(!showEvacRoutes)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-                  showEvacRoutes
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
-                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                }`}
-              >
-                <Route className="w-3 h-3" />
-                Evac Routes
-              </button>
-              <button
-                onClick={() => setShowWeather(!showWeather)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-                  showWeather
-                    ? "bg-sky-500/15 border-sky-500/30 text-sky-300"
-                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                }`}
-              >
-                <Cloud className="w-3 h-3" />
-                Weather
-              </button>
-              <button
-                onClick={() => setShowSpreadPrediction(!showSpreadPrediction)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-                  showSpreadPrediction
-                    ? "bg-rose-500/15 border-rose-500/30 text-rose-300"
-                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                }`}
-              >
-                <Flame className="w-3 h-3" />
-                Spread
-              </button>
-              <button
-                onClick={() => setShowIgnitionHeatmap(!showIgnitionHeatmap)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-                  showIgnitionHeatmap
-                    ? "bg-orange-500/15 border-orange-500/30 text-orange-300"
-                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                }`}
-              >
-                <Activity className="w-3 h-3" />
-                Ignition Risk
-              </button>
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-                  soundEnabled
-                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
-                    : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                }`}
-                title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
-              >
-                {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-                Sound
-              </button>
-            </div>
-            <div className="flex items-center gap-3 text-[10px] text-white/30 flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#DC2626" }} /> HFTD 3
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#F97316" }} /> HFTD 2
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#EAB308" }} /> HFTD 1
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: "#3B82F6" }} /> No HFTD
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-0.5 bg-cyan-400 rounded" /> Transmission
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FB7185" }} /> Hospital
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#FBBF24" }} /> School
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#22D3EE" }} /> Water
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#4ADE80" }} /> Timber
-              </span>
-              <span className="text-white/15">|</span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-0.5 rounded" style={{ background: "#10B981" }} /> Primary Route
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-0.5 rounded" style={{ background: "#3B82F6", borderTop: "1px dashed #3B82F6" }} /> Secondary
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm border" style={{ background: "#EF444420", borderColor: "#EF4444" }} /> Bottleneck
-              </span>
-              <span className="text-white/15">|</span>
-              {(["Critical", "High", "Medium", "Low"] as RiskLevel[]).map((r) => (
-                <span key={r} className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full" style={{ background: RISK_COLORS[r] }} />
-                  {r}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div style={{ height: 520 }} className="relative w-full">
-            <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
-            {loading && (
-              <div className="absolute inset-0 z-[1000] bg-black/50 flex items-center justify-center">
-                <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
-              </div>
-            )}
-            {showIgnitionHeatmap && (
-              <div className="absolute bottom-3 left-3 z-[900] rounded-lg border border-white/10 bg-black/80 backdrop-blur-sm px-3 py-2.5 text-[10px] font-medium text-white/70">
-                <div className="mb-1.5 text-[11px] font-semibold text-orange-300 flex items-center gap-1">
-                  <Activity className="w-3 h-3" /> Ignition Risk 24h
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span>Low</span>
-                  <div className="h-2.5 w-32 rounded-sm" style={{
-                    background: "linear-gradient(to right, rgba(253,240,148,0.6), rgba(252,186,3,0.7), rgba(249,115,22,0.85), rgba(220,38,38,0.9), rgba(185,28,28,1))"
-                  }} />
-                  <span>Critical</span>
-                </div>
-                <div className="flex justify-between mt-1 text-[9px] text-white/40 w-full" style={{ paddingLeft: 22, paddingRight: 32 }}>
-                  <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Tabs: Grid Assets / HVRA Registry ─────────────── */}
-        <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
-          <div className="relative border-b border-white/[0.06]">
-            <div className="px-5 py-3 flex items-center gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              <button onClick={() => setActiveTab("assets")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "assets" ? "border-blue-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Zap className="w-4 h-4 text-blue-400" /> Grid Asset Status
-              </button>
-              <button onClick={() => setActiveTab("hvra")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "hvra" ? "border-purple-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <MapPin className="w-4 h-4 text-purple-400" /> HVRA Registry
-              </button>
-              <button onClick={() => setActiveTab("nvc")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "nvc" ? "border-emerald-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <BarChart3 className="w-4 h-4 text-emerald-400" /> NVC Risk Scores
-              </button>
-              <button onClick={() => setActiveTab("evac")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "evac" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Route className="w-4 h-4 text-amber-400" /> Evacuation
-              </button>
-              <button onClick={() => setActiveTab("resources")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "resources" ? "border-red-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Shield className="w-4 h-4 text-red-400" /> Resources
-              </button>
-              <button onClick={() => setActiveTab("insurance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "insurance" ? "border-teal-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <DollarSign className="w-4 h-4 text-teal-400" /> Insurance Risk
-              </button>
-              <button onClick={() => setActiveTab("history")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "history" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Clock className="w-4 h-4 text-orange-400" /> Fire History
-              </button>
-              <button onClick={() => setActiveTab("behavior")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "behavior" ? "border-rose-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Flame className="w-4 h-4 text-rose-400" /> Fire Behavior
-              </button>
-              <button onClick={() => setActiveTab("alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "alerts" ? "border-yellow-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Bell className="w-4 h-4 text-yellow-400" /> Community Alerts
-              </button>
-              <button onClick={() => setActiveTab("sms")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "sms" ? "border-sky-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Bell className="w-4 h-4 text-sky-400" /> SMS Alerts
-              </button>
-              <button onClick={() => setActiveTab("after-action")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "after-action" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <FileText className="w-4 h-4 text-violet-400" /> After-Action
-              </button>
-              <button onClick={() => setActiveTab("compliance")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "compliance" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Shield className="w-4 h-4 text-cyan-400" /> Compliance
-              </button>
-              <button onClick={() => setActiveTab("vegetation")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "vegetation" ? "border-green-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Activity className="w-4 h-4 text-green-400" /> Vegetation
-              </button>
-              <button onClick={() => setActiveTab("backend")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "backend" ? "border-indigo-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Server className="w-4 h-4 text-indigo-400" /> Backend Ops
-              </button>
-              <button onClick={() => setActiveTab("risk-alerts")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "risk-alerts" ? "border-orange-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <AlertTriangle className="w-4 h-4 text-orange-400" /> Risk Alerts
-              </button>
-              <button onClick={() => setActiveTab("outage")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
-              </button>
-              <button onClick={() => setActiveTab("field-ops")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "field-ops" ? "border-lime-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Shield className="w-4 h-4 text-lime-400" /> Field Ops
-              </button>
-              <button onClick={() => setActiveTab("thresholds")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
-                <Settings className="w-4 h-4 text-amber-400" /> Thresholds
-              </button>
-            </div>
-            {/* Right fade gradient scroll indicator */}
-            <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none bg-gradient-to-l from-[hsl(220,25%,9%)] to-transparent" />
-          </div>
-
-          {activeTab === "assets" ? (
-            <>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 border-b border-white/[0.06]">
-                {sortedAssetRisks.length > 0 && (
-                  <button
-                    onClick={() => downloadCsv(formatAssetRiskCsv(sortedAssetRisks), `grid-asset-risk-rankings.csv`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/[0.03] text-white/50 border border-white/[0.08] hover:bg-white/[0.06] transition-colors ml-auto order-last"
-                  >
-                    <Download className="w-3 h-3" />
-                    Export CSV
-                  </button>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">HFTD:</span>
-                  {["All", "Tier 3", "Tier 2", "Tier 1", "None"].map((tier) => {
-                    const isActive = hftdFilter === tier;
-                    const dotColor = tier === "All" ? undefined : HFTD_TIER_CONFIG[tier]?.color;
-                    return (
-                      <button
-                        key={tier}
-                        onClick={() => setHftdFilter(tier)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                          isActive
-                            ? "bg-white/10 border-white/20 text-white"
-                            : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
-                        }`}
-                      >
-                        {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
-                        {tier === "All" ? "All" : tier}
-                      </button>
-                    );
-                  })}
-                </div>
-                <span className="text-white/10">|</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-wider text-white/30 font-medium">Risk:</span>
-                  {(["All", "Critical", "High", "Medium", "Low"] as string[]).map((level) => {
-                    const isActive = riskFilter === level;
-                    const dotColor = level === "All" ? undefined : RISK_COLORS[level as RiskLevel];
-                    return (
-                      <button
-                        key={level}
-                        onClick={() => setRiskFilter(level)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
-                          isActive
-                            ? "bg-white/10 border-white/20 text-white"
-                            : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 hover:border-white/15"
-                        }`}
-                      >
-                        {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
-                        {level}
-                      </button>
-                    );
-                  })}
-                </div>
-                {(hftdFilter !== "All" || riskFilter !== "All") && (
-                  <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-[10px] text-white/30">
-                      {sortedAssetRisks.length} of {assetRisks.length} assets
-                    </span>
-                    <button
-                      onClick={() => { setHftdFilter("All"); setRiskFilter("All"); }}
-                      className="text-[10px] text-white/40 hover:text-white/70 underline transition-colors"
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wider text-white/30 border-b border-white/[0.06]">
-                      {([
-                        { key: "name", label: "Asset Name" },
-                        { key: "", label: "Type" },
-                        { key: "", label: "Voltage" },
-                        { key: "", label: "Capacity" },
-                        { key: "", label: "Zone" },
-                        { key: "hftd", label: "HFTD Tier" },
-                        { key: "fire", label: "Nearest Fire" },
-                        { key: "risk", label: "Risk Level" },
-                        { key: "ignition", label: "Ignition Risk 24h" },
-                        { key: "psa", label: "PSA Risk" },
-                        { key: "", label: "Trend" },
-                        { key: "", label: "Recommended Action" },
-                      ] as { key: string; label: string }[]).map((h) => (
-                        <th
-                          key={h.label}
-                          className={`px-5 py-3 font-medium ${h.key ? "cursor-pointer hover:text-white/60 select-none" : ""}`}
-                          onClick={h.key ? () => setAssetSort((prev) => ({ col: h.key, desc: prev.col === h.key ? !prev.desc : true })) : undefined}
-                        >
-                          <span className="inline-flex items-center gap-1">
-                            {h.label}
-                            {h.key && assetSort.col === h.key && (
-                              <span className="text-white/50">{assetSort.desc ? "▼" : "▲"}</span>
-                            )}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04]">
-                    {sortedAssetRisks.map((a) => {
-                      const ssData = SUBSTATIONS.find((s) => s.id === a.id);
-                      return (
-                        <tr key={a.id} className={`transition-colors ${(circuitRiskMap.get(a.id)?.prob ?? 0) > 0.5 ? "bg-red-500/10 hover:bg-red-500/15 border-l-2 border-l-red-500" : "hover:bg-white/[0.02]"}`}>
-                          <td className="px-5 py-3 font-medium">{a.name}</td>
-                          <td className="px-5 py-3 text-white/50">
-                            <span className="inline-flex items-center gap-1">
-                              {a.type === "Substation" ? <Zap className="w-3 h-3 text-blue-400" /> : <Minus className="w-3 h-3 text-cyan-400" />}
-                              {a.type}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3 text-white/60 font-mono text-xs">{a.voltage}</td>
-                          <td className="px-5 py-3 text-white/60 text-xs">{ssData ? `${ssData.capacityMW} MW` : "—"}</td>
-                          <td className="px-5 py-3 text-white/60 text-xs">{ssData?.zone || "—"}</td>
-                          <td className="px-5 py-3">
-                            {(() => {
-                              const tier = ssHftdTiers[a.id] || "None";
-                              const color = HFTD_TIER_CONFIG[tier]?.color || "#6B7280";
-                              return (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-                                  <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                                  {tier}
-                                </span>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-5 py-3">
-                            {a.nearestFireDist >= 0 ? `${a.nearestFireDistMi} mi` : "No fires"}
-                          </td>
-                          <td className="px-5 py-3">
-                            <RiskBadge risk={a.risk} />
-                          </td>
-                          <td className="px-5 py-3">
-                            {(() => {
-                              const cr = circuitRiskMap.get(a.id);
-                              if (!cr) return <span className="text-white/20 text-xs">—</span>;
-                              const pct = (cr.prob * 100).toFixed(1);
-                              const color = cr.band === "CRITICAL" ? "bg-red-500/20 text-red-300" :
-                                cr.band === "HIGH" ? "bg-orange-500/15 text-orange-300" :
-                                cr.band === "ELEVATED" ? "bg-amber-500/15 text-amber-300" :
-                                "bg-emerald-500/15 text-emerald-300";
-                              return (
-                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${color}`}>
-                                  {pct}% <span className="text-[9px] font-normal opacity-70">{cr.band}</span>
-                                </span>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-5 py-3">
-                            {(() => {
-                              const pr = psaRiskMap.get(a.id);
-                              if (!pr) return <span className="text-white/20 text-xs">—</span>;
-                              const pct = (pr.prob * 100).toFixed(0);
-                              const color = pr.bucket === "CRITICAL" ? "text-red-400" :
-                                pr.bucket === "HIGH" ? "text-orange-400" :
-                                pr.bucket === "ELEVATED" ? "text-amber-400" :
-                                "text-emerald-400";
-                              return (
-                                <span className="text-xs">
-                                  <span className={`font-bold ${color}`}>{pct}%</span>
-                                  <span className="text-white/30 ml-1">{pr.bucket}</span>
-                                </span>
-                              );
-                            })()}
-                          </td>
-                          <td className="px-5 py-3">
-                            <TrendBadge trend={a.trend} />
-                          </td>
-                          <td className="px-5 py-3">
-                            <ActionBadge action={a.action} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-5 py-2 border-t border-white/[0.04] text-[10px] text-white/20">
-                Risk calculated from fire proximity, intensity (FRP), approach trend · ML columns from backend (Ignition Spike 24h, PSA Activity Risk)
-              </div>
-            </>
-          ) : activeTab === "hvra" ? (
-            <div className="p-5">
-              <HvraPanel fires={fires} />
-            </div>
-          ) : activeTab === "nvc" ? (
-            <div className="p-5">
-              <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
-            </div>
-          ) : activeTab === "evac" ? (
-            <div className="p-5">
-              <EvacuationPanel />
-            </div>
-          ) : activeTab === "resources" ? (
-            <div className="p-5">
-              <ResourceTracker />
-            </div>
-          ) : activeTab === "insurance" ? (
-            <div className="p-5">
-              <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />
-            </div>
-          ) : activeTab === "history" ? (
-            <div className="p-5">
-              <FireHistoryTimeline fires={fires} />
-            </div>
-          ) : activeTab === "behavior" ? (
-            <div className="p-5">
-              <FireBehaviorPanel fires={fires} weatherData={weatherData} />
-            </div>
-          ) : activeTab === "alerts" ? (
-            <div className="p-5">
-              <CommunityAlertsPanel fires={fires} />
-            </div>
-          ) : activeTab === "sms" ? (
-            <div className="p-5">
-              <SmsAlertsPanel />
-            </div>
-          ) : activeTab === "after-action" ? (
-            <div className="p-5">
-              <AfterActionReport />
-            </div>
-          ) : activeTab === "compliance" ? (
-            <div className="p-5">
-              <ComplianceDashboard />
-            </div>
-           ) : activeTab === "backend" ? (
-            <div className="p-5">
-              <BackendOpsPanel />
-            </div>
-          ) : activeTab === "risk-alerts" ? (
-            <div className="p-5">
-              <RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} />
-            </div>
-          ) : activeTab === "outage" ? (
-            <div className="p-5">
-              <CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} />
-            </div>
-          ) : activeTab === "field-ops" ? (
-            <div className="p-5">
-              <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />
-            </div>
-          ) : activeTab === "thresholds" ? (
-            <div className="p-5">
-              <RiskThresholdSettings />
-            </div>
-          ) : (
-            <div className="p-5">
+        {/* ════════════════ RISK & PLANNING ════════════════ */}
+        {section === "risk" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
               <VegetationRiskPanel />
             </div>
-          )}
-        </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <InsuranceRiskPanel fires={fires} hvraAssets={hvraAssets} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <NvcDashboard fires={fires} hvraAssets={hvraAssets} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <FireBehaviorPanel fires={fires} weatherData={weatherData} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <FireHistoryTimeline fires={fires} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <HvraPanel fires={fires} />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <ComplianceDashboard />
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <RiskThresholdSettings />
+            </div>
+            <div className="lg:col-span-2 rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+              <BackendOpsPanel />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
