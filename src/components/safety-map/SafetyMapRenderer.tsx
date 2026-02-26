@@ -3,10 +3,45 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Customer } from "@/lib/customer-types";
 import type { Substation } from "@/lib/wildfire-utils";
-import { getInfraForSubstation, LAYER_META } from "@/lib/infrastructure-data";
+import { getInfraForSubstation, LAYER_META, type InfraSegment } from "@/lib/infrastructure-data";
 
 const MAPBOX_TOKEN =
   "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+
+/* ── Build rich popup HTML for a segment ── */
+function buildPopupHTML(seg: InfraSegment): string {
+  const meta = LAYER_META[seg.type];
+  const m = seg.meta;
+
+  let rows = "";
+  const addRow = (label: string, value: string | undefined) => {
+    if (!value) return;
+    rows += `<tr><td style="color:#888;padding:2px 8px 2px 0;white-space:nowrap">${label}</td><td style="font-weight:500">${value}</td></tr>`;
+  };
+
+  addRow("Status", m?.status);
+  addRow("Work Order", m?.workOrderId);
+  addRow("Contractor", m?.contractor);
+  if (m?.lengthMi) addRow("Length", `${m.lengthMi} mi`);
+  addRow("Completed", m?.completedDate);
+  addRow("Next Inspection", m?.nextInspection);
+
+  const notesHtml = m?.notes
+    ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(0,0,0,.05);border-radius:4px;font-size:10px;color:#555;line-height:1.4">${m.notes}</div>`
+    : "";
+
+  return `
+    <div style="min-width:220px;max-width:300px;font-family:system-ui,sans-serif;font-size:11px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${meta.color};flex-shrink:0"></span>
+        <span style="font-size:12px;font-weight:700">${seg.label}</span>
+      </div>
+      <div style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:600;background:${meta.color}22;color:${meta.color};margin-bottom:6px">${meta.icon} ${meta.label}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">${rows}</table>
+      ${notesHtml}
+    </div>
+  `;
+}
 
 interface Props {
   customer: Customer;
@@ -18,7 +53,6 @@ interface Props {
 export default function SafetyMapRenderer({ customer, substation: ss, layers, mapRef }: Props) {
   const mapContainer = useRef<HTMLDivElement>(null);
 
-  /* ── Initialize map ── */
   useEffect(() => {
     if (!mapContainer.current) return;
     mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -91,6 +125,7 @@ export default function SafetyMapRenderer({ customer, substation: ss, layers, ma
 
       /* Infrastructure overlays */
       const infra = getInfraForSubstation(ss?.id);
+
       infra.forEach((seg) => {
         const meta = LAYER_META[seg.type];
         if (Array.isArray(seg.coords[0])) {
@@ -114,16 +149,31 @@ export default function SafetyMapRenderer({ customer, substation: ss, layers, ma
               ...(meta.dash ? { "line-dasharray": meta.dash as any } : {}),
             },
           });
+
+          /* Click-to-inspect on line segments */
+          map.on("click", seg.id, (e) => {
+            const lngLat = e.lngLat;
+            new mapboxgl.Popup({ offset: 10, maxWidth: "320px" })
+              .setLngLat(lngLat)
+              .setHTML(buildPopupHTML(seg))
+              .addTo(map);
+          });
+
+          /* Pointer cursor on hover */
+          map.on("mouseenter", seg.id, () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseleave", seg.id, () => {
+            map.getCanvas().style.cursor = "";
+          });
         } else {
+          /* Point markers with rich popup */
           const coord = seg.coords as [number, number];
           const el = document.createElement("div");
           el.style.cssText = `width:10px;height:10px;border-radius:50%;background:${meta.color};border:2px solid #fff;box-shadow:0 0 4px ${meta.color}80;cursor:pointer;`;
           new mapboxgl.Marker({ element: el })
             .setLngLat(coord)
-            .setPopup(new mapboxgl.Popup({ offset: 8 }).setHTML(
-              `<div style="font-size:11px;font-weight:600">${seg.label}</div>
-               <div style="font-size:10px;color:#666">${meta.label}</div>`
-            ))
+            .setPopup(new mapboxgl.Popup({ offset: 8, maxWidth: "320px" }).setHTML(buildPopupHTML(seg)))
             .addTo(map);
         }
       });
