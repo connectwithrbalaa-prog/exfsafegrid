@@ -79,6 +79,19 @@ export default function FieldCrewApp() {
 
   const completedCount = items.filter((i) => i.completed).length;
   const progress = Math.round((completedCount / items.length) * 100);
+  const [patrolStart] = useState(() => new Date());
+  const [elapsed, setElapsed] = useState("0:00");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const diff = Math.floor((Date.now() - patrolStart.getTime()) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [patrolStart]);
 
   useEffect(() => {
     const onOnline = () => { setOnline(true); syncQueue(); };
@@ -237,6 +250,22 @@ export default function FieldCrewApp() {
         {/* ── PATROL TAB ── */}
         {activeTab === "patrol" && (
           <div className="space-y-4">
+            {/* Summary dashboard */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-emerald-400">{completedCount}<span className="text-white/20 text-xs font-normal">/{items.length}</span></p>
+                <p className="text-[9px] text-white/25 uppercase tracking-wider mt-0.5">Completed</p>
+              </div>
+              <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-orange-400">{items.length - completedCount}</p>
+                <p className="text-[9px] text-white/25 uppercase tracking-wider mt-0.5">Remaining</p>
+              </div>
+              <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 text-center">
+                <p className="text-lg font-bold text-blue-400 font-mono">{elapsed}</p>
+                <p className="text-[9px] text-white/25 uppercase tracking-wider mt-0.5">Elapsed</p>
+              </div>
+            </div>
+
             {(["electrical", "vegetation", "access", "structure"] as const).map((cat) => {
               const catItems = items.filter((i) => i.category === cat);
               const catDone = catItems.filter((i) => i.completed).length;
