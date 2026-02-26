@@ -221,7 +221,7 @@ def run(
         db.execute(text("""
             INSERT INTO psps_watchlists
                 (watchlist_date, horizon, markdown_text, structured_data, model_used, tokens_used)
-            VALUES (:d, :h, :md, :struct::JSONB, :model, :tok)
+            VALUES (:d, :h, :md, CAST(:struct AS JSONB), :model, :tok)
             ON CONFLICT (watchlist_date, horizon) DO UPDATE SET
                 markdown_text = EXCLUDED.markdown_text,
                 structured_data = EXCLUDED.structured_data,
