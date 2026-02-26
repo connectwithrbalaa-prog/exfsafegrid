@@ -8,6 +8,7 @@ from datetime import date
 from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -148,6 +149,47 @@ def get_briefing(briefing_date: Optional[date] = Query(None),
                      {"d": str(d)}).fetchone()
     if not row: raise HTTPException(404, "No briefing. POST /briefing/generate to create one.")
     return dict(row._mapping)
+
+
+@app.get("/briefing/html", tags=["Agents"], response_class=HTMLResponse)
+def get_briefing_html(briefing_date: Optional[date] = Query(None),
+                      db: Session = Depends(get_db), _: str = Depends(auth)):
+    """Return the daily briefing as a formatted HTML document."""
+    import markdown as md_lib
+    d = briefing_date or date.today()
+    row = db.execute(text("SELECT * FROM daily_briefings WHERE briefing_date <= :d ORDER BY briefing_date DESC LIMIT 1"),
+                     {"d": str(d)}).fetchone()
+    if not row:
+        raise HTTPException(404, "No briefing. POST /briefing/generate to create one.")
+    data = dict(row._mapping)
+    body_html = md_lib.markdown(data["markdown_text"], extensions=["tables", "nl2br"])
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExfSafeGrid Daily Briefing — {data['briefing_date']}</title>
+  <style>
+    body {{ font-family: Georgia, 'Times New Roman', serif; max-width: 860px; margin: 40px auto;
+            padding: 0 24px; color: #1a1a1a; line-height: 1.7; background: #fafaf8; }}
+    h1 {{ font-size: 1.7rem; border-bottom: 3px solid #b91c1c; padding-bottom: 10px; color: #111; }}
+    h2 {{ font-size: 1.2rem; margin-top: 2rem; color: #1e3a5f; border-left: 4px solid #b91c1c;
+          padding-left: 10px; }}
+    ul {{ padding-left: 1.4rem; }} li {{ margin-bottom: 0.4rem; }}
+    ol {{ padding-left: 1.4rem; }} ol li {{ margin-bottom: 0.6rem; }}
+    strong {{ color: #111; }}
+    hr {{ border: none; border-top: 1px solid #ccc; margin: 2rem 0; }}
+    em {{ color: #555; font-size: 0.9rem; }}
+    p {{ margin: 0.6rem 0; }}
+    .meta {{ font-size: 0.8rem; color: #888; margin-bottom: 2rem; }}
+  </style>
+</head>
+<body>
+  <div class="meta">Generated {data['created_at']} &nbsp;·&nbsp; Model: {data['model_used']} &nbsp;·&nbsp; Tokens: {data['tokens_used']}</div>
+  {body_html}
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 @app.post("/briefing/generate", tags=["Agents"])
