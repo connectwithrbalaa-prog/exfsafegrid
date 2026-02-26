@@ -441,6 +441,140 @@ def get_nearby_sensors(
     }
 
 
+# ── Agent: Customer Context ───────────────────────────────────────────────
+@app.get("/api/agent/customer-context", tags=["Agent"])
+def get_customer_context(
+    customer_id: str = Query(..., description="Customer UUID"),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    Return geographic and operational context for a customer.
+
+    Resolution chain
+    ----------------
+    circuit_id  — customers.psps_event_id → psps_events.event_id
+                  → psps_events.circuit_id
+    lat / lon   — ST_Centroid of utility_circuits.geometry for that circuit
+    wildfire_risk_band — normalised from customers.wildfire_risk
+    hardening_status   — derived from has_transfer_meter +
+                         has_permanent_battery + has_portable_battery:
+                         COMPLETE / PARTIAL / NONE
+    vegetation_work    — most recent row in vegetation_circuits whose
+                         circuit_name matches; falls back to region match.
+                         Uses last_trim_date as "completed" and
+                         next_trim_due as "scheduled" entries.
+
+    Response::
+
+        {
+          "lat": 37.123,
+          "lon": -121.456,
+          "circuit_id": "CIRCUIT_101",
+          "wildfire_risk_band": "HIGH",
+          "hardening_status": "PARTIAL",
+          "vegetation_work": [
+            {"type": "completed", "date": "2026-01-12", "distance_m": 200}
+          ]
+        }
+    """
+    # ── 1. Customer + linked circuit + geometry centroid ──────────────────
+    row = db.execute(text("""
+        SELECT
+            c.id,
+            c.region,
+            c.hftd_tier          AS cust_hftd,
+            c.wildfire_risk,
+            c.has_transfer_meter,
+            c.has_permanent_battery,
+            c.has_portable_battery,
+            c.psps_event_id,
+            pe.circuit_id,
+            ROUND(ST_Y(ST_Centroid(uc.geometry::geometry))::NUMERIC, 6) AS lat,
+            ROUND(ST_X(ST_Centroid(uc.geometry::geometry))::NUMERIC, 6) AS lon
+        FROM customers c
+        LEFT JOIN psps_events pe
+               ON pe.event_id = c.psps_event_id
+              AND c.psps_event_id IS NOT NULL
+              AND c.psps_event_id <> ''
+        LEFT JOIN utility_circuits uc ON uc.circuit_id = pe.circuit_id
+        WHERE c.id = :cid
+    """), {"cid": customer_id}).fetchone()
+
+    if not row:
+        raise HTTPException(404, f"Customer '{customer_id}' not found")
+
+    c = row._mapping
+
+    # ── 2. Wildfire risk band ─────────────────────────────────────────────
+    _BAND_MAP = {
+        "low":      "LOW",
+        "moderate": "MODERATE",
+        "medium":   "MODERATE",
+        "high":     "HIGH",
+        "critical": "CRITICAL",
+        "extreme":  "CRITICAL",
+    }
+    risk_band = _BAND_MAP.get((c["wildfire_risk"] or "low").lower(), "LOW")
+
+    # ── 3. Hardening status ───────────────────────────────────────────────
+    has_perm   = (c["has_permanent_battery"] or "None").strip() not in ("None", "", "No", "N/A")
+    has_meter  = bool(c["has_transfer_meter"])
+    has_port   = bool(c["has_portable_battery"])
+
+    if has_perm and has_meter:
+        hardening = "COMPLETE"
+    elif has_perm or has_meter or has_port:
+        hardening = "PARTIAL"
+    else:
+        hardening = "NONE"
+
+    # ── 4. Vegetation work ────────────────────────────────────────────────
+    # Try circuit-name match first; fall back to region.
+    circuit_id = c["circuit_id"]
+    region     = (c["region"] or "").strip()
+
+    veg_rows = db.execute(text("""
+        SELECT circuit_name, last_trim_date, next_trim_due,
+               miles_conductor, hftd_tier, wildfire_risk
+        FROM vegetation_circuits
+        WHERE (:circuit_id IS NOT NULL AND circuit_name ILIKE '%' || :circuit_id || '%')
+           OR (:region <> '' AND (
+                 substation_zone ILIKE '%' || :region || '%'
+              OR circuit_name    ILIKE '%' || :region || '%'
+           ))
+        ORDER BY last_trim_date DESC NULLS LAST
+        LIMIT 3
+    """), {"circuit_id": circuit_id, "region": region}).fetchall()
+
+    vegetation_work = []
+    for vr in veg_rows:
+        vm = vr._mapping
+        # Approximate distance: miles_conductor converted to metres (200 m minimum)
+        dist_m = max(200, int((float(vm["miles_conductor"] or 0.125) * 1609.34)))
+        if vm["last_trim_date"]:
+            vegetation_work.append({
+                "type":       "completed",
+                "date":       str(vm["last_trim_date"]),
+                "distance_m": dist_m,
+            })
+        if vm["next_trim_due"]:
+            vegetation_work.append({
+                "type":       "scheduled",
+                "date":       str(vm["next_trim_due"]),
+                "distance_m": dist_m,
+            })
+
+    return {
+        "customer_id":       customer_id,
+        "lat":               float(c["lat"]) if c["lat"] is not None else None,
+        "lon":               float(c["lon"]) if c["lon"] is not None else None,
+        "circuit_id":        circuit_id,
+        "wildfire_risk_band": risk_band,
+        "hardening_status":  hardening,
+        "vegetation_work":   vegetation_work,
+    }
+
+
 # ── Agent: Program Eligibility ────────────────────────────────────────────
 @app.get("/api/agent/program-eligibility", tags=["Agent"])
 def get_program_eligibility(
