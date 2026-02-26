@@ -26,6 +26,7 @@ import BackendOpsPanel from "@/components/BackendOpsPanel";
 import RiskAlertsPanel from "@/components/RiskAlertsPanel";
 import CircuitOutagePanel from "@/components/CircuitOutagePanel";
 import RiskThresholdSettings from "@/components/RiskThresholdSettings";
+import FieldOpsPanel from "@/components/FieldOpsPanel";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -146,7 +147,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds" | "field-ops">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -1291,6 +1292,9 @@ export default function CommandCenter() {
               <button onClick={() => setActiveTab("outage")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
                 <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
               </button>
+              <button onClick={() => setActiveTab("field-ops")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "field-ops" ? "border-lime-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                <Shield className="w-4 h-4 text-lime-400" /> Field Ops
+              </button>
               <button onClick={() => setActiveTab("thresholds")} className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
                 <Settings className="w-4 h-4 text-amber-400" /> Thresholds
               </button>
@@ -1538,6 +1542,10 @@ export default function CommandCenter() {
           ) : activeTab === "outage" ? (
             <div className="p-5">
               <CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} />
+            </div>
+          ) : activeTab === "field-ops" ? (
+            <div className="p-5">
+              <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />
             </div>
           ) : activeTab === "thresholds" ? (
             <div className="p-5">
