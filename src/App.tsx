@@ -16,6 +16,8 @@ import Documentation from "./pages/Documentation";
 import PspsStatus from "./pages/PspsStatus";
 import FieldCrewApp from "./pages/FieldCrewApp";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
+import RoleRouter from "./components/RoleRouter";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,15 +43,14 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Index />} />
-              <Route path="/customer" element={<CustomerPortal />} />
-              <Route path="/agent" element={<AgentDesktop />} />
-              <Route path="/command-center" element={<CommandCenter />} />
+              <Route path="/customer" element={<ProtectedRoute requiredRole="customer"><CustomerPortal /></ProtectedRoute>} />
+              <Route path="/agent" element={<ProtectedRoute requiredRole="agent"><AgentDesktop /></ProtectedRoute>} />
+              <Route path="/command-center" element={<ProtectedRoute requiredRole="executive"><CommandCenter /></ProtectedRoute>} />
+              <Route path="/field-crew" element={<ProtectedRoute requiredRole="field"><FieldCrewApp /></ProtectedRoute>} />
+              <Route path="/crew" element={<ProtectedRoute requiredRole="field"><FieldCrewApp /></ProtectedRoute>} />
               <Route path="/demo" element={<DemoPresentation />} />
               <Route path="/docs" element={<Documentation />} />
               <Route path="/status" element={<PspsStatus />} />
-              <Route path="/crew" element={<FieldCrewApp />} />
-              <Route path="/field-crew" element={<FieldCrewApp />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
             <MlChatBubble />

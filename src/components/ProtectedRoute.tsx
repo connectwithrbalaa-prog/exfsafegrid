@@ -1,28 +1,28 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
+import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import type { ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
   /** If set, only users with this role can access the route */
-  requiredRole?: "agent" | "customer";
+  requiredRole?: UserRole;
 }
 
+/**
+ * Guards persona routes. Uses the demo login context (useCustomer).
+ * If no role is active, redirects to /login.
+ * If a requiredRole is specified and doesn't match, redirects to /.
+ */
 export default function ProtectedRoute({ children, requiredRole }: Props) {
-  const { user, role, loading } = useAuth();
+  const { role, customer } = useCustomer();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
+  // No active session at all → login
+  const hasSession = role === "customer" ? !!customer : !!role;
+  if (!hasSession && requiredRole) {
     return <Navigate to="/login" replace />;
   }
 
+  // Wrong role for this route
   if (requiredRole && role !== requiredRole) {
     return <Navigate to="/" replace />;
   }
