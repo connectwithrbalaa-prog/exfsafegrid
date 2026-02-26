@@ -57,11 +57,43 @@ Deno.serve(async (req) => {
       console.log(`Upstream ${targetPath} missing; returning null payload`);
       return new Response("null", {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Demo fallback for agent endpoints not yet deployed on backend
+    if (upstream.status === 404 && targetPath === "/agent/risk-12h") {
+      console.log("Upstream /agent/risk-12h missing; returning demo data");
+      const now = Date.now();
+      const points = Array.from({ length: 12 }, (_, i) => ({
+        timestamp: new Date(now - (11 - i) * 3600000).toISOString(),
+        probability: +(0.25 + 0.15 * Math.sin(i / 2) + Math.random() * 0.08).toFixed(3),
+      }));
+      const first3 = points.slice(0, 3).reduce((s, p) => s + p.probability, 0) / 3;
+      const last3 = points.slice(-3).reduce((s, p) => s + p.probability, 0) / 3;
+      const trend = last3 - first3 > 0.05 ? "RISING" : last3 - first3 < -0.05 ? "FALLING" : "STABLE";
+      return new Response(JSON.stringify({
+        circuit_id: url.searchParams.get("circuit_id") || "UNKNOWN",
+        trend, current_risk_pct: +(points[points.length - 1].probability * 100).toFixed(1),
+        points, demo: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (upstream.status === 404 && targetPath === "/agent/nearby-sensors") {
+      console.log("Upstream /agent/nearby-sensors missing; returning demo data");
+      return new Response(JSON.stringify({
+        circuit_id: url.searchParams.get("circuit_id") || "UNKNOWN",
+        stations: [
+          { station_id: "RAWS-001", name: "Mt. Diablo RAWS", distance_miles: 4.2,
+            wind_speed_mph: 18, wind_gust_mph: 32, wind_dir: "NE", temp_f: 82,
+            humidity_pct: 15, erc: 72, bi: 88, ffwi: 62 },
+          { station_id: "RAWS-002", name: "San Bruno Mtn RAWS", distance_miles: 8.7,
+            wind_speed_mph: 12, wind_gust_mph: 22, wind_dir: "N", temp_f: 78,
+            humidity_pct: 22, erc: 65, bi: 74, ffwi: 51 },
+        ],
+        ai_summary: "Elevated fire weather conditions detected. Sustained winds 18 mph with gusts to 32 mph from the NE. Relative humidity critically low at 15%. ERC of 72 indicates high energy release potential.",
+        demo: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log(`Upstream responded ${upstream.status}`);
