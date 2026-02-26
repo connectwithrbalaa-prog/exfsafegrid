@@ -1,13 +1,19 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import AgentView from "@/components/AgentView";
 import { useCustomer } from "@/hooks/use-customer";
-import { LogOut, Presentation, HardHat } from "lucide-react";
+import { LogOut, Presentation, HardHat, Moon, Sun } from "lucide-react";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import TopNav from "@/components/TopNav";
 
 export default function AgentDesktop() {
   const { setCustomer, setRole, agentEmail, setAgentEmail } = useCustomer();
   const navigate = useNavigate();
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
 
   return (
     <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
@@ -21,6 +27,14 @@ export default function AgentDesktop() {
             </span>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
+            <button
+              onClick={() => setDark(!dark)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+              title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
+            </button>
             <button
               onClick={() => navigate("/demo")}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
