@@ -147,7 +147,7 @@ RECENT PSPS: {json.dumps(ctx['recent_psps_events'], default=str)}"""
 
         db.execute(text("""
             INSERT INTO daily_briefings (briefing_date, markdown_text, structured_data, model_used, tokens_used)
-            VALUES (:d, :md, :ctx::JSONB, :model, :tok)
+            VALUES (:d, :md, CAST(:ctx AS JSONB), :model, :tok)
             ON CONFLICT (briefing_date) DO UPDATE SET
                 markdown_text = EXCLUDED.markdown_text,
                 structured_data = EXCLUDED.structured_data,
