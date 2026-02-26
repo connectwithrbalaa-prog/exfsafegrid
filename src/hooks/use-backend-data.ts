@@ -18,9 +18,12 @@ import {
   trainModels,
   scoreModels,
   triggerIngestion,
+  getCircuitRiskTrend,
+  getNearbySensors,
   type PsaRiskParams,
   type CircuitIgnitionParams,
   type ActiveIncidentsParams,
+  type NearbySensorsParams,
 } from "@/lib/backend-api";
 
 const STALE = 5 * 60_000; // 5 min
@@ -148,3 +151,23 @@ export const useTriggerIngestion = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ingestion-status"] }),
   });
 };
+
+// Circuit Risk Trend (12h)
+export const useCircuitRiskTrend = (circuitId?: string) =>
+  useQuery({
+    queryKey: ["circuit-risk-trend", circuitId],
+    queryFn: () => getCircuitRiskTrend(circuitId!),
+    enabled: !!circuitId,
+    staleTime: 2 * 60_000,
+    retry: (count, error) => !String(error).includes("404") && count < 1,
+  });
+
+// Nearby Sensors
+export const useNearbySensors = (params?: NearbySensorsParams) =>
+  useQuery({
+    queryKey: ["nearby-sensors", params],
+    queryFn: () => getNearbySensors(params!),
+    enabled: !!params?.lat && !!params?.lon,
+    staleTime: 3 * 60_000,
+    retry: 1,
+  });

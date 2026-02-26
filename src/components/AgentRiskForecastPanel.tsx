@@ -1,48 +1,17 @@
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, Minus, Camera, Thermometer, Wind, Droplets, Activity } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, YAxis, Area, AreaChart } from "recharts";
+import {
+  TrendingUp, TrendingDown, Minus, Camera,
+  Thermometer, Wind, Droplets, Activity, Gauge, Flame,
+} from "lucide-react";
+import { ResponsiveContainer, YAxis, Area, AreaChart, XAxis, Tooltip } from "recharts";
 import type { Customer } from "@/lib/customer-types";
 import { getSubstationForZip } from "@/lib/wildfire-utils";
+import { useCircuitRiskTrend, useNearbySensors } from "@/hooks/use-backend-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format, parseISO } from "date-fns";
 
 interface Props {
   customer: Customer;
-}
-
-function generate12hForecast(riskLevel: string, gridStress: string) {
-  const base = riskLevel === "High" ? 0.65 : riskLevel === "Medium" ? 0.4 : 0.15;
-  const stressMod = gridStress === "High" ? 0.12 : gridStress === "Medium" ? 0.06 : 0;
-  const points: { hour: number; risk: number }[] = [];
-  let val = base + stressMod;
-  for (let h = 0; h <= 12; h++) {
-    const jitter = (Math.sin(h * 1.3 + base * 10) * 0.08) + (Math.cos(h * 0.7) * 0.04);
-    val = Math.max(0.02, Math.min(0.95, val + jitter));
-    points.push({ hour: h, risk: Math.round(val * 100) / 100 });
-  }
-  return points;
-}
-
-function getTrend(data: { risk: number }[]): "RISING" | "STABLE" | "FALLING" {
-  if (data.length < 3) return "STABLE";
-  const first3 = data.slice(0, 3).reduce((s, d) => s + d.risk, 0) / 3;
-  const last3 = data.slice(-3).reduce((s, d) => s + d.risk, 0) / 3;
-  const diff = last3 - first3;
-  if (diff > 0.05) return "RISING";
-  if (diff < -0.05) return "FALLING";
-  return "STABLE";
-}
-
-function getNearbyMonitors(zip: string) {
-  const ss = getSubstationForZip(zip);
-  return {
-    cameras: [
-      { id: "CAM-1", name: `${ss.name} North`, status: "online" as const, distKm: 1.2 },
-      { id: "CAM-2", name: `${ss.zone} Ridge`, status: "online" as const, distKm: 3.8 },
-    ],
-    weatherStations: [
-      { id: "WX-1", name: `${ss.zone} RAWS`, distKm: 2.1, windMph: 12 + Math.round(Math.random() * 15), humidity: 18 + Math.round(Math.random() * 30), tempF: 72 + Math.round(Math.random() * 20) },
-      { id: "WX-2", name: `${ss.name} Meso`, distKm: 4.5, windMph: 8 + Math.round(Math.random() * 12), humidity: 22 + Math.round(Math.random() * 25), tempF: 68 + Math.round(Math.random() * 18) },
-    ],
-  };
 }
 
 const TREND_CFG = {
@@ -52,15 +21,42 @@ const TREND_CFG = {
 };
 
 export default function AgentRiskForecastPanel({ customer }: Props) {
-  const forecastData = useMemo(() => generate12hForecast(customer.wildfire_risk, customer.grid_stress_level), [customer.wildfire_risk, customer.grid_stress_level]);
-  const trend = useMemo(() => getTrend(forecastData), [forecastData]);
-  const { cameras, weatherStations } = useMemo(() => getNearbyMonitors(customer.zip_code), [customer.zip_code]);
+  const ss = getSubstationForZip(customer.zip_code);
+
+  // Derive a circuit_id from the customer (convention: use region-based ID)
+  const circuitId = useMemo(() => {
+    // Try to build a plausible circuit_id from substation info
+    return `CIRCUIT_${customer.zip_code}`;
+  }, [customer.zip_code]);
+
+  // Fetch real data
+  const { data: trendData, isLoading: trendLoading, isError: trendError } = useCircuitRiskTrend(circuitId);
+  const { data: sensorData, isLoading: sensorsLoading, isError: sensorsError } = useNearbySensors({
+    lat: ss.latitude,
+    lon: ss.longitude,
+    radius_miles: 25,
+    summary: true,
+    circuit_id: circuitId,
+  });
+
+  // Chart data
+  const chartData = useMemo(() => {
+    if (!trendData?.hourly) return [];
+    return trendData.hourly.map((h) => ({
+      time: h.time,
+      prob: h.prob,
+      label: format(parseISO(h.time), "ha"),
+    }));
+  }, [trendData]);
+
+  const trend = trendData?.trend_label ?? "STABLE";
   const tcfg = TREND_CFG[trend];
   const TrendIcon = tcfg.icon;
-  const currentRisk = forecastData[forecastData.length - 1]?.risk ?? 0;
-  const riskPct = Math.round(currentRisk * 100);
-  const sparkColor = currentRisk > 0.6 ? "hsl(var(--destructive))" : currentRisk > 0.35 ? "hsl(var(--warning))" : "hsl(var(--success))";
-  const gradientId = "risk-gradient";
+
+  const currentProb = chartData.length > 0 ? chartData[chartData.length - 1].prob : 0;
+  const riskPct = Math.round(currentProb * 100);
+  const sparkColor = currentProb > 0.6 ? "hsl(var(--destructive))" : currentProb > 0.35 ? "hsl(var(--warning))" : "hsl(var(--success))";
+  const gradientId = `risk-gradient-${circuitId}`;
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -70,84 +66,155 @@ export default function AgentRiskForecastPanel({ customer }: Props) {
           <Activity className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold text-card-foreground">12-Hour Risk Forecast</h3>
         </div>
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${tcfg.color} ${tcfg.bg} border ${tcfg.border}`}>
-          <TrendIcon className="w-3 h-3" />
-          {trend}
-        </div>
+        {trendLoading ? (
+          <Skeleton className="h-6 w-20 rounded-lg" />
+        ) : trendError ? (
+          <span className="text-[10px] text-muted-foreground px-2.5 py-1 rounded-lg bg-muted">No predictions yet</span>
+        ) : (
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${tcfg.color} ${tcfg.bg} border ${tcfg.border}`}>
+            <TrendIcon className="w-3 h-3" />
+            {trend}
+          </div>
+        )}
       </div>
 
       <div className="p-5 space-y-4">
         {/* Current risk + sparkline */}
-        <div className="flex items-center gap-4">
-          <div className="text-center min-w-[60px]">
-            <p className={`text-2xl font-bold ${currentRisk > 0.6 ? "text-destructive" : currentRisk > 0.35 ? "text-warning" : "text-success"}`}>
-              {riskPct}%
+        {trendLoading ? (
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-[60px] h-12 rounded" />
+            <Skeleton className="flex-1 h-14 rounded" />
+          </div>
+        ) : trendError || chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-14 text-xs text-muted-foreground">
+            No prediction data available for this circuit
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4">
+              <div className="text-center min-w-[60px]">
+                <p className={`text-2xl font-bold ${currentProb > 0.6 ? "text-destructive" : currentProb > 0.35 ? "text-warning" : "text-success"}`}>
+                  {riskPct}%
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Current</p>
+              </div>
+              <div className="flex-1 h-14">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={sparkColor} stopOpacity={0.3} />
+                        <stop offset="100%" stopColor={sparkColor} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <YAxis domain={[0, 1]} hide />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="px-2.5 py-1.5 bg-popover border border-border rounded-lg shadow-lg text-xs">
+                            <p className="text-muted-foreground">{d.label}</p>
+                            <p className="font-bold text-card-foreground">{Math.round(d.prob * 100)}%</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area type="monotone" dataKey="prob" stroke={sparkColor} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} animationDuration={600} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground px-[64px]">
+              <span>{chartData[0]?.label}</span>
+              <span>{chartData[Math.floor(chartData.length / 2)]?.label}</span>
+              <span>{chartData[chartData.length - 1]?.label}</span>
+            </div>
+          </>
+        )}
+
+        {/* AI Summary */}
+        {sensorData?.summary && (
+          <div className="px-3.5 py-2.5 rounded-lg border border-primary/20 bg-primary/5">
+            <p className="text-xs text-card-foreground leading-relaxed">
+              <span className="font-semibold text-primary">AI Summary: </span>
+              {sensorData.summary}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Current</p>
           </div>
-          <div className="flex-1 h-14">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={forecastData}>
-                <defs>
-                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={sparkColor} stopOpacity={0.3} />
-                    <stop offset="100%" stopColor={sparkColor} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <YAxis domain={[0, 1]} hide />
-                <Area type="monotone" dataKey="risk" stroke={sparkColor} strokeWidth={2} fill={`url(#${gradientId})`} dot={false} animationDuration={600} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        )}
 
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-[64px]">
-          <span>Now</span>
-          <span>+6h</span>
-          <span>+12h</span>
-        </div>
-
-        {/* Cameras */}
+        {/* RAWS Weather Stations */}
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Cameras</p>
-          <div className="grid grid-cols-2 gap-2">
-            {cameras.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors">
-                <Camera className="w-3.5 h-3.5 text-info flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-card-foreground truncate">{c.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{c.distKm} km · <span className="text-success font-medium">{c.status}</span></p>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Nearby RAWS Stations</p>
+          {sensorsLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+          ) : sensorsError || !sensorData?.raws_stations?.length ? (
+            <p className="text-xs text-muted-foreground py-2">No sensor data available</p>
+          ) : (
+            <div className="space-y-2">
+              {sensorData.raws_stations.map((ws) => (
+                <div key={ws.station_id} className="px-3 py-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-medium text-card-foreground">{ws.station_name}</p>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      {ws.distance_miles.toFixed(1)} mi
+                    </span>
+                  </div>
+                  {/* Primary weather metrics */}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Wind className="w-3 h-3" />
+                      <span className="font-medium text-card-foreground">{ws.wind_speed_mph}</span> mph
+                      {ws.wind_gust_mph > ws.wind_speed_mph && (
+                        <span className="text-warning font-medium">(G{ws.wind_gust_mph})</span>
+                      )}
+                    </span>
+                    <span className={`flex items-center gap-1 ${ws.rh_pct < 15 ? "text-destructive" : ws.rh_pct < 25 ? "text-warning" : "text-muted-foreground"}`}>
+                      <Droplets className="w-3 h-3" />
+                      <span className={`font-medium ${ws.rh_pct < 15 ? "text-destructive" : ws.rh_pct < 25 ? "text-warning" : "text-card-foreground"}`}>{ws.rh_pct}%</span> RH
+                    </span>
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Thermometer className="w-3 h-3" />
+                      <span className="font-medium text-card-foreground">{ws.temp_f}°F</span>
+                    </span>
+                  </div>
+                  {/* Fire weather indices */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Gauge className="w-2.5 h-2.5" />
+                      ERC <span className={`font-semibold ${ws.erc > 60 ? "text-destructive" : "text-card-foreground"}`}>{ws.erc}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Flame className="w-2.5 h-2.5" />
+                      BI <span className={`font-semibold ${ws.bi > 80 ? "text-destructive" : "text-card-foreground"}`}>{ws.bi}</span>
+                    </span>
+                    <span>
+                      FFWI <span className={`font-semibold ${ws.ffwi > 40 ? "text-warning" : "text-card-foreground"}`}>{ws.ffwi}</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Weather Stations */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Weather Stations</p>
+        {/* Cameras (placeholder for future data) */}
+        {sensorData?.cameras && sensorData.cameras.length > 0 && (
           <div className="space-y-2">
-            {weatherStations.map((ws) => (
-              <div key={ws.id} className="px-3 py-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs font-medium text-card-foreground">{ws.name}</p>
-                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{ws.distKm} km</span>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Cameras</p>
+            <div className="grid grid-cols-2 gap-2">
+              {sensorData.cameras.map((c: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20">
+                  <Camera className="w-3.5 h-3.5 text-info flex-shrink-0" />
+                  <p className="text-xs font-medium text-card-foreground truncate">{c.name || c.station_name || `Camera ${i + 1}`}</p>
                 </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Wind className="w-3 h-3" /> <span className="font-medium text-card-foreground">{ws.windMph}</span> mph
-                  </span>
-                  <span className={`flex items-center gap-1 ${ws.humidity < 20 ? "text-destructive" : "text-muted-foreground"}`}>
-                    <Droplets className="w-3 h-3" /> <span className={`font-medium ${ws.humidity < 20 ? "text-destructive" : "text-card-foreground"}`}>{ws.humidity}%</span>
-                  </span>
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Thermometer className="w-3 h-3" /> <span className="font-medium text-card-foreground">{ws.tempF}°F</span>
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
