@@ -149,3 +149,56 @@ export const getIngestionStatus = () =>
 
 export const triggerIngestion = (source: string) =>
   proxyCall(`/ingestion/trigger/${source}`, "POST");
+
+// ---------------------------------------------------------------------------
+// Agent – Circuit Risk Trend & Nearby Sensors
+// ---------------------------------------------------------------------------
+export interface RiskTrendHourly {
+  time: string;
+  prob: number;
+}
+
+export interface RiskTrendResponse {
+  circuit_id: string;
+  trend_label: "RISING" | "FALLING" | "STABLE";
+  hourly: RiskTrendHourly[];
+}
+
+export const getCircuitRiskTrend = (circuit_id: string) =>
+  proxyCall<RiskTrendResponse>("/agent/risk-12h", "GET", { circuit_id });
+
+export interface RawsStation {
+  station_id: string;
+  station_name: string;
+  distance_miles: number;
+  obs_time: string;
+  temp_f: number;
+  rh_pct: number;
+  wind_speed_mph: number;
+  wind_gust_mph: number;
+  wind_dir_deg: number;
+  erc: number;
+  bi: number;
+  ffwi: number;
+  precip_in: number;
+}
+
+export interface NearbySensorsResponse {
+  lat: number;
+  lon: number;
+  radius_miles: number;
+  raws_stations: RawsStation[];
+  cameras: any[];
+  summary: string;
+}
+
+export interface NearbySensorsParams {
+  lat: number;
+  lon: number;
+  radius_miles?: number;
+  summary?: boolean;
+  circuit_id?: string;
+}
+
+export const getNearbySensors = (p: NearbySensorsParams) =>
+  proxyCall<NearbySensorsResponse>("/agent/nearby-sensors", "GET", p as any);
