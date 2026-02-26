@@ -26,6 +26,8 @@ import PredictiveOutagePanel from "@/components/PredictiveOutagePanel";
 import HardshipTriagePanel from "@/components/HardshipTriagePanel";
 import AgentRiskForecastPanel from "@/components/AgentRiskForecastPanel";
 import PspsImpactCard from "@/components/PspsImpactCard";
+import ProgramsEligibilityCard from "@/components/ProgramsEligibilityCard";
+import LocalSupportCard from "@/components/LocalSupportCard";
 import { useKeyboardShortcuts, SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
 
 import { toast } from "sonner";
@@ -409,6 +411,16 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                     </div>
                   </SectionCard>
                 )}
+              </div>
+
+              {/* Programs Eligibility + Local Support */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <SectionCard title="Programs & Eligibility" icon={HeartPulse}>
+                  <ProgramsEligibilityCard customer={selected} />
+                </SectionCard>
+                <SectionCard title="Local Support" icon={MapPin}>
+                  <LocalSupportCard customer={selected} />
+                </SectionCard>
               </div>
 
               {/* Quick Actions */}
