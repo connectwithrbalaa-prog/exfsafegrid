@@ -1015,8 +1015,8 @@ export default function CommandCenter() {
         </div>
 
         {/* ════════════════ OVERVIEW ════════════════ */}
-        {section === "overview" && (
-          <>
+        <div className={section === "overview" ? "" : "hidden"}>
+          <div className="space-y-5">
             {/* Executive Summary Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <ExecCard icon={<Activity className="w-5 h-5 text-orange-400" />} label="Active Fires" sublabel="within 50 km of assets" value={loading ? "…" : String(enriched.length)} loading={loading} />
@@ -1210,8 +1210,8 @@ export default function CommandCenter() {
                 <div className="p-5"><CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} /></div>
               ) : null}
             </div>
-          </>
-        )}
+          </div>
+        </div>
 
         {/* ════════════════ OPERATIONS ════════════════ */}
         {section === "operations" && (
