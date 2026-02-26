@@ -80,6 +80,7 @@ export default function FieldCrewApp() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const watchRef = useRef<number | null>(null);
 
   const completedCount = items.filter((i) => i.completed).length;
@@ -457,7 +458,9 @@ export default function FieldCrewApp() {
             {submissions.map((r) => (
               <div key={r.id} className="rounded-lg bg-white/[0.03] border border-white/[0.06] overflow-hidden">
                 {r.photo_url && (
-                  <img src={r.photo_url} alt={r.type} className="w-full h-36 object-cover" />
+                  <button onClick={() => setLightboxUrl(r.photo_url!)} className="w-full">
+                    <img src={r.photo_url} alt={r.type} className="w-full h-36 object-cover" />
+                  </button>
                 )}
                 <div className="px-3 py-2.5 space-y-1">
                   <div className="flex items-center justify-between">
@@ -480,6 +483,27 @@ export default function FieldCrewApp() {
           </div>
         )}
       </main>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white/70 hover:text-white"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Hazard photo"
+            className="max-w-full max-h-[85vh] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
