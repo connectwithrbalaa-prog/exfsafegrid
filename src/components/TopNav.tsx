@@ -27,7 +27,20 @@ interface TopNavProps {
 export default function TopNav({ variant = "light" }: TopNavProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { role, setCustomer, setRole, setAgentEmail } = useCustomer();
+  const { role, customer, agentEmail, setCustomer, setRole, setAgentEmail } = useCustomer();
+
+  const displayName = role === "customer" && customer
+    ? customer.name
+    : agentEmail
+      ? agentEmail.split("@")[0].replace(/\./g, " ")
+      : role;
+
+  const roleBadgeLabel: Record<UserRole, string> = {
+    customer: "Customer",
+    agent: "Agent",
+    executive: "Executive",
+    field: "Field",
+  };
 
   const isDark = variant === "dark";
 
@@ -89,6 +102,22 @@ export default function TopNav({ variant = "light" }: TopNavProps) {
               </button>
             );
           })}
+
+          {/* User badge */}
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs ml-2",
+              isDark ? "bg-white/5 text-white/60" : "bg-muted text-muted-foreground"
+            )}
+          >
+            <span className={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide",
+              isDark ? "bg-white/10 text-white/80" : "bg-accent text-accent-foreground"
+            )}>
+              {roleBadgeLabel[role]}
+            </span>
+            <span className="hidden sm:inline truncate max-w-[120px] capitalize">{displayName}</span>
+          </div>
 
           {/* Sign Out */}
           <button
