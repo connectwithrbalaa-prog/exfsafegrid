@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -25,6 +25,7 @@ import SmsAlertsPanel from "@/components/SmsAlertsPanel";
 import BackendOpsPanel from "@/components/BackendOpsPanel";
 import RiskAlertsPanel from "@/components/RiskAlertsPanel";
 import CircuitOutagePanel from "@/components/CircuitOutagePanel";
+import RiskThresholdSettings from "@/components/RiskThresholdSettings";
 import {
   EVAC_ROUTES, BOTTLENECKS, ROUTE_STYLES, BOTTLENECK_STYLES, BOTTLENECK_ICONS,
 } from "@/lib/evacuation-data";
@@ -145,7 +146,7 @@ export default function CommandCenter() {
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -1385,6 +1386,15 @@ export default function CommandCenter() {
               <Zap className="w-4 h-4 text-violet-400" />
               Outage Impact
             </button>
+            <button
+              onClick={() => setActiveTab("thresholds")}
+              className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${
+                activeTab === "thresholds" ? "border-amber-400 text-white" : "border-transparent text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Settings className="w-4 h-4 text-amber-400" />
+              Thresholds
+            </button>
           </div>
 
           {activeTab === "assets" ? (
@@ -1626,6 +1636,10 @@ export default function CommandCenter() {
           ) : activeTab === "outage" ? (
             <div className="p-5">
               <CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} />
+            </div>
+          ) : activeTab === "thresholds" ? (
+            <div className="p-5">
+              <RiskThresholdSettings />
             </div>
           ) : (
             <div className="p-5">
