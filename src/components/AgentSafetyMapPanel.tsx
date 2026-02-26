@@ -37,6 +37,26 @@ const INFRA_BY_SS: Record<string, InfraSegment[]> = {
     { id: "vc-3", type: "veg_completed", label: "Bass Lake Veg Clear (2.3 mi)", coords: [[-119.32, 37.22], [-119.29, 37.23]] },
     { id: "vp-3", type: "veg_planned", label: "Road 200 Veg (Q2 2026)", coords: [[-119.25, 37.27], [-119.23, 37.28]] },
   ],
+  "SS-103": [
+    { id: "ug-4", type: "undergrounded", label: "South Ridge Blvd Underground (1.5 mi)", coords: [[-119.04, 35.36], [-119.01, 35.38]] },
+    { id: "hp-5", type: "hardened_pole", label: "Pole #S-3301 – Strengthened", coords: [-119.02, 35.37] },
+    { id: "hp-6", type: "hardened_pole", label: "Pole #S-3318 – Strengthened", coords: [-119.00, 35.38] },
+    { id: "vc-4", type: "veg_completed", label: "Kern River Rd Veg Clear (1.9 mi)", coords: [[-119.06, 35.35], [-119.03, 35.36]] },
+    { id: "vp-4", type: "veg_planned", label: "Bakersfield Connector Veg (Q1 2027)", coords: [[-118.99, 35.39], [-118.97, 35.40]] },
+  ],
+  "SS-104": [
+    { id: "ug-5", type: "undergrounded", label: "Foothill East Underground (1.2 mi)", coords: [[-119.24, 37.29], [-119.21, 37.31]] },
+    { id: "hp-7", type: "hardened_pole", label: "Pole #F-4401 – Strengthened", coords: [-119.22, 37.30] },
+    { id: "vc-5", type: "veg_completed", label: "Pine Flat Rd Veg Clear (1.6 mi)", coords: [[-119.26, 37.28], [-119.23, 37.29]] },
+    { id: "vp-5", type: "veg_planned", label: "Trimmer Springs Veg (Q3 2026)", coords: [[-119.19, 37.32], [-119.17, 37.33]] },
+  ],
+  "SS-203": [
+    { id: "ug-6", type: "undergrounded", label: "Mission St Underground (2.4 mi)", coords: [[-122.44, 37.75], [-122.41, 37.77]] },
+    { id: "hp-8", type: "hardened_pole", label: "Pole #SF-7701 – Strengthened", coords: [-122.42, 37.76] },
+    { id: "hp-9", type: "hardened_pole", label: "Pole #SF-7715 – Strengthened", coords: [-122.40, 37.77] },
+    { id: "vc-6", type: "veg_completed", label: "Twin Peaks Veg Clear (0.9 mi)", coords: [[-122.45, 37.74], [-122.43, 37.75]] },
+    { id: "vp-6", type: "veg_planned", label: "Glen Park Corridor Veg (Q4 2026)", coords: [[-122.39, 37.78], [-122.37, 37.79]] },
+  ],
 };
 
 function getInfraForSubstation(ssId: string | undefined): InfraSegment[] {
