@@ -3,10 +3,11 @@
  * Simplified UI with clean card layouts and reduced density
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   MapPin, Wifi, WifiOff, CheckCircle2, Circle, AlertTriangle,
   Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, LogOut, Flame, X, Image,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import TopNav from "@/components/TopNav";
@@ -81,6 +82,8 @@ export default function FieldCrewApp() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const watchRef = useRef<number | null>(null);
 
   const completedCount = items.filter((i) => i.completed).length;
@@ -485,25 +488,74 @@ export default function FieldCrewApp() {
       </main>
 
       {/* Lightbox */}
-      {lightboxUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <button
+      {lightboxUrl && (() => {
+        const photoUrls = submissions.filter((s) => s.photo_url).map((s) => s.photo_url!);
+        const currentIdx = photoUrls.indexOf(lightboxUrl);
+        const hasPrev = currentIdx > 0;
+        const hasNext = currentIdx < photoUrls.length - 1;
+        const goTo = (i: number) => { setLightboxUrl(photoUrls[i]); setLightboxIndex(i); };
+
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
             onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white/70 hover:text-white"
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (touchStartX.current === null) return;
+              const diff = e.changedTouches[0].clientX - touchStartX.current;
+              touchStartX.current = null;
+              if (Math.abs(diff) < 50) return;
+              if (diff < 0 && hasNext) goTo(currentIdx + 1);
+              if (diff > 0 && hasPrev) goTo(currentIdx - 1);
+            }}
           >
-            <X className="w-6 h-6" />
-          </button>
-          <img
-            src={lightboxUrl}
-            alt="Hazard photo"
-            className="max-w-full max-h-[85vh] rounded-lg object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+            <button
+              onClick={() => setLightboxUrl(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white/70 hover:text-white z-10"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Nav arrows */}
+            {hasPrev && (
+              <button
+                onClick={(e) => { e.stopPropagation(); goTo(currentIdx - 1); }}
+                className="absolute left-3 p-2 rounded-full bg-white/10 text-white/70 hover:text-white"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+            {hasNext && (
+              <button
+                onClick={(e) => { e.stopPropagation(); goTo(currentIdx + 1); }}
+                className="absolute right-3 p-2 rounded-full bg-white/10 text-white/70 hover:text-white"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+
+            <img
+              src={lightboxUrl}
+              alt="Hazard photo"
+              className="max-w-full max-h-[85vh] rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Dot indicators */}
+            {photoUrls.length > 1 && (
+              <div className="absolute bottom-6 flex items-center gap-1.5">
+                {photoUrls.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); goTo(i); }}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentIdx ? "bg-white w-3" : "bg-white/30"}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
