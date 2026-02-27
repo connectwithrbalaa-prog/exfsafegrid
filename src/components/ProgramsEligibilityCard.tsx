@@ -8,11 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import CustomerRequestForms from "@/components/CustomerRequestForms";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Battery,
   HeartPulse,
   Zap,
+  Leaf,
   CheckCircle2,
   XCircle,
   ChevronRight,
