@@ -21,6 +21,7 @@ import PspsStatus from "./pages/PspsStatus";
 import FieldCrewApp from "./pages/FieldCrewApp";
 import PspsSimulator from "./pages/PspsSimulator";
 import Playbooks from "./pages/Playbooks";
+import Notifications from "./pages/Notifications";
 import Replay from "./pages/Replay";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/psps-simulator" element={<ProtectedRoute requiredRole="executive"><PspsSimulator /></ProtectedRoute>} />
               <Route path="/playbooks" element={<ProtectedRoute requiredRole="executive"><Playbooks /></ProtectedRoute>} />
               <Route path="/replay" element={<ProtectedRoute requiredRole="executive"><Replay /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute requiredRole="executive"><Notifications /></ProtectedRoute>} />
               <Route path="/demo" element={<DemoPresentation />} />
               <Route path="/docs" element={<Documentation />} />
               <Route path="/status" element={<PspsStatus />} />
