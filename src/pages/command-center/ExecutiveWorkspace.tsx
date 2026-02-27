@@ -2,7 +2,7 @@
  * ExecutiveWorkspace — High-level KPIs, top risks, PSPS simulator link.
  */
 import { useNavigate } from "react-router-dom";
-import { Activity, Zap, AlertTriangle, TrendingUp, Shield, Users } from "lucide-react";
+import { Activity, Zap, AlertTriangle, TrendingUp, Shield, BookOpen, History } from "lucide-react";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import Top5RisingRiskCard from "@/components/Top5RisingRiskCard";
 import BackendOpsPanel from "@/components/BackendOpsPanel";
@@ -63,6 +63,30 @@ export default function ExecutiveWorkspace() {
           <span className="text-sm font-bold text-violet-300 group-hover:text-violet-200 transition-colors">
             Open Simulator →
           </span>
+        </div>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 gap-4">
+        <div
+          onClick={() => navigate("/playbooks")}
+          className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-4 flex items-center gap-3 cursor-pointer hover:bg-white/[0.04] transition-colors group"
+        >
+          <BookOpen className="w-5 h-5 text-emerald-400" />
+          <div>
+            <div className="text-sm font-semibold group-hover:text-emerald-300 transition-colors">Playbooks</div>
+            <div className="text-[11px] text-white/40">Saved PSPS configurations</div>
+          </div>
+        </div>
+        <div
+          onClick={() => navigate("/replay")}
+          className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-4 flex items-center gap-3 cursor-pointer hover:bg-white/[0.04] transition-colors group"
+        >
+          <History className="w-5 h-5 text-amber-400" />
+          <div>
+            <div className="text-sm font-semibold group-hover:text-amber-300 transition-colors">Historical Replay</div>
+            <div className="text-[11px] text-white/40">Re-run past PSPS events</div>
+          </div>
         </div>
       </div>
 
