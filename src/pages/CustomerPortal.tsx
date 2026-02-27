@@ -556,8 +556,8 @@ function ProgramEnrollmentButtons({ customer: c }: { customer: Customer }) {
     {
       key: "demand_response",
       label: "Demand Response",
-      enrolled: c.has_transfer_meter,
-      field: "has_transfer_meter",
+      enrolled: c.demand_response_enrolled,
+      field: "demand_response_enrolled",
       value: true,
       unValue: false,
       desc: "Earn credits by reducing usage during peak hours",

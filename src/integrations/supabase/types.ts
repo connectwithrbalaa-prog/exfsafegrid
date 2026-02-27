@@ -188,6 +188,7 @@ export type Database = {
           bill_trend: string
           created_at: string
           current_outage_status: string
+          demand_response_enrolled: boolean
           digital_ack_status: string
           doorbell_status: string
           email: string | null
@@ -217,6 +218,7 @@ export type Database = {
           bill_trend?: string
           created_at?: string
           current_outage_status?: string
+          demand_response_enrolled?: boolean
           digital_ack_status?: string
           doorbell_status?: string
           email?: string | null
@@ -246,6 +248,7 @@ export type Database = {
           bill_trend?: string
           created_at?: string
           current_outage_status?: string
+          demand_response_enrolled?: boolean
           digital_ack_status?: string
           doorbell_status?: string
           email?: string | null

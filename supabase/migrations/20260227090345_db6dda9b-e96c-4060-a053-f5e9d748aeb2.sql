@@ -1,0 +1,1 @@
+ALTER TABLE public.customers ADD COLUMN demand_response_enrolled boolean NOT NULL DEFAULT false;
