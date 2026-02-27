@@ -16,6 +16,7 @@ import {
   AlertTriangle, CheckCircle, Clock, Download, Filter,
   Loader2, MapPin, Shield, Users, Zap,
 } from "lucide-react";
+import InlineTrendBadge from "@/components/InlineTrendBadge";
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -317,7 +318,12 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 font-mono font-bold">{c.priorityScore}</td>
-                  <td className="px-4 py-2.5 font-mono">{c.circuit_id}</td>
+                  <td className="px-4 py-2.5 font-mono">
+                    <span className="flex items-center gap-1.5">
+                      {c.circuit_id}
+                      <InlineTrendBadge circuitId={c.circuit_id} />
+                    </span>
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className={`text-[10px] font-semibold ${
                       c.isHftd3 ? "text-red-400" : c.hftd_tier.includes("2") ? "text-orange-400" : "text-white/40"
