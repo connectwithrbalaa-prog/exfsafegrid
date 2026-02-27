@@ -248,7 +248,7 @@ export default function CustomerPortal() {
                   </div>
                   <p className="text-xs text-muted-foreground">{c.nearest_crc_location}</p>
                   <a
-                    href={`https://www.google.com/maps/search/${encodeURIComponent(c.nearest_crc_location)}`}
+                    href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(c.nearest_crc_location)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
