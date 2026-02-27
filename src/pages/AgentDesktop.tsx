@@ -1,19 +1,16 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import AgentView from "@/components/AgentView";
 import { useCustomer } from "@/hooks/use-customer";
 import { Presentation, HardHat, Moon, Sun } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import PspsStatusHeader from "@/components/PspsStatusHeader";
 import TopNav from "@/components/TopNav";
 
 export default function AgentDesktop() {
   const { setCustomer, setRole, agentEmail, setAgentEmail } = useCustomer();
   const navigate = useNavigate();
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
+  const { dark, toggle } = useDarkMode();
 
   return (
     <div className="min-h-screen bg-background pt-[60px] md:pt-[68px] lg:pt-[72px]">
@@ -28,7 +25,7 @@ export default function AgentDesktop() {
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
             <button
-              onClick={() => setDark(!dark)}
+              onClick={toggle}
               className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] md:text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               title={dark ? "Switch to light mode" : "Switch to dark mode"}
             >

@@ -9,8 +9,9 @@ import type { Customer } from "@/lib/customer-types";
 import {
   Zap, Flame, DollarSign, Activity, RefreshCw,
   MapPin, Shield, MessageSquare, FileText, Map,
-  Battery, ChevronDown, ChevronUp,
+  Battery, ChevronDown, ChevronUp, Moon, Sun,
 } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
 import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ export default function CustomerPortal() {
   const isMobile = useIsMobile();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"home" | "map" | "chat" | "services">("home");
+  const { dark, toggle } = useDarkMode();
 
   const refreshData = useCallback(async () => {
     if (!customer) return;
@@ -105,6 +107,13 @@ export default function CustomerPortal() {
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {c.name} · ZIP {c.zip_code}
             </span>
+            <button
+              onClick={toggle}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
             <button
               onClick={refreshData}
               disabled={refreshing}

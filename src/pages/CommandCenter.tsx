@@ -4,8 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, LogOut, ChevronDown,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, LogOut, ChevronDown, Moon, Sun,
 } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useCustomer } from "@/hooks/use-customer";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -145,6 +146,7 @@ function computeAssetRisks(enriched: EnrichedFire[]): AssetRisk[] {
 export default function CommandCenter() {
   const navigate = useNavigate();
   const { setCustomer, setRole, setAgentEmail } = useCustomer();
+  const { dark, toggle } = useDarkMode();
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -1008,6 +1010,13 @@ export default function CommandCenter() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
+            </button>
+            <button
+              onClick={toggle}
+              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-md border border-white/10"
+              title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
