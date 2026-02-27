@@ -168,8 +168,8 @@ export default function GisWorkspace() {
       </div>
 
       {/* Map */}
-      <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden relative" style={{ height: 520 }}>
-        <div ref={mapContainerRef} className="w-full h-full" />
+      <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ height: 520 }}>
+        <div ref={mapContainerRef} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }} />
         {loading && (
           <div className="absolute inset-0 z-[1000] bg-black/50 flex items-center justify-center">
             <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
