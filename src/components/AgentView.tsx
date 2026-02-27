@@ -17,6 +17,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import AgentChatPanel from "@/components/AgentChatPanel";
+import TabbedChatPanel from "@/components/TabbedChatPanel";
+import { PREDICTIONS_CONFIG } from "@/lib/predictions-config";
 import SafetyModules from "@/components/SafetyModules";
 import ReportHazard from "@/components/ReportHazard";
 import AgentRequestsPanel from "@/components/AgentRequestsPanel";
@@ -465,8 +467,13 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                 <div className="px-5 pb-1 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Context: {selected.name}</span>
                 </div>
-                <div className="h-[380px]">
-                  <AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />
+                <div className="h-[420px]">
+                  <TabbedChatPanel
+                    chatPanel={<AgentChatPanel key={selected.id} customerContext={buildCustomerContext(selected)} />}
+                    chatTabLabel={PREDICTIONS_CONFIG.agent.chatTab}
+                    predictionsConfig={PREDICTIONS_CONFIG.agent.config}
+                    predictionsTabLabel={PREDICTIONS_CONFIG.agent.predictionsTab}
+                  />
                 </div>
               </SectionCard>
 

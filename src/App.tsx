@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CustomerProvider } from "@/hooks/use-customer";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import MlChatBubble from "@/components/MlChatBubble";
+// MlChatBubble removed — predictions now integrated as tabbed panels per persona
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import CustomerPortal from "./pages/CustomerPortal";
@@ -84,7 +84,7 @@ const App = () => (
               <Route path="/system" element={<SystemStatus />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <MlChatBubble />
+            {/* Predictions chat now embedded per persona */}
           </ErrorBoundary>
         </BrowserRouter>
       </CustomerProvider>

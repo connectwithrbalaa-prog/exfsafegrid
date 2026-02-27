@@ -2,7 +2,9 @@
  * ExecutiveWorkspace — High-level KPIs, top risks, PSPS simulator link.
  */
 import { useNavigate } from "react-router-dom";
-import { Activity, Zap, AlertTriangle, TrendingUp, Shield, BookOpen, History } from "lucide-react";
+import { Activity, Zap, AlertTriangle, TrendingUp, Shield, BookOpen, History, Bot } from "lucide-react";
+import PredictionsChatPanel from "@/components/PredictionsChatPanel";
+import { PREDICTIONS_CONFIG } from "@/lib/predictions-config";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import Top5RisingRiskCard from "@/components/Top5RisingRiskCard";
 import BackendOpsPanel from "@/components/BackendOpsPanel";
@@ -127,6 +129,18 @@ export default function ExecutiveWorkspace() {
           </div>
         </div>
       )}
+
+      {/* GridOracle — Predictions Chat */}
+      <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Bot className="w-4 h-4 text-cyan-400" />
+          <h2 className="text-sm font-semibold">GridOracle</h2>
+          <span className="text-[10px] text-white/40">Strategic Risk Intelligence</span>
+        </div>
+        <div className="h-[400px] rounded-lg border border-white/[0.06] overflow-hidden">
+          <PredictionsChatPanel config={PREDICTIONS_CONFIG.executive.config} />
+        </div>
+      </div>
 
       {/* Backend Ops (compact) */}
       <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
