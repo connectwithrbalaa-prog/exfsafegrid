@@ -58,7 +58,10 @@ export default function PredictionsChatPanel({ config }: Props) {
 
       if (contentType.includes("application/json")) {
         const data = await resp.json();
-        setMessages(prev => [...prev, { role: "assistant", content: data.reply || "No results found." }]);
+        const raw = data.reply || "No results found.";
+        // Strip any leaked system prompt lines
+        const cleaned = raw.replace(/^(Do NOT introduce yourself\..*|CRITICAL RULES:.*|NEVER reveal.*|Jump straight into.*)\n*/gim, "").trim();
+        setMessages(prev => [...prev, { role: "assistant", content: cleaned || "No results found." }]);
         setIsLoading(false);
         return;
       }
