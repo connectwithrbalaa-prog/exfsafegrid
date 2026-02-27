@@ -12,6 +12,7 @@ import {
   MapPin, Shield, MessageSquare, FileText, Map,
   Battery, ChevronDown, ChevronUp, Moon, Sun,
   CheckCircle2, Circle, AlertTriangle, Phone, Radio,
+  Wind, Navigation, ExternalLink, Leaf,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
@@ -100,9 +101,8 @@ export default function CustomerPortal() {
               <Zap className="w-3.5 h-3.5 text-primary-foreground" />
             </div>
             <span className="text-base font-bold tracking-tight">
-              <span className="text-exf-blue">Exf</span>
-              <span className="text-exf-red">Safe</span>
-              <span className="text-exf-blue">Grid</span>
+              <span className="text-exf-red">Exf</span>
+              <span className="text-foreground">SafeGrid</span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -230,12 +230,38 @@ export default function CustomerPortal() {
               </CollapsibleCard>
 
               <CollapsibleCard title="Programs & History" icon={Shield} defaultOpen={!isMobile}>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <MiniStat label="Medical Baseline" value={c.medical_baseline ? "Enrolled" : "No"} />
-                  <MiniStat label="Digital ACK" value={c.digital_ack_status} />
-                  <MiniStat label="Recent Outages" value={outages.length > 0 ? outages.join(", ") : "None"} />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <MiniStat label="Medical Baseline" value={c.medical_baseline ? "Enrolled" : "No"} />
+                    <MiniStat label="Digital ACK" value={c.digital_ack_status} />
+                    <MiniStat label="Recent Outages" value={outages.length > 0 ? outages.join(", ") : "None"} />
+                  </div>
+                  <ProgramEnrollmentButtons customer={c} />
                 </div>
               </CollapsibleCard>
+
+              {/* ── Air Quality ── */}
+              <AirQualityWidget zip={c.zip_code} />
+
+              {/* ── Nearest Shelter / CRC ── */}
+              {c.nearest_crc_location && (
+                <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold">Nearest Shelter / CRC</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{c.nearest_crc_location}</p>
+                  <a
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(c.nearest_crc_location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    <MapPin className="w-3 h-3" /> Get Directions
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
 
               <CollapsibleCard title="Weather Advisory" icon={Flame} defaultOpen={false}>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -501,6 +527,159 @@ function ReadinessCard({ customer: c }: { customer: Customer }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── Program Enrollment Buttons ── */
+function ProgramEnrollmentButtons({ customer: c }: { customer: Customer }) {
+  const { setCustomer } = useCustomer();
+  const [enrolling, setEnrolling] = useState<string | null>(null);
+
+  const programs = [
+    {
+      key: "medical_baseline",
+      label: "Medical Baseline",
+      enrolled: c.medical_baseline,
+      field: "medical_baseline",
+      value: true,
+      unValue: false,
+      desc: "Priority notifications & restoration for medical equipment users",
+      icon: "🏥",
+    },
+    {
+      key: "backup_power",
+      label: "Backup Power Program",
+      enrolled: c.has_portable_battery || c.has_permanent_battery !== "None",
+      field: "has_portable_battery",
+      value: true,
+      unValue: false,
+      desc: "Get a portable battery or permanent backup at reduced cost",
+      icon: "🔋",
+    },
+    {
+      key: "demand_response",
+      label: "Demand Response",
+      enrolled: false,
+      field: null as string | null,
+      value: null,
+      unValue: null,
+      desc: "Earn credits by reducing usage during peak hours",
+      icon: "🌱",
+    },
+  ];
+
+  const handleEnroll = async (prog: typeof programs[0]) => {
+    if (!prog.field) {
+      toast.info("Opening enrollment form…");
+      return;
+    }
+    setEnrolling(prog.key);
+    const newVal = prog.enrolled ? prog.unValue : prog.value;
+    const { error } = await supabase
+      .from("customers")
+      .update({ [prog.field]: newVal })
+      .eq("id", c.id);
+
+    if (!error) {
+      const { data } = await supabase.from("customers").select("*").eq("id", c.id).maybeSingle();
+      if (data) setCustomer(data as unknown as Customer);
+      toast.success(prog.enrolled ? `Unenrolled from ${prog.label}` : `Enrolled in ${prog.label}!`);
+    } else {
+      toast.error("Failed to update enrollment");
+    }
+    setEnrolling(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Quick Enrollment</p>
+      {programs.map((prog) => (
+        <div key={prog.key} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30">
+          <span className="text-lg">{prog.icon}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground">{prog.label}</p>
+            <p className="text-[10px] text-muted-foreground">{prog.desc}</p>
+          </div>
+          <button
+            onClick={() => handleEnroll(prog)}
+            disabled={enrolling === prog.key}
+            className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-colors ${
+              prog.enrolled
+                ? "bg-success/10 text-success hover:bg-success/20"
+                : "bg-primary/10 text-primary hover:bg-primary/20"
+            } disabled:opacity-40`}
+          >
+            {enrolling === prog.key ? "…" : prog.enrolled ? "Enrolled ✓" : "Enroll"}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Air Quality Widget ── */
+function AirQualityWidget({ zip }: { zip: string }) {
+  const [aq, setAq] = useState<{
+    aqi: number; level: string; color: string; advice: string;
+    pm2_5: number | null; pm10: number | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/air-quality?zip=${encodeURIComponent(zip)}`,
+          { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
+        );
+        if (res.ok) {
+          const d = await res.json();
+          setAq(d);
+        }
+      } catch {}
+      setLoading(false);
+    })();
+  }, [zip]);
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4 flex items-center gap-2">
+        <Loader2Icon className="w-4 h-4 animate-spin text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">Loading air quality…</span>
+      </div>
+    );
+  }
+
+  if (!aq) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <Wind className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-semibold">Air Quality</span>
+        <span className="ml-auto text-xs text-muted-foreground">ZIP {zip}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+          style={{ backgroundColor: aq.color }}
+        >
+          {aq.aqi}
+        </div>
+        <div className="flex-1">
+          <p className="text-xs font-semibold" style={{ color: aq.color }}>{aq.level}</p>
+          <p className="text-[11px] text-muted-foreground leading-snug">{aq.advice}</p>
+        </div>
+      </div>
+      {(aq.pm2_5 !== null || aq.pm10 !== null) && (
+        <div className="flex gap-3 text-[10px] text-muted-foreground">
+          {aq.pm2_5 !== null && <span>PM2.5: <strong className="text-foreground">{aq.pm2_5} µg/m³</strong></span>}
+          {aq.pm10 !== null && <span>PM10: <strong className="text-foreground">{aq.pm10} µg/m³</strong></span>}
+        </div>
+      )}
     </div>
   );
 }
