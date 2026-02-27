@@ -114,29 +114,77 @@ const tools = [
   },
 ];
 
+function demoFallback(path: string, params: Record<string, any>): any {
+  const bands = ["LOW", "MODERATE", "HIGH", "CRITICAL"];
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (path === "/psa-risk") {
+    const psas = ["PSA-101", "PSA-102", "PSA-103", "PSA-104", "PSA-105"];
+    return { predictions: psas.map((pid, i) => {
+      const p = +(0.2 + 0.1 * i + Math.random() * 0.08).toFixed(3);
+      return { psa_id: pid, month_offset: params.month_offset || 1, probability: Math.min(p, 0.95), risk_band: bands[Math.min(Math.floor(p / 0.25), 3)], prediction_date: today };
+    }), demo: true };
+  }
+  if (path === "/circuit-ignition-risk") {
+    const circuits = ["CKT-1103", "CKT-2201", "CKT-2205", "CKT-1407", "CKT-3301"];
+    return { predictions: circuits.map((cid, i) => {
+      const p = +(0.15 + 0.08 * i + Math.random() * 0.1).toFixed(3);
+      return { circuit_id: cid, psa_id: `PSA-${100 + i}`, horizon_hours: params.horizon_hours || 24, probability: Math.min(p, 0.95), risk_band: bands[Math.min(Math.floor(p / 0.25), 3)], prediction_date: today, top_features: ["wind_speed", "rh_pct", "erc"] };
+    }), demo: true };
+  }
+  if (path === "/fire-spread-risk") {
+    const circuits = ["CKT-1103", "CKT-2201", "CKT-2205"];
+    return { predictions: circuits.map((cid, i) => ({
+      circuit_id: cid, spread_rate_ch_hr: +(4 + i * 2.5 + Math.random() * 2).toFixed(1), flame_length_ft: +(3 + i * 1.5).toFixed(1), spotting_distance_mi: +(0.2 + i * 0.3).toFixed(2), severity: i >= 2 ? "HIGH" : "MODERATE", prediction_date: today,
+    })), demo: true };
+  }
+  if (path === "/customer-density") {
+    const circuits = ["CKT-1103", "CKT-2201", "CKT-2205", "CKT-1407"];
+    return { circuits: circuits.map((cid, i) => ({
+      circuit_id: cid, total_customers: 1200 + i * 400, critical_customers: 8 + i * 3, medical_baseline: 4 + i * 2, risk_band: bands[Math.min(i, 3)],
+    })), demo: true };
+  }
+  return { error: "Unknown endpoint" };
+}
+
 async function callBackend(path: string, params: Record<string, any>): Promise<any> {
   const BACKEND_URL = Deno.env.get("BACKEND_API_URL");
   const BACKEND_KEY = Deno.env.get("BACKEND_API_KEY");
 
-  if (!BACKEND_URL) throw new Error("BACKEND_API_URL not configured");
+  if (!BACKEND_URL) {
+    console.log(`BACKEND_API_URL not set; returning demo data for ${path}`);
+    return demoFallback(path, params);
+  }
 
   const url = new URL(path, BACKEND_URL);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   }
 
-  const res = await fetch(url.toString(), {
-    headers: {
-      "Content-Type": "application/json",
-      ...(BACKEND_KEY ? { "X-API-Key": BACKEND_KEY } : {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Backend ${path} responded ${res.status}: ${text}`);
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        "Content-Type": "application/json",
+        ...(BACKEND_KEY ? { "X-API-Key": BACKEND_KEY } : {}),
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn(`Backend ${path} returned ${res.status}, using demo fallback`);
+      return demoFallback(path, params);
+    }
+    return res.json();
+  } catch (e) {
+    clearTimeout(timeout);
+    console.warn(`Backend ${path} unreachable, using demo fallback:`, e);
+    return demoFallback(path, params);
   }
-  return res.json();
 }
 
 async function executeTool(name: string, args: Record<string, any>): Promise<string> {
