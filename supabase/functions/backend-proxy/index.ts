@@ -128,6 +128,44 @@ Deno.serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Fallback demo data for prediction endpoints returning 500
+    if (upstream.status === 500 && targetPath === "/circuit-ignition-risk") {
+      console.log("Upstream /circuit-ignition-risk returned 500; returning demo data");
+      const limit = parseInt(url.searchParams.get("limit") || "10");
+      const horizon = parseInt(url.searchParams.get("horizon_hours") || "24");
+      const circuits = ["CKT-1103","CKT-2201","CKT-2205","CKT-1407","CKT-3301","CKT-4402","CKT-5501","CKT-6603","CKT-7704","CKT-8805"];
+      const bands = ["LOW","MODERATE","HIGH","CRITICAL"];
+      const predictions = circuits.slice(0, Math.min(limit, circuits.length)).map((cid, i) => {
+        const p = +(0.15 + 0.08 * i + Math.random() * 0.1).toFixed(3);
+        return {
+          circuit_id: cid, psa_id: `PSA-${100 + i}`, horizon_hours: horizon,
+          probability: Math.min(p, 0.95),
+          risk_band: bands[Math.min(Math.floor(p / 0.25), 3)],
+          prediction_date: new Date().toISOString().slice(0, 10),
+          top_features: ["wind_speed", "rh_pct", "erc"],
+        };
+      });
+      return new Response(JSON.stringify({ predictions, demo: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (upstream.status === 500 && targetPath === "/psa-risk") {
+      console.log("Upstream /psa-risk returned 500; returning demo data");
+      const psas = ["PSA-101","PSA-102","PSA-103","PSA-104","PSA-105"];
+      const predictions = psas.map((pid, i) => {
+        const p = +(0.2 + 0.1 * i + Math.random() * 0.08).toFixed(3);
+        return {
+          psa_id: pid, month_offset: 1, probability: Math.min(p, 0.95),
+          risk_band: p >= 0.7 ? "CRITICAL" : p >= 0.5 ? "HIGH" : p >= 0.3 ? "MODERATE" : "LOW",
+          prediction_date: new Date().toISOString().slice(0, 10),
+        };
+      });
+      return new Response(JSON.stringify({ predictions, demo: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log(`Upstream responded ${upstream.status}`);
 
     return new Response(body, {
