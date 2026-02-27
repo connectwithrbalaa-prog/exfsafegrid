@@ -5,8 +5,11 @@ import {
   AreaChart, Area, CartesianGrid, Legend, LineChart, Line,
 } from "recharts";
 import { FirePoint, SUBSTATIONS, haversineKm } from "@/lib/wildfire-utils";
+import { use7DayOutlook, useMonthlyOutlook } from "@/hooks/use-api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-/* ── Historical Fire Data ───────────────────────────────────── */
+/* ── Historical Fire Data (unchanged) ──────────────────────── */
 
 interface HistoricalFire {
   id: string;
@@ -110,7 +113,133 @@ const SPREAD_LABELS: Record<string, string> = {
   "spotting": "Spotting",
 };
 
-/* ── Component ──────────────────────────────────────────────── */
+const POTENTIAL_COLORS: Record<number, string> = {
+  1: "text-green-500",
+  2: "text-green-400",
+  3: "text-yellow-500",
+  4: "text-orange-500",
+  5: "text-red-500",
+};
+
+/* ── Live Outlook Section ──────────────────────────────────── */
+
+const PERIOD_OPTIONS = ["Day1", "Day2", "Day3", "Day4", "Day5", "Day6", "Day7"];
+
+function LiveOutlookSection() {
+  const [period, setPeriod] = useState("Day1");
+  const { data: outlook7, isLoading: loading7, isError: err7 } = use7DayOutlook({ period_label: period });
+  const { data: outlookM, isLoading: loadingM, isError: errM } = useMonthlyOutlook({ period_label: "Month1" });
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold text-white/50 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-sky-400" />
+            7-Day Fire Potential Outlook
+          </h3>
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-24 h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {loading7 ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
+          </div>
+        ) : err7 ? (
+          <div className="text-xs text-destructive flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" /> Failed to load 7-day outlook
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-white/30 border-b border-white/[0.06]">
+                  <th className="px-3 py-2 font-medium">PSA</th>
+                  <th className="px-3 py-2 font-medium">Period</th>
+                  <th className="px-3 py-2 font-medium">Potential (1–5)</th>
+                  <th className="px-3 py-2 font-medium">Label</th>
+                  <th className="px-3 py-2 font-medium">Forecast Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {(outlook7?.outlooks ?? []).slice(0, 20).map((o, i) => (
+                  <tr key={`${o.psa_id}-${i}`} className="hover:bg-white/[0.02]">
+                    <td className="px-3 py-2 font-mono text-white/70">{o.psa_id}</td>
+                    <td className="px-3 py-2 text-white/50">{o.period_label}</td>
+                    <td className={`px-3 py-2 font-bold ${POTENTIAL_COLORS[o.fire_potential] ?? "text-white/50"}`}>
+                      {o.fire_potential}
+                    </td>
+                    <td className="px-3 py-2 text-white/60">{o.fire_potential_label}</td>
+                    <td className="px-3 py-2 text-white/40">{o.forecast_date}</td>
+                  </tr>
+                ))}
+                {(outlook7?.outlooks ?? []).length === 0 && (
+                  <tr><td colSpan={5} className="px-3 py-4 text-center text-white/30">No outlook data for {period}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Monthly outlook summary */}
+      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+        <h3 className="text-xs font-semibold text-white/50 flex items-center gap-1.5 mb-3">
+          <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+          Monthly Fire Potential Outlook (Month 1)
+        </h3>
+        {loadingM ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
+          </div>
+        ) : errM ? (
+          <div className="text-xs text-destructive flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" /> Failed to load monthly outlook
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-white/30 border-b border-white/[0.06]">
+                  <th className="px-3 py-2 font-medium">PSA</th>
+                  <th className="px-3 py-2 font-medium">Potential</th>
+                  <th className="px-3 py-2 font-medium">Label</th>
+                  <th className="px-3 py-2 font-medium">Forecast Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {(outlookM?.outlooks ?? []).slice(0, 10).map((o, i) => (
+                  <tr key={`${o.psa_id}-${i}`} className="hover:bg-white/[0.02]">
+                    <td className="px-3 py-2 font-mono text-white/70">{o.psa_id}</td>
+                    <td className={`px-3 py-2 font-bold ${POTENTIAL_COLORS[o.fire_potential] ?? "text-white/50"}`}>
+                      {o.fire_potential}
+                    </td>
+                    <td className="px-3 py-2 text-white/60">{o.fire_potential_label}</td>
+                    <td className="px-3 py-2 text-white/40">{o.forecast_date}</td>
+                  </tr>
+                ))}
+                {(outlookM?.outlooks ?? []).length === 0 && (
+                  <tr><td colSpan={4} className="px-3 py-4 text-center text-white/30">No monthly outlook data</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Component ────────────────────────────────────────── */
 
 interface Props {
   fires: FirePoint[];
@@ -138,7 +267,6 @@ export default function FireHistoryTimeline({ fires }: Props) {
     return list;
   }, [sortKey, sortAsc, selectedPattern]);
 
-  /* Correlation: how many current fires overlap with historical fire perimeters (30km) */
   const correlations = useMemo(() => {
     return HISTORICAL_FIRES.map((hf) => {
       const currentFiresNearby = fires.filter(
@@ -148,7 +276,6 @@ export default function FireHistoryTimeline({ fires }: Props) {
     }).sort((a, b) => b.currentFiresNearby - a.currentFiresNearby);
   }, [fires]);
 
-  /* Decade summary */
   const decadeSummary = useMemo(() => {
     const decades: Record<string, { fires: number; acres: number; structures: number }> = {};
     HISTORICAL_FIRES.forEach((f) => {
@@ -161,14 +288,12 @@ export default function FireHistoryTimeline({ fires }: Props) {
     return Object.entries(decades).map(([decade, d]) => ({ decade, ...d })).sort((a, b) => a.decade.localeCompare(b.decade));
   }, []);
 
-  /* Acres by year for area chart */
   const yearlyData = useMemo(() => {
     return HISTORICAL_FIRES
       .map((f) => ({ year: f.year, name: f.name, acres: f.acresBurned, spread: f.spreadPattern }))
       .sort((a, b) => a.year - b.year);
   }, []);
 
-  /* Spread pattern distribution */
   const patternCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     HISTORICAL_FIRES.forEach((f) => {
@@ -199,17 +324,16 @@ export default function FireHistoryTimeline({ fires }: Props) {
     <div className="space-y-5">
       {/* ── Summary ───────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <SummaryCard label="Historical Fires" value={HISTORICAL_FIRES.length} color="text-white/80" />
-        <SummaryCard label="Total Acres" value={totalAcres.toLocaleString()} color="text-orange-400" />
-        <SummaryCard label="Structures Lost" value={totalStructures.toLocaleString()} color="text-red-400" />
-        <SummaryCard label="Avg Duration" value={`${avgDuration}d`} color="text-amber-400" />
-        <SummaryCard label="Active Overlap" value={correlations.filter((c) => c.currentFiresNearby > 0).length} color="text-sky-400" sub="zones with current fires" />
-        <SummaryCard label="Span" value="2013–2022" color="text-white/50" />
+        <HistSummaryCard label="Historical Fires" value={HISTORICAL_FIRES.length} color="text-white/80" />
+        <HistSummaryCard label="Total Acres" value={totalAcres.toLocaleString()} color="text-orange-400" />
+        <HistSummaryCard label="Structures Lost" value={totalStructures.toLocaleString()} color="text-red-400" />
+        <HistSummaryCard label="Avg Duration" value={`${avgDuration}d`} color="text-amber-400" />
+        <HistSummaryCard label="Active Overlap" value={correlations.filter((c) => c.currentFiresNearby > 0).length} color="text-sky-400" sub="zones with current fires" />
+        <HistSummaryCard label="Span" value="2013–2022" color="text-white/50" />
       </div>
 
       {/* ── Charts Row ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Acres burned timeline */}
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
           <h3 className="text-xs font-semibold text-white/50 mb-3 flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 text-orange-400" />
@@ -232,7 +356,6 @@ export default function FireHistoryTimeline({ fires }: Props) {
           </ResponsiveContainer>
         </div>
 
-        {/* Current fire correlation */}
         <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
           <h3 className="text-xs font-semibold text-white/50 mb-3 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-sky-400" />
@@ -392,13 +515,22 @@ export default function FireHistoryTimeline({ fires }: Props) {
       <div className="text-[10px] text-white/20 px-1">
         Historical data from CAL FIRE / NIFC incident records · Current overlap uses 30 km proximity to historical fire origins
       </div>
+
+      {/* ── Live Outlook Section (from FastAPI) ────────── */}
+      <div className="border-t border-white/[0.06] pt-5 mt-2">
+        <h2 className="text-sm font-semibold text-white/70 mb-4 flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-sky-400" />
+          Live Fire Potential Outlooks
+        </h2>
+        <LiveOutlookSection />
+      </div>
     </div>
   );
 }
 
 /* ── Sub-components ─────────────────────────────────────────── */
 
-function SummaryCard({ label, value, color, sub }: { label: string; value: string | number; color: string; sub?: string }) {
+function HistSummaryCard({ label, value, color, sub }: { label: string; value: string | number; color: string; sub?: string }) {
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
       <div className="text-[10px] uppercase tracking-wider text-white/30 mb-1">{label}</div>

@@ -1,51 +1,35 @@
-import { useEffect, useState, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState, useRef } from "react";
+import { useActiveIncidents, useCurrentPerimeters } from "@/hooks/use-api";
 import { Flame, RefreshCw, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
-
-interface FirePoint {
-  latitude: number;
-  longitude: number;
-  brightness: number;
-  acq_date: string;
-  acq_time: string;
-  confidence: string | number;
-  satellite: string;
-  frp: number;
-  daynight: string;
-}
+import type { Incident } from "@/lib/api-types";
 
 interface Props {
   customerZip?: string;
   compact?: boolean;
 }
 
-function formatTime(acq_time: string) {
-  if (!acq_time || acq_time.length < 3) return acq_time;
-  const padded = acq_time.padStart(4, "0");
-  return `${padded.slice(0, 2)}:${padded.slice(2)} UTC`;
-}
-
-function getFrpColor(frp: number): string {
-  if (frp < 1) return "#FFD700";
-  if (frp <= 3) return "#FF8C00";
+function getAcresColor(acres: number | null): string {
+  if (!acres || acres < 100) return "#FFD700";
+  if (acres <= 1000) return "#FF8C00";
   return "#FF0000";
 }
 
-function getFrpRadius(frp: number): number {
-  if (frp <= 0) return 4;
-  if (frp <= 3) return 4 + (frp / 3) * 6; // 4→10 linearly
-  if (frp <= 10) return 10 + ((frp - 3) / 7) * 10; // 10→20 linearly
-  return 20;
+function getAcresRadius(acres: number | null): number {
+  if (!acres || acres <= 0) return 4;
+  if (acres <= 100) return 6;
+  if (acres <= 1000) return 10;
+  if (acres <= 10000) return 14;
+  return 18;
 }
 
-function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boolean }) {
+function CollapsibleTable({ incidents, compact }: { incidents: Incident[]; compact: boolean }) {
   const [open, setOpen] = useState(false);
-  const displayed = fires.slice(0, compact ? 10 : 30);
+  const displayed = incidents.slice(0, compact ? 10 : 30);
 
   return (
     <div>
@@ -53,7 +37,7 @@ function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boo
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30 hover:bg-muted/50 transition-colors text-xs font-medium text-muted-foreground"
       >
-        <span>Fire Detections ({fires.length})</span>
+        <span>Active Incidents ({incidents.length})</span>
         {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
       {open && (
@@ -61,21 +45,25 @@ function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boo
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted/80 backdrop-blur">
               <tr className="text-left text-muted-foreground">
-                <th className="px-3 py-1.5 font-medium">Date</th>
-                <th className="px-3 py-1.5 font-medium">Time</th>
-                <th className="px-3 py-1.5 font-medium">Confidence</th>
-                <th className="px-3 py-1.5 font-medium">FRP</th>
+                <th className="px-3 py-1.5 font-medium">Name</th>
+                <th className="px-3 py-1.5 font-medium">State</th>
+                <th className="px-3 py-1.5 font-medium">Acres</th>
+                <th className="px-3 py-1.5 font-medium">Containment</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {displayed.map((f, i) => (
-                <tr key={i} className="hover:bg-muted/40 transition-colors">
-                  <td className="px-3 py-1.5 text-muted-foreground">{f.acq_date}</td>
-                  <td className="px-3 py-1.5 text-muted-foreground">{formatTime(f.acq_time)}</td>
-                  <td className="px-3 py-1.5">
-                    <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">{f.confidence}</span>
+              {displayed.map((inc) => (
+                <tr key={inc.incident_id} className="hover:bg-muted/40 transition-colors">
+                  <td className="px-3 py-1.5 text-card-foreground font-medium">{inc.incident_name}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{inc.state}</td>
+                  <td className="px-3 py-1.5 text-card-foreground font-medium">
+                    {inc.acres_burned ? inc.acres_burned.toLocaleString() : "—"}
                   </td>
-                  <td className="px-3 py-1.5 text-card-foreground font-medium">{f.frp.toFixed(1)}</td>
+                  <td className="px-3 py-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                      {inc.containment_pct != null ? `${inc.containment_pct}%` : "—"}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -87,42 +75,23 @@ function CollapsibleTable({ fires, compact }: { fires: FirePoint[]; compact: boo
 }
 
 export default function WildfireMap({ customerZip, compact = false }: Props) {
-  const [fires, setFires] = useState<FirePoint[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: incidentsData, isLoading, isError, error, refetch } = useActiveIncidents({ min_acres: 100 });
+  const { data: perimetersData } = useCurrentPerimeters({ min_acres: 100 });
+
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
-  const fetchFires = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke("firms-fires");
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
-      setFires(data.fires || []);
-      setTotal(data.total || 0);
-    } catch (e: any) {
-      console.error("Failed to fetch fire data:", e);
-      setError(e.message || "Failed to load fire data");
-      toast.error("Failed to load wildfire data");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const incidents = incidentsData?.incidents ?? [];
 
-  useEffect(() => {
-    fetchFires();
-  }, [fetchFires]);
-
-  const nearbyFires = customerZip ? fires.filter(() => true) : fires;
+  // Build a perimeter lookup for popup metadata
+  const perimeterMap = new Map(
+    (perimetersData?.perimeters ?? []).map((p) => [p.incident_id, p])
+  );
 
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-
     initMapbox();
 
     const map = new mapboxgl.Map({
@@ -141,7 +110,7 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
     };
   }, []);
 
-  // Update markers when fire data changes
+  // Update markers when incident data changes
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -149,11 +118,12 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    const display = nearbyFires.length > 1000 ? nearbyFires.slice(0, 1000) : nearbyFires;
+    const display = incidents.filter((i) => i.latitude != null && i.longitude != null);
 
-    display.forEach((f) => {
-      const r = getFrpRadius(f.frp);
-      const color = getFrpColor(f.frp);
+    display.forEach((inc) => {
+      const r = getAcresRadius(inc.acres_burned);
+      const color = getAcresColor(inc.acres_burned);
+      const perim = perimeterMap.get(inc.incident_id);
 
       const el = document.createElement("div");
       el.style.width = `${r * 2}px`;
@@ -166,17 +136,19 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
 
       const popup = new mapboxgl.Popup({ offset: 10, closeButton: false }).setHTML(
         `<div style="font-size:11px;line-height:1.5;color:#222">
-          <b>Date:</b> ${f.acq_date}<br/>
-          <b>Time:</b> ${formatTime(f.acq_time)}<br/>
-          <b>FRP:</b> ${f.frp.toFixed(1)} MW<br/>
-          <b>Confidence:</b> ${f.confidence}<br/>
-          <b>Lat:</b> ${f.latitude.toFixed(4)}<br/>
-          <b>Lng:</b> ${f.longitude.toFixed(4)}
+          <b>${inc.incident_name}</b><br/>
+          <b>State:</b> ${inc.state}<br/>
+          <b>Acres:</b> ${inc.acres_burned?.toLocaleString() ?? "—"}<br/>
+          <b>Containment:</b> ${inc.containment_pct != null ? inc.containment_pct + "%" : "—"}<br/>
+          ${perim ? `<b>GIS Acres:</b> ${perim.gis_acres?.toLocaleString() ?? "—"}<br/>` : ""}
+          ${inc.cause ? `<b>Cause:</b> ${inc.cause}<br/>` : ""}
+          <b>Lat:</b> ${inc.latitude!.toFixed(4)}<br/>
+          <b>Lng:</b> ${inc.longitude!.toFixed(4)}
         </div>`
       );
 
       const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([f.longitude, f.latitude])
+        .setLngLat([inc.longitude!, inc.latitude!])
         .setPopup(popup)
         .addTo(mapRef.current!);
 
@@ -184,19 +156,23 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
     });
 
     if (display.length > 0) {
-      const avgLat = display.reduce((s, f) => s + f.latitude, 0) / display.length;
-      const avgLng = display.reduce((s, f) => s + f.longitude, 0) / display.length;
+      const avgLat = display.reduce((s, f) => s + f.latitude!, 0) / display.length;
+      const avgLng = display.reduce((s, f) => s + f.longitude!, 0) / display.length;
       mapRef.current.flyTo({ center: [avgLng, avgLat], zoom: 6 });
     }
-  }, [nearbyFires]);
+  }, [incidents, perimetersData]);
 
-  const highIntensity = nearbyFires.filter(f => f.frp > 3).length;
-  const latestTime = nearbyFires.length > 0
-    ? nearbyFires.reduce((latest, f) => {
-        const t = `${f.acq_date} ${formatTime(f.acq_time)}`;
-        return t > latest ? t : latest;
-      }, "")
-    : "—";
+  const highIntensity = incidents.filter((i) => (i.acres_burned ?? 0) > 1000).length;
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-border bg-card overflow-hidden p-4 space-y-3">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-[450px] w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -204,16 +180,16 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-3 p-3 border-b border-border bg-muted/30">
           <div className="rounded-md border border-border bg-card p-3 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Total Fires</div>
-            <div className="text-xl font-bold text-card-foreground">{loading ? "…" : nearbyFires.length}</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Active Incidents</div>
+            <div className="text-xl font-bold text-card-foreground">{incidents.length}</div>
           </div>
           <div className="rounded-md border border-border bg-card p-3 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">High Intensity (FRP &gt; 3)</div>
-            <div className="text-xl font-bold text-destructive">{loading ? "…" : highIntensity}</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Large (&gt;1k acres)</div>
+            <div className="text-xl font-bold text-destructive">{highIntensity}</div>
           </div>
           <div className="rounded-md border border-border bg-card p-3 text-center">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Latest Detection</div>
-            <div className="text-sm font-semibold text-card-foreground">{loading ? "…" : latestTime}</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Perimeters Tracked</div>
+            <div className="text-sm font-semibold text-card-foreground">{perimetersData?.perimeters?.length ?? 0}</div>
           </div>
         </div>
 
@@ -227,67 +203,60 @@ export default function WildfireMap({ customerZip, compact = false }: Props) {
                 <HelpCircle className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
-                <p className="text-xs">Real-time fire detections from NASA FIRMS (VIIRS NOAA-20). Shows thermal anomalies across California updated within hours.</p>
+                <p className="text-xs">Active wildfire incidents from NIFC via FastAPI backend. Shows incidents ≥100 acres.</p>
               </TooltipContent>
             </Tooltip>
-            {!loading && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
-                {nearbyFires.length} active {nearbyFires.length === 1 ? "fire" : "fires"}
-              </span>
-            )}
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium">
+              {incidents.length} active {incidents.length === 1 ? "incident" : "incidents"}
+            </span>
           </div>
-          <button onClick={fetchFires} disabled={loading} className="p-1 rounded hover:bg-muted transition-colors disabled:opacity-50" title="Refresh fire data">
-            <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${loading ? "animate-spin" : ""}`} />
+          <button onClick={() => refetch()} className="p-1 rounded hover:bg-muted transition-colors" title="Refresh">
+            <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
         </div>
 
         {/* Map */}
         <div style={{ height: 450 }} className="relative w-full">
           <div ref={mapContainerRef} style={{ height: "100%", width: "100%" }} />
-          {loading && (
-            <div className="absolute inset-0 z-[1000] bg-background/60 flex items-center justify-center">
-              <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
           <div className="absolute bottom-3 left-3 z-[1000] bg-background/90 border border-border rounded-md px-3 py-2 text-[10px] space-y-1">
-            <div className="font-semibold text-card-foreground mb-1">FRP (MW)</div>
+            <div className="font-semibold text-card-foreground mb-1">Acres Burned</div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FFD700" }} />
-              <span className="text-muted-foreground">&lt; 1</span>
+              <span className="text-muted-foreground">&lt; 100</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF8C00" }} />
-              <span className="text-muted-foreground">1 – 3</span>
+              <span className="text-muted-foreground">100 – 1,000</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF0000" }} />
-              <span className="text-muted-foreground">&gt; 3</span>
+              <span className="text-muted-foreground">&gt; 1,000</span>
             </div>
           </div>
         </div>
 
-        {error && (
+        {isError && (
           <div className="p-3 text-xs text-destructive flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            {error}
+            Failed to load incidents: {(error as Error).message}
           </div>
         )}
 
         {/* Collapsible Table */}
-        {!loading && !error && nearbyFires.length > 0 && (
-          <CollapsibleTable fires={nearbyFires} compact={compact} />
+        {incidents.length > 0 && (
+          <CollapsibleTable incidents={incidents} compact={compact} />
         )}
 
-        {!loading && !error && nearbyFires.length === 0 && (
+        {incidents.length === 0 && (
           <div className="p-4 text-center text-xs text-muted-foreground">
-            No high-confidence fire detections in California right now.
+            No active incidents matching filter criteria.
           </div>
         )}
 
         {/* Footer */}
         <div className="px-3 py-1.5 border-t border-border bg-muted/30 text-[10px] text-muted-foreground flex justify-between">
-          <span>Source: NASA FIRMS (VIIRS NOAA-20)</span>
-          <span>{total} total detections, {nearbyFires.length} high-confidence</span>
+          <span>Source: NIFC Active Incidents (via FastAPI)</span>
+          <span>{incidents.length} incidents, {perimetersData?.perimeters?.length ?? 0} perimeters</span>
         </div>
       </div>
     </TooltipProvider>
