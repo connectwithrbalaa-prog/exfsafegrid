@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CustomerProvider } from "@/hooks/use-customer";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MlChatBubble from "@/components/MlChatBubble";
@@ -11,6 +11,10 @@ import Login from "./pages/Login";
 import CustomerPortal from "./pages/CustomerPortal";
 import AgentDesktop from "./pages/AgentDesktop";
 import CommandCenter from "./pages/CommandCenter";
+import CommandCenterLayout from "./components/command-center/CommandCenterLayout";
+import ExecutiveWorkspace from "./pages/command-center/ExecutiveWorkspace";
+import GisWorkspace from "./pages/command-center/GisWorkspace";
+import PlanningWorkspace from "./pages/command-center/PlanningWorkspace";
 import DemoPresentation from "./pages/DemoPresentation";
 import Documentation from "./pages/Documentation";
 import PspsStatus from "./pages/PspsStatus";
@@ -46,7 +50,16 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/customer" element={<ProtectedRoute requiredRole="customer"><CustomerPortal /></ProtectedRoute>} />
               <Route path="/agent" element={<ProtectedRoute requiredRole="agent"><AgentDesktop /></ProtectedRoute>} />
-              <Route path="/command-center" element={<ProtectedRoute requiredRole="executive"><CommandCenter /></ProtectedRoute>} />
+
+              {/* Command Center — workspace subroutes */}
+              <Route path="/command-center" element={<ProtectedRoute requiredRole="executive"><CommandCenterLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="executive" replace />} />
+                <Route path="executive" element={<ExecutiveWorkspace />} />
+                <Route path="wildfire" element={<CommandCenter />} />
+                <Route path="gis" element={<GisWorkspace />} />
+                <Route path="planning" element={<PlanningWorkspace />} />
+              </Route>
+
               <Route path="/field-crew" element={<ProtectedRoute requiredRole="field"><FieldCrewApp /></ProtectedRoute>} />
               <Route path="/crew" element={<ProtectedRoute requiredRole="field"><FieldCrewApp /></ProtectedRoute>} />
               <Route path="/psps-simulator" element={<ProtectedRoute requiredRole="executive"><PspsSimulator /></ProtectedRoute>} />
