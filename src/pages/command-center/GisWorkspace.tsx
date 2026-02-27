@@ -49,7 +49,7 @@ export default function GisWorkspace() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/streets-v12",
       center: [-119.5, 37.5],
       zoom: 5.5,
     });
