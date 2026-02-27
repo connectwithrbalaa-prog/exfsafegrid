@@ -2,7 +2,7 @@
  * NotificationAnalyticsDashboard — Delivery stats, channel breakdown, and volume trends.
  * Reads from customer_notifications table.
  */
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   BarChart3, TrendingUp, CheckCircle2, XCircle, Clock,
@@ -58,6 +58,23 @@ export default function NotificationAnalyticsDashboard() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // ── Realtime subscription ──
+  useEffect(() => {
+    const channel = supabase
+      .channel("notif-analytics-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "customer_notifications" },
+        (payload) => {
+          const row = payload.new as Notification;
+          setData((prev) => [row, ...prev].slice(0, 1000));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // ── Derived stats ──
   const stats = useMemo(() => {
