@@ -276,10 +276,6 @@ export default function CustomerPortal() {
                 </p>
               </CollapsibleCard>
 
-              {/* Map preview — desktop only */}
-              <div className="hidden sm:block">
-                <CustomerWildfireMap customerZip={c.zip_code} />
-              </div>
             </div>
           )}
 
