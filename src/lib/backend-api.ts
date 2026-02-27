@@ -153,6 +153,7 @@ export const triggerIngestion = (source: string) =>
 // ---------------------------------------------------------------------------
 // Agent – Circuit Risk Trend & Nearby Sensors
 // ---------------------------------------------------------------------------
+// Legacy 12h trend (kept for backward compat)
 export interface RiskTrendHourly {
   time: string;
   prob: number;
@@ -166,6 +167,32 @@ export interface RiskTrendResponse {
 
 export const getCircuitRiskTrend = (circuit_id: string) =>
   proxyCall<RiskTrendResponse>("/agent/risk-12h", "GET", { circuit_id });
+
+// New daily risk trend endpoint
+export type DailyTrendLabel = "APPROACHING" | "RISING" | "FALLING" | "PEAKED" | "STABLE" | "VOLATILE";
+export type RiskBucket = "CRITICAL" | "HIGH" | "MODERATE" | "LOW";
+
+export interface DailyProbPoint {
+  date: string;
+  p: number;
+  risk_bucket: RiskBucket;
+}
+
+export interface DailyRiskTrendResponse {
+  circuit_id: string;
+  trend_label: DailyTrendLabel;
+  probabilities: DailyProbPoint[];
+  summary: string | null;
+}
+
+export interface DailyRiskTrendParams {
+  circuit_id: string;
+  days?: number;
+  summary?: boolean;
+}
+
+export const getDailyRiskTrend = (p: DailyRiskTrendParams) =>
+  proxyCall<DailyRiskTrendResponse>("/api/risk/trends", "GET", p as any);
 
 export interface RawsStation {
   station_id: string;

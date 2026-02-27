@@ -1,111 +1,185 @@
-import { useCircuitRiskTrend } from "@/hooks/use-backend-data";
+import { useDailyRiskTrend } from "@/hooks/use-backend-data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { ResponsiveContainer, AreaChart, Area, YAxis, Tooltip } from "recharts";
-import { format, parseISO } from "date-fns";
-import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
+import { useState, useMemo } from "react";
+import type { DailyTrendLabel, RiskBucket } from "@/lib/backend-api";
 
 interface Props {
   circuitId: string;
   onClose: () => void;
 }
 
-const TREND_CFG = {
-  RISING:  { icon: TrendingUp,   label: "Rising",  color: "#f87171", bg: "bg-red-500/15" },
-  STABLE:  { icon: Minus,        label: "Stable",   color: "#9ca3af", bg: "bg-white/5" },
-  FALLING: { icon: TrendingDown, label: "Falling",  color: "#34d399", bg: "bg-emerald-500/15" },
+/* ── colour helpers ─────────────────────────────────────────── */
+const BUCKET_COLOR: Record<RiskBucket, string> = {
+  CRITICAL: "#ef4444",
+  HIGH: "#f97316",
+  MODERATE: "#f59e0b",
+  LOW: "#22c55e",
+};
+
+const TREND_CFG: Record<
+  DailyTrendLabel,
+  { symbol: string; label: string; color: string; pulse?: boolean }
+> = {
+  APPROACHING: { symbol: "⚠", label: "APPROACHING", color: "#f97316", pulse: true },
+  RISING:      { symbol: "↑", label: "RISING",      color: "#f97316" },
+  FALLING:     { symbol: "↓", label: "FALLING",     color: "#22c55e" },
+  PEAKED:      { symbol: "⬆", label: "PEAKED",      color: "#eab308" },
+  STABLE:      { symbol: "—", label: "STABLE",       color: "#9ca3af" },
+  VOLATILE:    { symbol: "~", label: "VOLATILE",     color: "#a855f7" },
 };
 
 export default function CircuitRiskTrendRow({ circuitId, onClose }: Props) {
-  const { data, isLoading, isError } = useCircuitRiskTrend(circuitId);
+  const [days, setDays] = useState<3 | 7>(3);
+  const { data, isLoading, isError } = useDailyRiskTrend(circuitId, days);
 
   const chartData = useMemo(() => {
-    if (!data?.hourly) return [];
-    return data.hourly.map((h) => ({
-      time: h.time,
-      prob: h.prob,
-      label: format(parseISO(h.time), "ha"),
+    if (!data?.probabilities) return [];
+    return data.probabilities.map((pt) => ({
+      date: pt.date,
+      p: pt.p,
+      bucket: pt.risk_bucket,
     }));
   }, [data]);
 
+  const latestBucket: RiskBucket =
+    chartData.length > 0 ? chartData[chartData.length - 1].bucket : "LOW";
+  const lineColor = BUCKET_COLOR[latestBucket];
   const trend = data?.trend_label ?? "STABLE";
   const tcfg = TREND_CFG[trend];
-  const TrendIcon = tcfg.icon;
-  const currentProb = chartData.length > 0 ? chartData[chartData.length - 1].prob : 0;
-
-  const sparkColor = currentProb > 0.6 ? "#f87171" : currentProb > 0.35 ? "#fbbf24" : "#34d399";
 
   return (
     <tr>
       <td colSpan={12} className="px-4 py-0">
-        <div className="py-3 px-2 rounded-lg bg-white/[0.02] border border-white/[0.06] my-1">
+        <div className="py-3 px-2 rounded-lg bg-card/50 border border-border/40 my-1 space-y-2">
           {isLoading ? (
-            <div className="flex items-center gap-4 h-12">
-              <Skeleton className="h-8 w-20 rounded bg-white/10" />
-              <Skeleton className="h-8 flex-1 rounded bg-white/10" />
+            <div className="flex items-center gap-4 h-14">
+              <Skeleton className="h-8 w-20 rounded" />
+              <Skeleton className="h-10 flex-1 rounded" />
             </div>
           ) : isError || chartData.length === 0 ? (
             <div className="flex items-center justify-between h-10 px-2">
-              <span className="text-xs text-white/40">No predictions yet for {circuitId}</span>
-              <button onClick={onClose} className="text-[10px] text-white/30 hover:text-white/60 underline">Close</button>
+              <span className="text-xs text-muted-foreground">No data for {circuitId}</span>
+              <button onClick={onClose} className="text-[10px] text-muted-foreground hover:text-foreground underline">Close</button>
             </div>
           ) : (
-            <div className="flex items-center gap-4">
-              {/* Current prob + trend badge */}
-              <div className="flex flex-col items-center min-w-[70px] gap-1">
-                <span className="text-lg font-bold" style={{ color: sparkColor }}>
-                  {Math.round(currentProb * 100)}%
-                </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${tcfg.bg}`} style={{ color: tcfg.color }}>
-                  <TrendIcon className="w-3 h-3" />
-                  {tcfg.label}
-                </span>
+            <>
+              {/* Header row: trend badge + days toggle + close */}
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    className={`text-[11px] font-bold border-0 ${tcfg.pulse ? "animate-pulse" : ""}`}
+                    style={{ backgroundColor: `${tcfg.color}22`, color: tcfg.color }}
+                  >
+                    {tcfg.symbol} {tcfg.label}
+                  </Badge>
+                  <span className="text-sm font-semibold text-foreground">
+                    {Math.round(chartData[chartData.length - 1].p * 100)}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* 3d / 7d toggle */}
+                  <div className="flex rounded-md overflow-hidden border border-border text-[10px]">
+                    {([3, 7] as const).map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setDays(d)}
+                        className={`px-2 py-0.5 transition-colors ${
+                          days === d
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/30 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {d}d
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
-              {/* Sparkline */}
-              <div className="flex-1 h-12">
+              {/* Sparkline chart */}
+              <div className="h-16">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id={`crt-${circuitId}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={sparkColor} stopOpacity={0.25} />
-                        <stop offset="100%" stopColor={sparkColor} stopOpacity={0.02} />
+                      <linearGradient id={`drt-${circuitId}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={lineColor} stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(v: string) => v.slice(5)} /* MM-DD */
+                      tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
                     <YAxis domain={[0, 1]} hide />
+                    <ReferenceLine
+                      y={0.5}
+                      stroke="#f59e0b"
+                      strokeDasharray="4 3"
+                      strokeWidth={1}
+                      label={{ value: "HIGH", position: "right", fontSize: 8, fill: "#f59e0b" }}
+                    />
+                    <ReferenceLine
+                      y={0.75}
+                      stroke="#ef4444"
+                      strokeDasharray="4 3"
+                      strokeWidth={1}
+                      label={{ value: "CRIT", position: "right", fontSize: 8, fill: "#ef4444" }}
+                    />
                     <Tooltip
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null;
                         const d = payload[0].payload;
                         return (
-                          <div className="px-2 py-1 bg-[hsl(220,25%,12%)] border border-white/10 rounded text-[11px] shadow-lg">
-                            <p className="text-white/50">{d.label}</p>
-                            <p className="font-bold text-white">{Math.round(d.prob * 100)}%</p>
+                          <div className="px-2 py-1 bg-popover border border-border rounded text-[11px] shadow-lg">
+                            <p className="text-muted-foreground">{d.date}</p>
+                            <p className="font-bold text-foreground">{Math.round(d.p * 100)}%</p>
+                            <p className="text-[10px]" style={{ color: BUCKET_COLOR[d.bucket as RiskBucket] }}>
+                              {d.bucket}
+                            </p>
                           </div>
                         );
                       }}
                     />
                     <Area
                       type="monotone"
-                      dataKey="prob"
-                      stroke={sparkColor}
+                      dataKey="p"
+                      stroke={lineColor}
                       strokeWidth={2}
-                      fill={`url(#crt-${circuitId})`}
-                      dot={false}
-                      animationDuration={500}
+                      fill={`url(#drt-${circuitId})`}
+                      dot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+                      animationDuration={400}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Time labels */}
-              <div className="hidden sm:flex flex-col text-[9px] text-white/30 min-w-[50px]">
-                <span>{chartData[0]?.label}</span>
-                <span className="mt-auto">{chartData[chartData.length - 1]?.label}</span>
-              </div>
-
-              <button onClick={onClose} className="text-[10px] text-white/30 hover:text-white/60 transition-colors px-2">✕</button>
-            </div>
+              {/* AI summary callout */}
+              {data?.summary && (
+                <p className="text-[11px] italic text-muted-foreground px-1 leading-snug">
+                  {data.summary}
+                </p>
+              )}
+            </>
           )}
         </div>
       </td>
