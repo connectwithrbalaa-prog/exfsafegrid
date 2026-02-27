@@ -7,6 +7,7 @@ export const PREDICTIONS_CONFIG: Record<string, { chatTab: string; predictionsTa
     config: {
       name: "SafetyGuard",
       subtitle: "AI-powered wildfire safety insights for your area",
+      persona: "customer",
       suggestions: [
         "Is my area at risk of a power shutoff?",
         "What's the current wildfire risk near my home?",
@@ -21,6 +22,7 @@ export const PREDICTIONS_CONFIG: Record<string, { chatTab: string; predictionsTa
     config: {
       name: "RiskAdvisor",
       subtitle: "Risk intelligence for customer-facing decisions",
+      persona: "agent",
       suggestions: [
         "Which circuits are at critical ignition risk?",
         "Show customer density for high-risk circuits",
@@ -35,6 +37,7 @@ export const PREDICTIONS_CONFIG: Record<string, { chatTab: string; predictionsTa
     config: {
       name: "GridOracle",
       subtitle: "Strategic risk forecasting and grid intelligence",
+      persona: "executive",
       suggestions: [
         "Which PSAs have elevated seasonal risk?",
         "Show circuits approaching critical thresholds",
@@ -49,6 +52,7 @@ export const PREDICTIONS_CONFIG: Record<string, { chatTab: string; predictionsTa
     config: {
       name: "FireSight",
       subtitle: "Predictive fire intelligence for field operations",
+      persona: "field",
       suggestions: [
         "Which circuits need priority patrolling?",
         "Show fire spread predictions for my area",

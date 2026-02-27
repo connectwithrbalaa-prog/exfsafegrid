@@ -11,6 +11,7 @@ export interface PredictionsChatConfig {
   subtitle: string;
   suggestions: string[];
   icon?: React.ReactNode;
+  persona?: string;
 }
 
 interface Props {
@@ -43,7 +44,7 @@ export default function PredictionsChatPanel({ config }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ messages: updatedMessages, persona: config.persona }),
       });
 
       if (!resp.ok) {
