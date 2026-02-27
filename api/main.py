@@ -3,9 +3,10 @@ api/main.py — ExfSafeGrid Wildfire Ops & PSPS FastAPI Application v2
 """
 import json
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -63,6 +64,12 @@ class WatchlistRequest(BaseModel):
     date: Optional[date] = None
     horizon: str = "24h"
     overwrite: bool = False
+
+
+class SimulateRequest(BaseModel):
+    scenario_name: str
+    circuit_ids: List[str]
+    horizon_hours: int = 24
 
 
 @app.get("/health", tags=["System"])
@@ -699,6 +706,211 @@ def ingestion_status(db: Session = Depends(get_db), _: str = Depends(auth)):
     """)).fetchall()
     return {"scheduler_running": scheduler.running if scheduler else False,
             "sources": [dict(r._mapping) for r in rows]}
+
+
+# ── PSPS Simulator ────────────────────────────────────────────────────────
+@app.post("/api/psps/simulate", tags=["PSPS"])
+def simulate_psps(req: SimulateRequest, db: Session = Depends(get_db), _: str = Depends(auth)):
+    """
+    Deterministic PSPS impact simulation for a set of circuits.
+
+    Math (no ML inference, no external calls)
+    -----------------------------------------
+    customers_total    — SUM(utility_circuits.customer_count)
+    critical           — SUM(utility_circuits.critical_customers)
+    commercial         — ~15 % of non-critical customers (utility rule-of-thumb)
+    residential        — remainder
+    mw_lost            — customers_total × 4 kW average demand / 1 000
+    restoration_hours  — average of (end_time − start_time) from historical
+                         psps_events for these circuits; falls back to
+                         horizon_hours × 0.35 (capped 4 – 72 h)
+    hvra counts        — hospitals, water facilities in hvra_assets within
+                         10 miles of any circuit geometry (ST_DWithin)
+
+    Claude generates only the `summary` sentence and `assumptions` list.
+
+    Response::
+
+        {
+          "scenario_id": "psps_00123",
+          "summary": "Shutting off 2 circuits affects …",
+          "customers_total": 3421,
+          "customers_by_class": {"residential": 3200, "commercial": 210, "critical": 11},
+          "mw_lost": 14.2,
+          "estimated_restoration_hours": 8,
+          "assumptions": ["Based on last 3 similar events.", …]
+        }
+    """
+    if not req.circuit_ids:
+        raise HTTPException(400, "circuit_ids must not be empty")
+
+    circuit_ids = list(req.circuit_ids)
+
+    # ── 1. Circuit metrics ────────────────────────────────────────────────
+    circ_rows = db.execute(text("""
+        SELECT circuit_id, circuit_name, customer_count,
+               critical_customers, voltage_kv, length_miles,
+               hftd_tier, county, psa_id, geometry
+        FROM utility_circuits
+        WHERE circuit_id = ANY(:ids)
+    """), {"ids": circuit_ids}).fetchall()
+
+    if not circ_rows:
+        raise HTTPException(404, f"None of the circuit_ids found: {circuit_ids}")
+
+    found_ids      = [r._mapping["circuit_id"] for r in circ_rows]
+    missing_ids    = [c for c in circuit_ids if c not in found_ids]
+
+    customers_total   = sum(int(r._mapping["customer_count"] or 0) for r in circ_rows)
+    customers_critical = sum(int(r._mapping["critical_customers"] or 0) for r in circ_rows)
+    customers_commercial = max(0, int((customers_total - customers_critical) * 0.15))
+    customers_residential = max(0, customers_total - customers_critical - customers_commercial)
+    mw_lost = round(customers_total * 0.004, 1)   # 4 kW avg demand per customer
+
+    # ── 2. Historical restoration time ────────────────────────────────────
+    hist_rows = db.execute(text("""
+        SELECT AVG(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600) AS avg_hours,
+               COUNT(*) AS event_count
+        FROM psps_events
+        WHERE circuit_id = ANY(:ids)
+          AND end_time IS NOT NULL
+          AND end_time > start_time
+    """), {"ids": found_ids}).fetchone()
+
+    hist = hist_rows._mapping if hist_rows else {}
+    avg_hist_hours = hist.get("avg_hours")
+    hist_event_count = int(hist.get("event_count") or 0)
+
+    if avg_hist_hours and float(avg_hist_hours) > 0:
+        est_restoration = max(4, min(72, round(float(avg_hist_hours))))
+    else:
+        est_restoration = max(4, min(72, round(req.horizon_hours * 0.35)))
+
+    # ── 3. Nearby HVRA critical assets (within 10 miles of any circuit) ───
+    hvra_rows = db.execute(text("""
+        SELECT h.name, h.category, h.subcategory, h.population_served
+        FROM hvra_assets h
+        WHERE EXISTS (
+            SELECT 1 FROM utility_circuits uc
+            WHERE uc.circuit_id = ANY(:ids)
+              AND uc.geometry IS NOT NULL
+              AND ST_DWithin(
+                  ST_SetSRID(ST_MakePoint(h.longitude, h.latitude), 4326)::geography,
+                  uc.geometry::geography,
+                  16093.4    -- 10 miles in metres
+              )
+        )
+        ORDER BY h.category, h.importance_weight DESC
+    """), {"ids": found_ids}).fetchall()
+
+    hvra_by_cat: dict = {}
+    for h in hvra_rows:
+        cat = h._mapping["category"]
+        hvra_by_cat.setdefault(cat, []).append(dict(h._mapping))
+
+    hospitals   = hvra_by_cat.get("Hospital", [])
+    water_fac   = hvra_by_cat.get("Water", [])
+    schools     = hvra_by_cat.get("School", [])
+
+    # ── 4. Build deterministic context for Claude ─────────────────────────
+    circuit_summary = [
+        {"circuit_id": r._mapping["circuit_id"],
+         "county": r._mapping["county"],
+         "hftd_tier": r._mapping["hftd_tier"],
+         "customer_count": r._mapping["customer_count"],
+         "voltage_kv": float(r._mapping["voltage_kv"] or 0),
+         "length_miles": float(r._mapping["length_miles"] or 0)}
+        for r in circ_rows
+    ]
+
+    sim_facts = {
+        "scenario_name":        req.scenario_name,
+        "circuit_count":        len(found_ids),
+        "horizon_hours":        req.horizon_hours,
+        "customers_total":      customers_total,
+        "customers_residential": customers_residential,
+        "customers_commercial": customers_commercial,
+        "customers_critical":   customers_critical,
+        "mw_lost":              mw_lost,
+        "est_restoration_h":    est_restoration,
+        "hospitals_affected":   len(hospitals),
+        "water_facilities":     len(water_fac),
+        "schools_affected":     len(schools),
+        "historical_events":    hist_event_count,
+        "circuits":             circuit_summary,
+    }
+
+    # ── 5. Claude: summary + assumptions (optional, graceful fallback) ────
+    summary_text = (
+        f"De-energising {len(found_ids)} circuit(s) would affect "
+        f"{customers_total:,} customers ({customers_critical} critical), "
+        f"removing an estimated {mw_lost} MW. "
+        f"Estimated restoration: {est_restoration} h."
+    )
+    assumptions = [
+        f"Based on {hist_event_count} historical events for these circuits."
+        if hist_event_count else "No prior event history; restoration estimate is modelled.",
+        "No additional weather escalation beyond current forecast.",
+        "Customer counts sourced from utility circuit registry; may not reflect real-time switching.",
+    ]
+
+    if settings.ANTHROPIC_API_KEY:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+            prompt = (
+                "You are a utility PSPS operations analyst. Given the simulation data below, "
+                "produce two things:\n"
+                "1. SUMMARY: one concise sentence (≤ 40 words) suitable for an ops dashboard, "
+                "   mentioning circuits, customer count, critical facilities, and estimated restoration.\n"
+                "2. ASSUMPTIONS: exactly 3 short bullet strings (no bullet characters) that a "
+                "   planner would want to caveat this estimate with.\n\n"
+                "Respond ONLY as valid JSON: "
+                '{"summary": "...", "assumptions": ["...", "...", "..."]}\n\n'
+                f"DATA:\n{json.dumps(sim_facts, default=str)}"
+            )
+            msg = client.messages.create(
+                model=settings.CLAUDE_MODEL,
+                max_tokens=300,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = msg.content[0].text.strip()
+            # strip markdown fences if present
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            parsed = json.loads(raw)
+            summary_text = parsed.get("summary", summary_text)
+            assumptions  = parsed.get("assumptions", assumptions)
+        except Exception as exc:
+            logger.warning("PSPS simulate: Claude call failed (%s) — using fallback text", exc)
+
+    # ── 6. Response ───────────────────────────────────────────────────────
+    scenario_id = "psps_" + uuid.uuid4().hex[:5].upper()
+
+    return {
+        "scenario_id":    scenario_id,
+        "scenario_name":  req.scenario_name,
+        "circuits":       found_ids,
+        "missing_circuits": missing_ids,
+        "summary":        summary_text,
+        "customers_total": customers_total,
+        "customers_by_class": {
+            "residential": customers_residential,
+            "commercial":  customers_commercial,
+            "critical":    customers_critical,
+        },
+        "hvra_affected": {
+            "hospitals":         len(hospitals),
+            "water_facilities":  len(water_fac),
+            "schools":           len(schools),
+        },
+        "mw_lost":                    mw_lost,
+        "estimated_restoration_hours": est_restoration,
+        "historical_events_used":     hist_event_count,
+        "assumptions":                assumptions,
+    }
 
 
 @app.post("/ingestion/trigger/{source}", tags=["Management"])
