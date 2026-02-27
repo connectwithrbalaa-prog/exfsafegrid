@@ -7,8 +7,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   MapPin, Wifi, WifiOff, CheckCircle2, Circle, AlertTriangle,
   Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, LogOut, Flame, X, Image,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Moon, Sun,
 } from "lucide-react";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 import { supabase } from "@/integrations/supabase/client";
 import TopNav from "@/components/TopNav";
 import { toast } from "sonner";
@@ -66,6 +67,7 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 export default function FieldCrewApp() {
   const navigate = useNavigate();
   const { setCustomer, setRole, setAgentEmail } = useCustomer();
+  const { dark, toggle } = useDarkMode();
   const [online, setOnline] = useState(navigator.onLine);
   const [gps, setGps] = useState<GpsPos | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -291,6 +293,13 @@ export default function FieldCrewApp() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded-md font-mono">{progress}%</span>
+            <button
+              onClick={toggle}
+              className="text-white/30 hover:text-white/60"
+              title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button
               onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
               className="text-white/30 hover:text-white/60"
