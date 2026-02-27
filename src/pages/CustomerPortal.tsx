@@ -172,6 +172,13 @@ export default function CustomerPortal() {
           {/* ═══ DASHBOARD ═══ */}
           {activeTab === "home" && (
             <div className="space-y-4">
+              {/* ── Weather Advisory (top) ── */}
+              <CollapsibleCard title="Weather Advisory" icon={Flame} defaultOpen={false}>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Elevated fire weather may be expected. Consider reducing energy use during peak hours (4–9 PM) and keep emergency supplies accessible.
+                </p>
+              </CollapsibleCard>
+
               {/* ── HERO 1: Today's Wildfire Risk ── */}
               <div className={`p-5 rounded-xl border-2 space-y-3 ${
                 c.wildfire_risk === "High"
@@ -256,7 +263,6 @@ export default function CustomerPortal() {
                       const url = isIOS
                         ? `maps://maps.apple.com/?q=${query}`
                         : `geo:0,0?q=${query}`;
-                      // Try native map intent first, fall back to Google Maps web
                       const w = window.open(url, "_blank");
                       if (!w || w.closed) {
                         window.open(`https://maps.google.com/maps?q=${query}`, "_blank", "noopener,noreferrer");
@@ -269,12 +275,6 @@ export default function CustomerPortal() {
                   </button>
                 </div>
               )}
-
-              <CollapsibleCard title="Weather Advisory" icon={Flame} defaultOpen={false}>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Elevated fire weather may be expected. Consider reducing energy use during peak hours (4–9 PM) and keep emergency supplies accessible.
-                </p>
-              </CollapsibleCard>
 
             </div>
           )}
