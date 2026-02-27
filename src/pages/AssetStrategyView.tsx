@@ -332,9 +332,21 @@ export default function AssetStrategyView() {
                       <YAxis domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} unit="%" />
                       <Tooltip
                         contentStyle={{ background: "hsl(220,25%,12%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                        itemStyle={{ color: "rgba(255,255,255,0.8)" }}
                         labelStyle={{ color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}
-                        formatter={(v: number) => [`${v}%`]}
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const current = payload.find((p: any) => p.dataKey === "current")?.value as number;
+                          const projected = payload.find((p: any) => p.dataKey === "projected")?.value as number;
+                          const reduction = current ? ((1 - projected / current) * 100).toFixed(1) : "0";
+                          return (
+                            <div className="rounded-lg border border-white/10 bg-[hsl(220,25%,12%)] px-3 py-2 text-[11px] space-y-1 shadow-xl">
+                              <p className="font-mono text-white/50">CKT-{label}</p>
+                              <p><span className="inline-block w-2 h-2 rounded-sm bg-orange-500 mr-1.5" />Current: <span className="font-mono font-medium text-white/90">{current}%</span></p>
+                              <p><span className="inline-block w-2 h-2 rounded-sm bg-emerald-500 mr-1.5" />Projected: <span className="font-mono font-medium text-white/90">{projected}%</span></p>
+                              <p className="text-emerald-400 font-semibold pt-0.5 border-t border-white/[0.06]">↓ {reduction}% reduction</p>
+                            </div>
+                          );
+                        }}
                       />
                       <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }} />
                       <ReferenceLine y={50} stroke="rgba(249,115,22,0.3)" strokeDasharray="4 4" label={{ value: "HIGH", fill: "rgba(249,115,22,0.4)", fontSize: 9, position: "right" }} />
