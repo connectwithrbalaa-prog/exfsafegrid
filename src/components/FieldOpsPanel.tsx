@@ -1,3 +1,4 @@
+import React from "react";
 /**
  * FieldOpsPanel — BRD 5.7 Field Operations
  * Patrol priority queue ranking circuits by:
@@ -17,6 +18,7 @@ import {
   Loader2, MapPin, Shield, Users, Zap,
 } from "lucide-react";
 import InlineTrendBadge from "@/components/InlineTrendBadge";
+import CircuitRiskTrendRow from "@/components/CircuitRiskTrendRow";
 
 /* ── Types ──────────────────────────────────────────────────── */
 
@@ -107,6 +109,7 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
   const circuitRisk = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 100 });
   const [filterPriority, setFilterPriority] = useState<string>("All");
   const [showHftd3Only, setShowHftd3Only] = useState(false);
+  const [expandedCircuit, setExpandedCircuit] = useState<string | null>(null);
 
   // Detect red flag conditions from weather data
   const isRedFlag = useMemo(() => {
@@ -306,7 +309,9 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
           <tbody className="divide-y divide-white/[0.04]">
             {filtered.map((c, i) => {
               const pColors = PRIORITY_COLORS[c.priorityLabel] || PRIORITY_COLORS["P4 — Routine"];
+              const isExpanded = expandedCircuit === c.circuit_id;
               return (
+                <React.Fragment key={c.circuit_id}>
                 <tr key={c.circuit_id} className={`transition-colors ${
                   c.priorityLabel.startsWith("P1") ? "bg-red-500/[0.04] hover:bg-red-500/[0.08]" : "hover:bg-white/[0.02]"
                 }`}>
@@ -321,7 +326,10 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
                   <td className="px-4 py-2.5 font-mono">
                     <span className="flex items-center gap-1.5">
                       {c.circuit_id}
-                      <InlineTrendBadge circuitId={c.circuit_id} />
+                      <InlineTrendBadge
+                        circuitId={c.circuit_id}
+                        onClick={() => setExpandedCircuit(isExpanded ? null : c.circuit_id)}
+                      />
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
@@ -360,6 +368,10 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
                   </td>
                   <td className="px-4 py-2.5 font-mono">{c.estimatedPatrolHrs}h</td>
                 </tr>
+                {isExpanded && (
+                  <CircuitRiskTrendRow circuitId={c.circuit_id} onClose={() => setExpandedCircuit(null)} />
+                )}
+              </React.Fragment>
               );
             })}
           </tbody>
