@@ -97,12 +97,8 @@ export default function CustomerPortal() {
       <header className="border-b border-border bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between h-12">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="text-base font-bold tracking-tight">
-              <span className="text-exf-red">Exf</span>
-              <span className="text-foreground">SafeGrid</span>
+            <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-lg bg-primary/10 text-primary font-semibold">
+              Customer Portal
             </span>
           </div>
           <div className="flex items-center gap-3">
