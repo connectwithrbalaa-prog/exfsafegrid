@@ -43,6 +43,7 @@ interface PatrolCircuit {
 interface Props {
   fires?: EnrichedFire[];
   weatherData?: { humidity?: number; wind_speed?: number; temperature?: number } | null;
+  onCircuitSelect?: (circuitId: string | null, stagingArea: Substation | null) => void;
 }
 
 /* ── Priority scoring ──────────────────────────────────────── */
@@ -105,7 +106,7 @@ function findStagingArea(county: string): Substation | null {
 
 /* ── Component ─────────────────────────────────────────────── */
 
-export default function FieldOpsPanel({ fires, weatherData }: Props) {
+export default function FieldOpsPanel({ fires, weatherData, onCircuitSelect }: Props) {
   const circuitRisk = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 100 });
   const [filterPriority, setFilterPriority] = useState<string>("All");
   const [showHftd3Only, setShowHftd3Only] = useState(false);
@@ -328,7 +329,11 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
                       {c.circuit_id}
                       <InlineTrendBadge
                         circuitId={c.circuit_id}
-                        onClick={() => setExpandedCircuit(isExpanded ? null : c.circuit_id)}
+                        onClick={() => {
+                          const next = isExpanded ? null : c.circuit_id;
+                          setExpandedCircuit(next);
+                          onCircuitSelect?.(next, next ? c.stagingArea : null);
+                        }}
                       />
                     </span>
                   </td>
@@ -369,7 +374,7 @@ export default function FieldOpsPanel({ fires, weatherData }: Props) {
                   <td className="px-4 py-2.5 font-mono">{c.estimatedPatrolHrs}h</td>
                 </tr>
                 {isExpanded && (
-                  <CircuitRiskTrendRow circuitId={c.circuit_id} onClose={() => setExpandedCircuit(null)} />
+                  <CircuitRiskTrendRow circuitId={c.circuit_id} onClose={() => { setExpandedCircuit(null); onCircuitSelect?.(null, null); }} />
                 )}
               </React.Fragment>
               );

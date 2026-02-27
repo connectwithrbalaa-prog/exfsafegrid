@@ -166,6 +166,38 @@ export default function CommandCenter() {
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const fireHistoryRef = useRef<Map<string, number>>(new Map());
   const [expandedCircuit, setExpandedCircuit] = useState<string | null>(null);
+  const highlightMarkerRef = useRef<mapboxgl.Marker | null>(null);
+
+  const handleCircuitSelect = useCallback((circuitId: string | null, staging: { latitude: number; longitude: number; name: string } | null) => {
+    // Remove previous highlight
+    if (highlightMarkerRef.current) {
+      highlightMarkerRef.current.remove();
+      highlightMarkerRef.current = null;
+    }
+    if (!circuitId || !staging || !mapRef.current) return;
+
+    // Fly to staging area
+    mapRef.current.flyTo({ center: [staging.longitude, staging.latitude], zoom: 12, duration: 1200 });
+
+    // Add pulsing highlight marker
+    const el = document.createElement("div");
+    el.className = "circuit-highlight-pulse";
+    el.innerHTML = `<div style="
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(249,115,22,0.3);
+      border: 2px solid #f97316;
+      animation: pulse-ring 1.5s ease-out infinite;
+      display: flex; align-items: center; justify-content: center;
+    "><div style="width:10px;height:10px;border-radius:50%;background:#f97316;"></div></div>`;
+
+    highlightMarkerRef.current = new mapboxgl.Marker({ element: el })
+      .setLngLat([staging.longitude, staging.latitude])
+      .setPopup(new mapboxgl.Popup({ offset: 20 }).setHTML(
+        `<div style="font-size:12px;"><strong>${circuitId}</strong><br/><span style="color:#888;">Staging: ${staging.name}</span></div>`
+      ))
+      .addTo(mapRef.current)
+      .togglePopup();
+  }, []);
   // Backend ML predictions
   const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
   const psaRiskQuery = usePsaRisk({ limit: 500 });
@@ -1274,7 +1306,7 @@ export default function CommandCenter() {
 
             {/* Active Panel */}
             <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
-              {activeTab === "field-ops" && <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} />}
+              {activeTab === "field-ops" && <FieldOpsPanel fires={enriched} weatherData={weatherData?.[0] || null} onCircuitSelect={handleCircuitSelect} />}
               {activeTab === "resources" && <ResourceTracker />}
               {activeTab === "evac" && <EvacuationPanel />}
               {activeTab === "alerts" && <CommunityAlertsPanel fires={fires} />}
