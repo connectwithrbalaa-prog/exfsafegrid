@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle,
+  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle, Save, Trash2, History,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 // ── Circuit seed data (mirrors scripts/seed_circuits.sql) ──────────
 interface Circuit {
   circuit_id: string;
@@ -97,6 +99,8 @@ export default function PspsSimulator() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [scenarioName, setScenarioName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -118,6 +122,72 @@ export default function PspsSimulator() {
   const runSimulation = () => {
     if (selectedCircuits.length === 0) return;
     setResult(simulate(selectedCircuits, Number(horizon)));
+  };
+
+  // ── Saved scenarios ────────────────────────────────────────
+  const { data: savedScenarios = [] } = useQuery({
+    queryKey: ["psps-scenarios"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("psps_scenarios" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!result) throw new Error("No result to save");
+      const name = scenarioName.trim() || `Scenario ${new Date().toLocaleDateString()}`;
+      const { error } = await supabase.from("psps_scenarios" as any).insert({
+        scenario_name: name,
+        circuit_ids: selectedIds,
+        horizon_hours: Number(horizon),
+        total_customers: result.totalCustomers,
+        residential: result.residential,
+        commercial: result.commercial,
+        critical: result.critical,
+        mw_lost: result.mwLost,
+        restoration_hours: result.restorationHours,
+        summary: result.summary,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Scenario saved", description: scenarioName || "Saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["psps-scenarios"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("psps_scenarios" as any).delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["psps-scenarios"] });
+    },
+  });
+
+  const loadScenario = (s: any) => {
+    setScenarioName(s.scenario_name);
+    setSelectedIds(s.circuit_ids || []);
+    setHorizon(String(s.horizon_hours));
+    setResult({
+      totalCustomers: s.total_customers,
+      residential: s.residential,
+      commercial: s.commercial,
+      critical: s.critical,
+      mwLost: Number(s.mw_lost),
+      restorationHours: s.restoration_hours,
+      summary: s.summary,
+    });
   };
 
   // ── Map ────────────────────────────────────────────────────
@@ -368,6 +438,50 @@ export default function PspsSimulator() {
                   <p className="text-sm text-foreground leading-relaxed">{result.summary}</p>
                 </CardContent>
               </Card>
+
+              {/* Save button */}
+              <Button
+                className="w-full"
+                variant="secondary"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+              >
+                <Save className="w-4 h-4 mr-1" />
+                {saveMutation.isPending ? "Saving…" : "Save Scenario"}
+              </Button>
+            </div>
+          )}
+
+          {/* ── Saved Scenarios ─────────────────────── */}
+          {savedScenarios.length > 0 && (
+            <div className="space-y-2 border-t border-border pt-4">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5" /> Saved Scenarios
+              </h2>
+              {savedScenarios.map((s: any) => (
+                <Card
+                  key={s.id}
+                  className="cursor-pointer hover:border-primary/40 transition-colors"
+                  onClick={() => loadScenario(s)}
+                >
+                  <CardContent className="pt-3 pb-2.5 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{s.scenario_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(s.circuit_ids?.length || 0)} circuits · {s.total_customers?.toLocaleString()} customers · {s.horizon_hours}h
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </div>
