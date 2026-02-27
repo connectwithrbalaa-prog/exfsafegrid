@@ -316,25 +316,6 @@ const Documentation = () => {
   return (
     <div className="min-h-screen bg-background">
       <TopNav />
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/")} className="text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Zap className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="text-lg font-bold tracking-tight">
-                <span className="text-exf-blue">Exf</span><span className="text-exf-red">Safe</span><span className="text-exf-blue">Grid</span>
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">Docs</span>
-            </div>
-          </div>
-          <span className="text-xs text-muted-foreground hidden sm:block">MVP v1.0 — February 2026</span>
-        </div>
-      </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
