@@ -354,6 +354,54 @@ export type Database = {
         }
         Relationships: []
       }
+      psps_scenarios: {
+        Row: {
+          circuit_ids: string[]
+          commercial: number
+          created_at: string
+          created_by: string | null
+          critical: number
+          horizon_hours: number
+          id: string
+          mw_lost: number
+          residential: number
+          restoration_hours: number
+          scenario_name: string
+          summary: string | null
+          total_customers: number
+        }
+        Insert: {
+          circuit_ids?: string[]
+          commercial?: number
+          created_at?: string
+          created_by?: string | null
+          critical?: number
+          horizon_hours?: number
+          id?: string
+          mw_lost?: number
+          residential?: number
+          restoration_hours?: number
+          scenario_name: string
+          summary?: string | null
+          total_customers?: number
+        }
+        Update: {
+          circuit_ids?: string[]
+          commercial?: number
+          created_at?: string
+          created_by?: string | null
+          critical?: number
+          horizon_hours?: number
+          id?: string
+          mw_lost?: number
+          residential?: number
+          restoration_hours?: number
+          scenario_name?: string
+          summary?: string | null
+          total_customers?: number
+        }
+        Relationships: []
+      }
       risk_thresholds: {
         Row: {
           band_name: string
