@@ -45,7 +45,7 @@ export default function Index() {
           {PERSONAS.map((p) => (
             <button
               key={p.key}
-              onClick={() => navigate("/login", { state: { tab: p.key } })}
+              onClick={() => navigate(`/login?role=${p.key}`)}
               className="flex flex-col items-start gap-2 p-5 rounded-lg border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group"
             >
               <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">

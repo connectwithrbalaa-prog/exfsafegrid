@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import type { Customer } from "@/lib/customer-types";
@@ -41,10 +41,10 @@ const ROLE_HOME: Record<Tab, string> = {
 };
 
 export default function Login() {
-  const location = useLocation();
-  const initialTab = (location.state as any)?.tab as Tab | undefined;
-  const lockedRole = !!initialTab;
-  const [tab, setTab] = useState<Tab>(initialTab || "customer");
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get("role") as Tab | null;
+  const lockedRole = !!roleParam;
+  const [tab, setTab] = useState<Tab>(roleParam || "customer");
   const [selectedName, setSelectedName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
