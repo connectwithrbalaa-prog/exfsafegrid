@@ -10,6 +10,7 @@ import {
   Zap, Flame, DollarSign, Activity, RefreshCw,
   MapPin, Shield, MessageSquare, FileText, Map,
   Battery, ChevronDown, ChevronUp, Moon, Sun,
+  CheckCircle2, Circle, AlertTriangle, Phone, Radio,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import CustomerWildfireMap from "@/components/CustomerWildfireMap";
@@ -172,49 +173,54 @@ export default function CustomerPortal() {
           {/* ═══ DASHBOARD ═══ */}
           {activeTab === "home" && (
             <div className="space-y-4">
-              {/* Risk Card — always first on mobile */}
-              <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-                <div className="flex items-center gap-2">
-                  <Flame className={`w-4 h-4 ${riskColor}`} />
-                  <h3 className="text-sm font-semibold">Fire Risk</h3>
-                  <span className={`ml-auto text-sm font-bold ${riskColor}`}>{c.wildfire_risk}</span>
+              {/* ── HERO 1: Today's Wildfire Risk ── */}
+              <div className={`p-5 rounded-xl border-2 space-y-3 ${
+                c.wildfire_risk === "High"
+                  ? "border-destructive/40 bg-destructive/5"
+                  : c.wildfire_risk === "Medium"
+                    ? "border-warning/40 bg-warning/5"
+                    : "border-success/40 bg-success/5"
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    c.wildfire_risk === "High" ? "bg-destructive/15" :
+                    c.wildfire_risk === "Medium" ? "bg-warning/15" : "bg-success/15"
+                  }`}>
+                    <Flame className={`w-5 h-5 ${riskColor}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Today's Wildfire Risk for You</p>
+                    <p className={`text-xl font-bold ${riskColor}`}>{c.wildfire_risk} Risk</p>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <MiniStat label="HFTD Tier" value={c.hftd_tier} />
-                  <MiniStat label="Grid Stress" value={c.grid_stress_level} valueColor={stressColor} />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {c.wildfire_risk === "High"
+                    ? "Conditions in your area are elevated today. Ensure backup power is ready and review your evacuation plan."
+                    : c.wildfire_risk === "Medium"
+                      ? "Moderate fire weather is expected. Stay alert for utility notifications and keep devices charged."
+                      : "Conditions are favorable today. No immediate fire weather concerns for your area."}
+                </p>
+                <div className="flex gap-2 text-xs">
+                  <span className="px-2 py-1 rounded-md bg-muted/60 text-muted-foreground">
+                    HFTD {c.hftd_tier}
+                  </span>
+                  <span className="px-2 py-1 rounded-md bg-muted/60 text-muted-foreground">
+                    ZIP {c.zip_code}
+                  </span>
+                  <span className={`px-2 py-1 rounded-md bg-muted/60 ${stressColor}`}>
+                    Grid: {c.grid_stress_level}
+                  </span>
                 </div>
               </div>
 
-              {/* PSPS Status Card */}
-              <div className="p-4 rounded-lg border border-border bg-card space-y-2">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-semibold">PSPS Status</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <MiniStat label="Phase" value={c.psps_phase || "Restored"} />
-                  <MiniStat label="Outage" value={c.current_outage_status || "Normal"} />
-                  <MiniStat label="Restoration" value={c.restoration_timer || "N/A"} />
-                  <MiniStat label="Nearest CRC" value={c.nearest_crc_location || "N/A"} />
-                </div>
-              </div>
+              {/* ── HERO 2: PSPS / EPSS Status ── */}
+              <PspsStatusCard customer={c} />
 
-              {/* My Readiness Card */}
+              {/* ── HERO 3: My Wildfire Readiness ── */}
               <ReadinessCard customer={c} />
 
-              {/* Weather advisory */}
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-warning/30 bg-warning/5">
-                <Flame className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-foreground">Active Weather Advisory</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Elevated fire weather expected. Consider reducing energy use during peak hours (4–9 PM).
-                  </p>
-                </div>
-              </div>
-
-              {/* Billing & Programs — collapsed on mobile */}
-              <CollapsibleCard title="Billing" icon={DollarSign} defaultOpen={!isMobile}>
+              {/* ── Secondary content (accordions) ── */}
+              <CollapsibleCard title="Billing & Assistance" icon={DollarSign} defaultOpen={!isMobile}>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <MiniStat label="Bill Trend" value={c.bill_trend} />
                   <MiniStat label="Arrears" value={c.arrears_status === "Yes" ? "Yes" : "No"} />
@@ -230,7 +236,13 @@ export default function CustomerPortal() {
                 </div>
               </CollapsibleCard>
 
-              {/* Map preview — hidden on mobile (separate tab) */}
+              <CollapsibleCard title="Weather Advisory" icon={Flame} defaultOpen={false}>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Elevated fire weather may be expected. Consider reducing energy use during peak hours (4–9 PM) and keep emergency supplies accessible.
+                </p>
+              </CollapsibleCard>
+
+              {/* Map preview — desktop only */}
               <div className="hidden sm:block">
                 <CustomerWildfireMap customerZip={c.zip_code} />
               </div>
@@ -293,23 +305,118 @@ function MiniStat({ label, value, valueColor }: { label: string; value: string; 
   );
 }
 
-function ReadinessCard({ customer: c }: { customer: Customer }) {
-  const hasBackup = c.has_portable_battery || c.has_permanent_battery !== "None";
+/* ── PSPS / EPSS Status Hero Card ── */
+function PspsStatusCard({ customer: c }: { customer: Customer }) {
+  const isActive = c.psps_phase !== "Restored" && c.psps_phase !== "";
+  const phaseColor = c.psps_phase === "Shutoff" ? "text-destructive" :
+    c.psps_phase === "Warning" ? "text-warning" :
+    c.psps_phase === "Watch" ? "text-warning" : "text-success";
+  const PhaseIcon = c.psps_phase === "Shutoff" ? Zap :
+    c.psps_phase === "Warning" ? AlertTriangle :
+    c.psps_phase === "Watch" ? Radio : CheckCircle2;
+
   return (
-    <div className="p-4 rounded-lg border border-border bg-card space-y-2">
-      <div className="flex items-center gap-2">
-        <Battery className="w-4 h-4 text-primary" />
-        <h3 className="text-sm font-semibold">My Readiness</h3>
+    <div className={`p-5 rounded-xl border-2 space-y-3 ${
+      isActive ? "border-warning/40 bg-warning/5" : "border-border bg-card"
+    }`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          isActive ? "bg-warning/15" : "bg-success/15"
+        }`}>
+          <PhaseIcon className={`w-5 h-5 ${phaseColor}`} />
+        </div>
+        <div className="flex-1">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Your PSPS / EPSS Status</p>
+          <p className={`text-xl font-bold ${phaseColor}`}>{c.psps_phase || "Restored"}</p>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <MiniStat label="Portable Battery" value={c.has_portable_battery ? "Yes" : "No"} />
-        <MiniStat label="Permanent Battery" value={c.has_permanent_battery} />
-        <MiniStat label="Transfer Meter" value={c.has_transfer_meter ? "Yes" : "No"} />
-        <MiniStat
-          label="Backup Status"
-          value={hasBackup ? "Ready" : "Not Set Up"}
-          valueColor={hasBackup ? "text-success" : "text-warning"}
+        <MiniStat label="Outage Status" value={c.current_outage_status || "Normal"} />
+        <MiniStat label="Restoration ETA" value={c.restoration_timer || "N/A"} />
+        <MiniStat label="Nearest CRC" value={c.nearest_crc_location || "N/A"} />
+        <MiniStat label="Doorbell" value={c.doorbell_status || "Not Needed"} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Readiness Steps Hero Card ── */
+function ReadinessCard({ customer: c }: { customer: Customer }) {
+  const steps = [
+    {
+      done: c.has_portable_battery || c.has_permanent_battery !== "None",
+      label: "Backup power source ready",
+      tip: "Get a portable battery or permanent backup to keep essentials running.",
+    },
+    {
+      done: c.medical_baseline,
+      label: "Medical Baseline enrolled",
+      tip: "If you rely on powered medical equipment, enroll for priority notifications.",
+    },
+    {
+      done: c.digital_ack_status === "Confirmed",
+      label: "PSPS alerts acknowledged",
+      tip: "Confirm your notification preferences so we can reach you before shutoffs.",
+    },
+    {
+      done: c.has_transfer_meter,
+      label: "Transfer meter installed",
+      tip: "A transfer meter lets you safely use a generator during outages.",
+    },
+    {
+      done: !!c.nearest_crc_location && c.nearest_crc_location !== "",
+      label: "Know your nearest CRC",
+      tip: c.nearest_crc_location
+        ? `Your nearest Community Resource Center: ${c.nearest_crc_location}`
+        : "Find your nearest Community Resource Center for charging and supplies.",
+    },
+  ];
+
+  const completed = steps.filter((s) => s.done).length;
+
+  return (
+    <div className="p-5 rounded-xl border-2 border-border bg-card space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+          <Shield className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">My Wildfire Readiness</p>
+          <p className="text-sm font-bold text-foreground">{completed} of {steps.length} steps complete</p>
+        </div>
+        <div className="w-10 h-10 rounded-full border-2 border-primary/30 flex items-center justify-center">
+          <span className="text-xs font-bold text-primary">{Math.round((completed / steps.length) * 100)}%</span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${(completed / steps.length) * 100}%` }}
         />
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-2">
+        {steps.map((step, i) => (
+          <div key={i} className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors ${
+            step.done ? "bg-success/5" : "bg-muted/30"
+          }`}>
+            {step.done
+              ? <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+              : <Circle className="w-4 h-4 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+            }
+            <div>
+              <p className={`text-xs font-medium ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
+                {step.label}
+              </p>
+              {!step.done && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">{step.tip}</p>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
