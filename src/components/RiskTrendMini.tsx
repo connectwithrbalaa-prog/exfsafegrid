@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useState } from "react";
+import DemoBadge from "@/components/DemoBadge";
 
 const TREND_CFG: Record<DailyTrendLabel, { symbol: string; label: string; color: string; pulse?: boolean }> = {
   APPROACHING: { symbol: "⚠", label: "APPROACHING", color: "#f97316", pulse: true },
@@ -55,6 +56,7 @@ export default function RiskTrendMini({ circuitId, label }: Props) {
         <div className="flex items-center gap-2">
           <TrendingUp className="w-3.5 h-3.5 text-white/40" />
           <span className="text-[11px] font-medium text-white/60">Risk Trend</span>
+          {(data as any)?.demo && <DemoBadge />}
           <div className="flex rounded-md overflow-hidden border border-white/[0.08] text-[9px] ml-1">
             {([3, 7] as const).map((d) => (
               <button

@@ -5,6 +5,7 @@ import { MapPin, TrendingUp } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, YAxis } from "recharts";
 import { useMemo } from "react";
 import { SUBSTATIONS, type Substation } from "@/lib/wildfire-utils";
+import DemoBadge from "@/components/DemoBadge";
 
 const MOCK_CIRCUITS = ["CKT-2201", "CKT-2205", "CKT-1103", "CKT-3301", "CKT-1407"];
 
@@ -56,10 +57,14 @@ export default function Top5RisingRiskCard({ onCircuitClick }: Top5Props) {
   const queries = [q0, q1, q2, q3, q4];
   const isLoading = queries.some((q) => q.isLoading);
 
+  const allData = queries
+    .filter((q) => q.data)
+    .map((q) => q.data as DailyRiskTrendResponse & { demo?: boolean });
+
+  const hasDemo = allData.some((d) => (d as any).demo);
+
   const results = useMemo(() =>
-    queries
-      .filter((q) => q.data)
-      .map((q) => q.data as DailyRiskTrendResponse)
+    allData
       .filter((d) => ["APPROACHING", "RISING", "PEAKED", "VOLATILE"].includes(d.trend_label))
       .sort((a, b) => {
         const aP = a.probabilities[a.probabilities.length - 1]?.p ?? 0;
@@ -75,7 +80,10 @@ export default function Top5RisingRiskCard({ onCircuitClick }: Top5Props) {
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-4 h-4 text-orange-400" />
         <h2 className="text-sm font-semibold">Top Circuits by Rising Risk</h2>
-        <span className="text-[10px] text-white/30 ml-auto">3-day trend</span>
+        <span className="text-[10px] text-white/30 ml-auto flex items-center gap-2">
+          {hasDemo && <DemoBadge />}
+          3-day trend
+        </span>
       </div>
 
       {isLoading ? (
