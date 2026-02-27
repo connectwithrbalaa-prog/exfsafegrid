@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import type { Customer } from "@/lib/customer-types";
-import { Zap, LogIn, User, Headset, Shield, HardHat } from "lucide-react";
+import { Zap, LogIn, User, Headset, Shield, HardHat, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 type Tab = "customer" | "agent" | "executive" | "field";
@@ -43,6 +43,7 @@ const ROLE_HOME: Record<Tab, string> = {
 export default function Login() {
   const location = useLocation();
   const initialTab = (location.state as any)?.tab as Tab | undefined;
+  const lockedRole = !!initialTab;
   const [tab, setTab] = useState<Tab>(initialTab || "customer");
   const [selectedName, setSelectedName] = useState("");
   const [password, setPassword] = useState("");
@@ -124,23 +125,38 @@ export default function Login() {
           <p className="text-sm text-muted-foreground">Select your demo account</p>
         </div>
 
-        {/* Role tabs – 4 columns */}
-        <div className="grid grid-cols-4 rounded-lg border border-border bg-muted p-1 gap-1">
-          {TABS.map((t) => (
+        {/* Back button + Role tabs */}
+        {lockedRole ? (
+          <div className="flex items-center gap-3">
             <button
-              key={t.key}
-              onClick={() => { setTab(t.key); setSelectedName(""); }}
-              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
-                tab === t.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => navigate("/")}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              <t.icon className="w-4 h-4" />
-              <span className="truncate">{t.label}</span>
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </button>
-          ))}
-        </div>
+            <span className="text-sm font-medium text-foreground">
+              {TABS.find((t) => t.key === tab)?.label} Login
+            </span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 rounded-lg border border-border bg-muted p-1 gap-1">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => { setTab(t.key); setSelectedName(""); }}
+                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
+                  tab === t.key
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <t.icon className="w-4 h-4" />
+                <span className="truncate">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6 space-y-4">
