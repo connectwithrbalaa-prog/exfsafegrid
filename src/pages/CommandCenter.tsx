@@ -1099,7 +1099,7 @@ export default function CommandCenter() {
             )}
 
             {/* Top 5 Rising Risk */}
-            <Top5RisingRiskCard />
+            <Top5RisingRiskCard onCircuitClick={(circuitId, staging) => handleCircuitSelect(circuitId, staging)} />
 
             {/* Interactive Map */}
             <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
