@@ -58,8 +58,8 @@ const App = () => (
               {/* Command Center — workspace subroutes */}
               <Route path="/command-center" element={<ProtectedRoute requiredRole="executive"><CommandCenterLayout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="executive" replace />} />
-                <Route path="executive" element={<ExecutiveWorkspace />} />
-                <Route path="wildfire" element={<CommandCenter />} />
+                <Route path="executive" element={<CommandCenter />} />
+                <Route path="wildfire" element={<ExecutiveWorkspace />} />
                 <Route path="gis" element={<GisWorkspace />} />
                 <Route path="planning" element={<PlanningWorkspace />} />
               </Route>
