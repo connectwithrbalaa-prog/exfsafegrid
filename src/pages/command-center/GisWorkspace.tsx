@@ -152,7 +152,7 @@ export default function GisWorkspace() {
         <button
           onClick={fetchFires}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-muted/50 px-3 py-1.5 rounded-md border border-border ml-auto"
+          className="flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-md border border-border ml-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
@@ -160,7 +160,7 @@ export default function GisWorkspace() {
         {assetRisks.length > 0 && (
           <button
             onClick={() => downloadCsv(formatAssetRiskCsv(assetRisks), "gis-asset-risks.csv")}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-muted/50 px-3 py-1.5 rounded-md border border-border"
+            className="flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-md border border-border"
           >
             <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
