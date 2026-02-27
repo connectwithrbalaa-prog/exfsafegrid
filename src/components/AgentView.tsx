@@ -31,6 +31,7 @@ import PspsImpactCard from "@/components/PspsImpactCard";
 import ProgramsEligibilityCard from "@/components/ProgramsEligibilityCard";
 import LocalSupportCard from "@/components/LocalSupportCard";
 import { useKeyboardShortcuts, SHORTCUTS } from "@/hooks/use-keyboard-shortcuts";
+import RiskTrendMini from "@/components/RiskTrendMini";
 
 import { toast } from "sonner";
 
@@ -356,6 +357,11 @@ export default function AgentView({ agentEmail }: AgentViewProps) {
                     />
                   </div>
                 </div>
+              )}
+
+              {/* Risk Trend Mini */}
+              {selected.psps_event_id && (
+                <RiskTrendMini circuitId={selected.psps_event_id} label={`${selected.name}'s circuit`} />
               )}
 
               {/* Risk Forecast + PSPS Impact */}

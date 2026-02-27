@@ -32,6 +32,7 @@ import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 import TopNav from "@/components/TopNav";
 import CircuitRiskTrendRow from "@/components/CircuitRiskTrendRow";
+import Top5RisingRiskCard from "@/components/Top5RisingRiskCard";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -1096,6 +1097,9 @@ export default function CommandCenter() {
                 </div>
               </div>
             )}
+
+            {/* Top 5 Rising Risk */}
+            <Top5RisingRiskCard />
 
             {/* Interactive Map */}
             <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] overflow-hidden">
