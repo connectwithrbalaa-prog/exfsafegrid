@@ -20,7 +20,7 @@ const NAV_LINKS: NavItem[] = [
   { to: "/notifications", label: "Notifications", icon: Bell, roles: ["executive"] },
   { to: "/planning/assets", label: "Assets", icon: BarChart3, roles: ["executive"] },
   { to: "/status", label: "Status", icon: Globe },
-  { to: "/docs", label: "Docs", icon: FileText },
+  { to: "/docs", label: "Docs", icon: FileText, roles: ["executive"] },
 ];
 
 interface TopNavProps {
