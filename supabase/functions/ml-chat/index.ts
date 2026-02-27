@@ -227,7 +227,7 @@ serve(async (req) => {
       });
     }
 
-    // Second call: let AI summarize results with streaming (no tools — just summarize)
+    // Second call: let AI summarize results (non-streaming, no tools)
     const secondResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -238,13 +238,11 @@ serve(async (req) => {
         model: "google/gemini-3-flash-preview",
         messages: [
           ...allMessages,
-          choice.message,
+          { role: "assistant", content: null, tool_calls: choice.message.tool_calls },
           ...toolResults,
-          { role: "system", content: "Summarize the tool results for the user in a clear, formatted way. Do NOT call any more tools." },
+          { role: "user", content: "Now summarize the tool results above in a clear, formatted way. Do not call any tools." },
         ],
-        tools,
-        tool_choice: "none",
-        stream: true,
+        stream: false,
       }),
     });
 
@@ -256,8 +254,10 @@ serve(async (req) => {
       });
     }
 
-    return new Response(secondResponse.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const secondResult = await secondResponse.json();
+    const reply = secondResult.choices?.[0]?.message?.content || "No results could be summarized.";
+    return new Response(JSON.stringify({ reply }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ml-chat error:", e);
