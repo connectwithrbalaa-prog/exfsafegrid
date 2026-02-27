@@ -75,9 +75,7 @@ export default function TopNav({ variant = "light" }: TopNavProps) {
             <Zap className="w-3 h-3 text-primary-foreground" />
           </div>
           <span className="text-xs font-bold tracking-tight">
-            <span className="text-exf-blue">Exf</span>
-            <span className="text-exf-red">Safe</span>
-            <span className="text-exf-blue">Grid</span>
+            <span className="text-exf-red">Exf</span><span className="text-foreground">Safe</span><span className="text-foreground">Grid</span>
           </span>
         </button>
 
