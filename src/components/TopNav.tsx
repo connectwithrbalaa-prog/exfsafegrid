@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, Radio, Globe, FileText, Zap, HardHat, User, Headset, Shield, LogOut, Bell } from "lucide-react";
+import { Home, Radio, Globe, FileText, Zap, HardHat, User, Headset, Shield, LogOut, Bell, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCustomer, type UserRole } from "@/hooks/use-customer";
 
@@ -18,6 +18,7 @@ const NAV_LINKS: NavItem[] = [
   { to: "/field-crew", label: "Field Crew", icon: HardHat, roles: ["agent", "field"] },
   { to: "/psps-simulator", label: "Simulator", icon: Zap, roles: ["executive"] },
   { to: "/notifications", label: "Notifications", icon: Bell, roles: ["executive"] },
+  { to: "/planning/assets", label: "Assets", icon: BarChart3, roles: ["executive"] },
   { to: "/status", label: "Status", icon: Globe },
   { to: "/docs", label: "Docs", icon: FileText },
 ];
