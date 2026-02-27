@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Layers, Route, Cloud, Flame, Activity, Download, RefreshCw,
-  Volume2, VolumeX, ShieldAlert, MapPin,
+  Volume2, VolumeX, ShieldAlert, MapPin, Satellite, Map as MapIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCircuitIgnitionRisk } from "@/hooks/use-backend-data";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/wildfire-utils";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
+import { MAPBOX_STYLES, NAV_CONTROL_POSITION, initMapbox, type MapStyleKey } from "@/lib/mapbox-config";
 
 export default function GisWorkspace() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -28,6 +28,7 @@ export default function GisWorkspace() {
   const [showWeather, setShowWeather] = useState(true);
   const [showSpread, setShowSpread] = useState(false);
   const [showIgnition, setShowIgnition] = useState(false);
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const circuitRiskQuery = useCircuitIgnitionRisk({ horizon_hours: 24, limit: 500 });
 
   const fetchFires = useCallback(async () => {
@@ -47,7 +48,7 @@ export default function GisWorkspace() {
     initMapbox();
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: MAPBOX_STYLE,
+      style: MAPBOX_STYLES[mapStyle],
       center: [-119.5, 37.5],
       zoom: 5.5,
     });
@@ -85,7 +86,7 @@ export default function GisWorkspace() {
     });
 
     return () => { map.remove(); mapRef.current = null; };
-  }, []);
+  }, [mapStyle]);
 
   // Fire markers
   useEffect(() => {
@@ -150,6 +151,27 @@ export default function GisWorkspace() {
           ))}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
+          {/* Basemap style toggle */}
+          <div className="flex items-center gap-0.5 bg-muted/60 rounded-lg p-0.5">
+            {([
+              { key: "satellite" as MapStyleKey, label: "Satellite", icon: Satellite },
+              { key: "streets" as MapStyleKey, label: "Streets", icon: MapIcon },
+              { key: "dark" as MapStyleKey, label: "Dark", icon: Layers },
+            ]).map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setMapStyle(s.key)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                  mapStyle === s.key
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <s.icon className="w-3.5 h-3.5" />
+                {s.label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={fetchFires}
             disabled={loading}

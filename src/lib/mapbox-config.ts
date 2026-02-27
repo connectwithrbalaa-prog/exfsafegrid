@@ -8,6 +8,14 @@ export const MAPBOX_TOKEN =
 
 export const MAPBOX_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 
+export const MAPBOX_STYLES = {
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+  streets: "mapbox://styles/mapbox/streets-v12",
+  dark: "mapbox://styles/mapbox/dark-v11",
+} as const;
+
+export type MapStyleKey = keyof typeof MAPBOX_STYLES;
+
 export const NAV_CONTROL_POSITION: mapboxgl.ControlPosition = "top-right";
 
 /**
