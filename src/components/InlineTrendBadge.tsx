@@ -11,7 +11,7 @@ const CFG: Record<DailyTrendLabel, { symbol: string; label: string; color: strin
   VOLATILE:    { symbol: "~", label: "VOLATILE",     color: "#a855f7" },
 };
 
-export default function InlineTrendBadge({ circuitId }: { circuitId: string }) {
+export default function InlineTrendBadge({ circuitId, onClick }: { circuitId: string; onClick?: () => void }) {
   const { data, isLoading } = useDailyRiskTrend(circuitId, 3);
 
   if (isLoading) return <span className="inline-block w-10 h-3 rounded bg-muted animate-pulse" />;
@@ -22,7 +22,8 @@ export default function InlineTrendBadge({ circuitId }: { circuitId: string }) {
 
   const badge = (
     <span
-      className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[9px] font-bold leading-none whitespace-nowrap cursor-default ${t.pulse ? "animate-pulse" : ""}`}
+      onClick={onClick}
+      className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[9px] font-bold leading-none whitespace-nowrap ${onClick ? "cursor-pointer hover:opacity-80" : "cursor-default"} ${t.pulse ? "animate-pulse" : ""}`}
       style={{ backgroundColor: `${t.color}22`, color: t.color }}
     >
       {t.symbol} {t.label}
