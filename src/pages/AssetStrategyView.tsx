@@ -12,6 +12,9 @@ import {
   BarChart3, Download, Filter, Loader2, Zap, Shield,
   Users, Building2, TrendingDown, DollarSign, SlidersHorizontal,
 } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ReferenceLine,
+} from "recharts";
 
 interface Asset {
   circuit_id: string;
@@ -310,7 +313,40 @@ export default function AssetStrategyView() {
                 <WhatIfKpi icon={DollarSign} label="Est. Cost" value={`$${estimate.cost_estimate_millions}M`} color="text-orange-400" />
               </div>
 
-              {/* Per-circuit results */}
+              {/* Current vs Projected chart */}
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-4">
+                <p className="text-[10px] uppercase tracking-wider text-white/40 mb-3">Current vs Projected Risk by Circuit</p>
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={estimate.results.map((r) => ({
+                        name: r.circuit_id.replace("CKT-", ""),
+                        current: +(r.current_risk * 100).toFixed(1),
+                        projected: +(r.projected_risk * 100).toFixed(1),
+                      }))}
+                      barGap={2}
+                      barCategoryGap="20%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                      <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} unit="%" />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(220,25%,12%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                        itemStyle={{ color: "rgba(255,255,255,0.8)" }}
+                        labelStyle={{ color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}
+                        formatter={(v: number) => [`${v}%`]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }} />
+                      <ReferenceLine y={50} stroke="rgba(249,115,22,0.3)" strokeDasharray="4 4" label={{ value: "HIGH", fill: "rgba(249,115,22,0.4)", fontSize: 9, position: "right" }} />
+                      <ReferenceLine y={75} stroke="rgba(239,68,68,0.3)" strokeDasharray="4 4" label={{ value: "CRIT", fill: "rgba(239,68,68,0.4)", fontSize: 9, position: "right" }} />
+                      <Bar dataKey="current" name="Current Risk" fill="#f97316" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="projected" name="Projected Risk" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
