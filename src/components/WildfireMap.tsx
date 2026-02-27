@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useActiveIncidents, useCurrentPerimeters } from "@/hooks/use-api";
+import { useActiveIncidents, useCurrentPerimeters } from "@/hooks/use-backend-data";
 import { Flame, RefreshCw, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,18 +75,18 @@ function CollapsibleTable({ incidents, compact }: { incidents: Incident[]; compa
 }
 
 export default function WildfireMap({ customerZip, compact = false }: Props) {
-  const { data: incidentsData, isLoading, isError, error, refetch } = useActiveIncidents({ min_acres: 100 });
-  const { data: perimetersData } = useCurrentPerimeters({ min_acres: 100 });
+  const { data: incidentsData, isLoading, isError, error, refetch } = useActiveIncidents({ min_acres: 100 }) as { data: any; isLoading: boolean; isError: boolean; error: any; refetch: () => void };
+  const { data: perimetersData } = useCurrentPerimeters({ min_acres: 100 }) as { data: any };
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
-  const incidents = incidentsData?.incidents ?? [];
+  const incidents: Incident[] = incidentsData?.incidents ?? [];
 
   // Build a perimeter lookup for popup metadata
-  const perimeterMap = new Map(
-    (perimetersData?.perimeters ?? []).map((p) => [p.incident_id, p])
+  const perimeterMap = new Map<string, any>(
+    (perimetersData?.perimeters ?? []).map((p: any) => [p.incident_id, p])
   );
 
   // Initialize map

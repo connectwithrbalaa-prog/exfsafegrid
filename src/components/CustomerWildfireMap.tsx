@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { useActiveIncidents, useCurrentPerimeters } from "@/hooks/use-api";
+import { useActiveIncidents, useCurrentPerimeters } from "@/hooks/use-backend-data";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle, MapPin, Clock, Activity, Layers,
 } from "lucide-react";
@@ -108,14 +108,14 @@ export default function CustomerWildfireMap({
   assetLng = -119.30,
   hftdTier = "None",
 }: Props) {
-  const { data: incidentsData, isLoading: loading, isError, error, refetch } = useActiveIncidents({ min_acres: 100 });
-  const { data: perimetersData } = useCurrentPerimeters({ min_acres: 100 });
+  const { data: incidentsData, isLoading: loading, isError, error, refetch } = useActiveIncidents({ min_acres: 100 }) as { data: any; isLoading: boolean; isError: boolean; error: any; refetch: () => void };
+  const { data: perimetersData } = useCurrentPerimeters({ min_acres: 100 }) as { data: any };
 
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
 
-  const incidents = incidentsData?.incidents ?? [];
+  const incidents: Incident[] = incidentsData?.incidents ?? [];
 
   /* ── Enrich incidents ───────────────────────────────────── */
 

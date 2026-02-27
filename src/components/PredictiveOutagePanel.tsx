@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 import type { Customer } from "@/lib/customer-types";
-import { useIgnitionRisk, usePsaRisk } from "@/hooks/use-api";
+import { useCircuitIgnitionRisk as useIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import { AlertTriangle, HeartPulse, DollarSign, Zap, Download, Phone, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
