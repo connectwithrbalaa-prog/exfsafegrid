@@ -296,6 +296,153 @@ def get_monthly_outlooks(forecast_date: Optional[date] = Query(None),
             "count": len(rows), "outlooks": [dict(r._mapping) for r in rows]}
 
 
+# ── Risk Trend Analytics ───────────────────────────────────────────────────
+@app.get("/api/risk/trends", tags=["Predictions"])
+def get_risk_trends(
+    circuit_id: str = Query(..., description="e.g. CIRCUIT_101"),
+    days: int = Query(3, ge=2, le=7, description="Number of daily prediction points"),
+    summary: bool = Query(False, description="Include a Claude one-sentence summary"),
+    db: Session = Depends(get_db), _: str = Depends(auth),
+):
+    """
+    3-day (or up to 7-day) ignition-risk trend for a circuit.
+
+    Reads the *days* most recent ignition_spike / 24h predictions and
+    computes a deterministic trend label:
+
+    APPROACHING — all days rising AND latest prob ≥ 0.50 (closing on HIGH)
+    RISING      — all days rising, latest prob < 0.50
+    FALLING     — all days falling
+    PEAKED      — was rising, now falling from ≥ 0.50
+    STABLE      — net change < 0.05 across the window
+    VOLATILE    — mixed direction, significant net change
+
+    Optional Claude summary: "Risk has increased for 3 days and is now HIGH."
+
+    Response::
+
+        {
+          "circuit_id": "CIRCUIT_101",
+          "trend_label": "APPROACHING",
+          "probabilities": [
+            {"date": "2026-02-24", "p": 0.42, "risk_bucket": "MODERATE"},
+            {"date": "2026-02-25", "p": 0.55, "risk_bucket": "HIGH"},
+            {"date": "2026-02-26", "p": 0.71, "risk_bucket": "HIGH"}
+          ],
+          "summary": "Risk has increased for 3 days and is now HIGH."
+        }
+    """
+    rows = db.execute(text("""
+        SELECT prediction_date, prob_score, risk_bucket
+        FROM model_predictions
+        WHERE circuit_id    = :cid
+          AND model_name    = 'ignition_spike'
+          AND horizon_label = '24h'
+        ORDER BY prediction_date DESC
+        LIMIT :days
+    """), {"cid": circuit_id, "days": days}).fetchall()
+
+    if not rows:
+        raise HTTPException(404, f"No predictions found for circuit '{circuit_id}'. "
+                                 "Run POST /models/score first.")
+
+    # oldest → newest
+    points = list(reversed([
+        {"date":        str(r._mapping["prediction_date"]),
+         "p":           round(float(r._mapping["prob_score"]), 4),
+         "risk_bucket": r._mapping["risk_bucket"]}
+        for r in rows
+    ]))
+
+    probs   = [pt["p"] for pt in points]
+    n       = len(probs)
+    first_p = probs[0]
+    last_p  = probs[-1]
+    net     = last_p - first_p
+
+    all_up   = all(probs[i] < probs[i + 1] for i in range(n - 1))
+    all_down = all(probs[i] > probs[i + 1] for i in range(n - 1))
+    was_high = max(probs[:-1]) >= 0.50
+
+    if all_up and last_p >= 0.50:
+        trend_label = "APPROACHING"
+    elif all_up:
+        trend_label = "RISING"
+    elif all_down:
+        trend_label = "FALLING"
+    elif was_high and last_p < max(probs[:-1]):
+        trend_label = "PEAKED"
+    elif abs(net) < 0.05:
+        trend_label = "STABLE"
+    else:
+        trend_label = "VOLATILE"
+
+    # ── Deterministic summary fallback ────────────────────────────────────
+    latest_bucket = points[-1]["risk_bucket"] or "UNKNOWN"
+    day_word      = "days" if n > 1 else "day"
+
+    if trend_label == "APPROACHING":
+        summary_text = (
+            f"Risk has risen for {n} consecutive {day_word} "
+            f"and is now {latest_bucket} ({last_p:.0%}), approaching a critical threshold."
+        )
+    elif trend_label == "RISING":
+        summary_text = (
+            f"Risk has increased for {n} {day_word} "
+            f"and currently stands at {latest_bucket} ({last_p:.0%})."
+        )
+    elif trend_label == "FALLING":
+        summary_text = (
+            f"Risk has declined for {n} consecutive {day_word} "
+            f"to {latest_bucket} ({last_p:.0%})."
+        )
+    elif trend_label == "PEAKED":
+        summary_text = (
+            f"Risk peaked at {max(probs):.0%} and is now easing "
+            f"to {latest_bucket} ({last_p:.0%})."
+        )
+    elif trend_label == "STABLE":
+        summary_text = (
+            f"Risk is stable at {latest_bucket} ({last_p:.0%}) "
+            f"with minimal change over the last {n} {day_word}."
+        )
+    else:
+        summary_text = (
+            f"Risk is fluctuating ({first_p:.0%} → {last_p:.0%}) "
+            f"and currently reads {latest_bucket}."
+        )
+
+    # ── Optional Claude summary ───────────────────────────────────────────
+    if summary and settings.ANTHROPIC_API_KEY:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+            prompt = (
+                "You are a wildfire ops analyst. Given the risk trend data below, "
+                "write ONE concise sentence (≤ 25 words) for an operations dashboard. "
+                "Mention the trend direction, current risk level, and any notable change. "
+                "Output only the sentence — no quotes, no extra text.\n\n"
+                f"circuit_id: {circuit_id}\n"
+                f"trend_label: {trend_label}\n"
+                f"probabilities: {json.dumps(points)}"
+            )
+            msg = client.messages.create(
+                model=settings.CLAUDE_MODEL,
+                max_tokens=80,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            summary_text = msg.content[0].text.strip()
+        except Exception as exc:
+            logger.warning("risk/trends: Claude call failed (%s) — using fallback", exc)
+
+    return {
+        "circuit_id":    circuit_id,
+        "trend_label":   trend_label,
+        "probabilities": points,
+        "summary":       summary_text if summary else None,
+    }
+
+
 # ── Agent: 12-Hour Circuit Risk Trend ─────────────────────────────────────
 @app.get("/agent/risk-12h", tags=["Agent"])
 def get_circuit_risk_trend(
