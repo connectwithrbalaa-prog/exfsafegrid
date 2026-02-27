@@ -16,6 +16,11 @@ function buildDemoFallback(targetPath: string, url: URL, status: number | "netwo
 
   if (!isOptionalFailure) return null;
 
+  if (targetPath === "/health") {
+    console.log(`Upstream /health unavailable (${status}); returning demo health`);
+    return jsonResponse({ status: "demo", message: "Backend unreachable – using fallback data", demo: true }, 200);
+  }
+
   if (targetPath === "/briefing" || targetPath === "/psps-watchlist") {
     console.log(`Upstream ${targetPath} unavailable (${status}); returning null payload`);
     return jsonResponse("null", 200);
