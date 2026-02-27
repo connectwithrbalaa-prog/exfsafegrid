@@ -8,12 +8,13 @@ import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
 import RiskThresholdSettings from "@/components/RiskThresholdSettings";
 import ComplianceDashboard from "@/components/ComplianceDashboard";
 import NotificationSendPanel from "@/components/NotificationSendPanel";
+import NotificationAnalyticsDashboard from "@/components/NotificationAnalyticsDashboard";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import DemoBadge from "@/components/DemoBadge";
 import { downloadCsv, formatCircuitRiskCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
 
-type Tab = "risk-list" | "vegetation" | "insurance" | "thresholds" | "compliance" | "notifications";
+type Tab = "risk-list" | "vegetation" | "insurance" | "thresholds" | "compliance" | "notifications" | "notif-analytics";
 
 const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
   { key: "risk-list", label: "Circuit Risk", icon: BarChart3 },
@@ -21,7 +22,8 @@ const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
   { key: "insurance", label: "Insurance", icon: DollarSign },
   { key: "thresholds", label: "Thresholds", icon: Settings },
   { key: "compliance", label: "Compliance", icon: Shield },
-  { key: "notifications", label: "Notifications", icon: Bell },
+  { key: "notifications", label: "Send", icon: Bell },
+  { key: "notif-analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export default function PlanningWorkspace() {
@@ -116,6 +118,7 @@ export default function PlanningWorkspace() {
         {activeTab === "thresholds" && <RiskThresholdSettings />}
         {activeTab === "compliance" && <ComplianceDashboard />}
         {activeTab === "notifications" && <NotificationSendPanel />}
+        {activeTab === "notif-analytics" && <NotificationAnalyticsDashboard />}
       </div>
     </div>
   );
