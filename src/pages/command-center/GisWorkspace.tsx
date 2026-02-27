@@ -143,7 +143,7 @@ export default function GisWorkspace() {
             className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
               t.state
                 ? "bg-primary/15 border-primary/30 text-primary"
-                : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
+                : "bg-card border-border text-foreground/60 hover:text-foreground"
             }`}
           >
             <t.icon className="w-3 h-3" /> {t.label}
