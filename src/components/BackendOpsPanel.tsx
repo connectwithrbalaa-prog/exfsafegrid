@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import DemoBadge from "@/components/DemoBadge";
 import {
   useBackendHealth,
   useBriefing,
@@ -211,6 +212,7 @@ export default function BackendOpsPanel() {
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Zap className="w-4 h-4 text-orange-400" />
               Circuit Ignition Risk (24h)
+              {circuitRisk.data?.demo && <DemoBadge />}
             </h3>
             {circuitRisk.data?.results?.length > 0 && (
               <button
@@ -271,6 +273,7 @@ export default function BackendOpsPanel() {
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-purple-400" />
               PSA Activity Risk (Month 1)
+              {psaRisk.data?.demo && <DemoBadge />}
             </h3>
             {psaRisk.data?.results?.length > 0 && (
               <button
