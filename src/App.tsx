@@ -24,6 +24,10 @@ import Playbooks from "./pages/Playbooks";
 import Notifications from "./pages/Notifications";
 import AssetStrategyView from "./pages/AssetStrategyView";
 import Replay from "./pages/Replay";
+import RiskCommandCenter from "./pages/RiskCommandCenter";
+import OpsIntelligence from "./pages/OpsIntelligence";
+import LiveFireData from "./pages/LiveFireData";
+import SystemStatus from "./pages/SystemStatus";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRouter from "./components/RoleRouter";
@@ -74,6 +78,10 @@ const App = () => (
               <Route path="/demo" element={<DemoPresentation />} />
               <Route path="/docs" element={<Documentation />} />
               <Route path="/status" element={<PspsStatus />} />
+              <Route path="/risk" element={<RiskCommandCenter />} />
+              <Route path="/ops" element={<OpsIntelligence />} />
+              <Route path="/live-fire" element={<LiveFireData />} />
+              <Route path="/system" element={<SystemStatus />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <MlChatBubble />
