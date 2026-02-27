@@ -42,8 +42,7 @@ import {
   formatLocalTime, getNearestAsset, getRecommendedAction, createGeoJSONCircle,
 } from "@/lib/wildfire-utils";
 
-const MAPBOX_TOKEN =
-  "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
 
 /* ── Grid status ─────────────────────────────────────────────── */
 
@@ -676,16 +675,16 @@ export default function CommandCenter() {
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    initMapbox();
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: MAPBOX_STYLE,
       center: [-119.315, 37.215],
       zoom: 10,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    map.addControl(new mapboxgl.NavigationControl(), NAV_CONTROL_POSITION);
     mapRef.current = map;
 
     map.on("load", () => {

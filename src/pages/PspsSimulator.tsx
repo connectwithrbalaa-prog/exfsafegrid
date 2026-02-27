@@ -57,7 +57,7 @@ const CIRCUITS: Circuit[] = [
   { circuit_id: "SCE-006", circuit_name: "Ventura Hills 66kV", voltage_kv: 66, utility_name: "SCE", county: "Ventura", hftd_tier: 2, customer_count: 6800, critical_customers: 90, length_miles: 27.6, lat: 34.27, lon: -119.23 },
 ];
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
 
 const HORIZONS = [
   { value: "12", label: "12 hours" },
@@ -260,14 +260,14 @@ export default function PspsSimulator() {
   // ── Map ────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    initMapbox();
     const map = new mapboxgl.Map({
       container: mapRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: MAPBOX_STYLE,
       center: [-119.4, 36.8],
       zoom: 5.2,
     });
-    map.addControl(new mapboxgl.NavigationControl(), "top-left");
+    map.addControl(new mapboxgl.NavigationControl(), NAV_CONTROL_POSITION);
     mapInstance.current = map;
     return () => { map.remove(); mapInstance.current = null; };
   }, []);

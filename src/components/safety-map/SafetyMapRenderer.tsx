@@ -4,9 +4,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { Customer } from "@/lib/customer-types";
 import type { Substation } from "@/lib/wildfire-utils";
 import { getInfraForSubstation, LAYER_META, type InfraSegment } from "@/lib/infrastructure-data";
-
-const MAPBOX_TOKEN =
-  "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
 
 /* ── Build rich popup HTML for a segment ── */
 function buildPopupHTML(seg: InfraSegment): string {
@@ -55,7 +53,7 @@ export default function SafetyMapRenderer({ customer, substation: ss, layers, ma
 
   useEffect(() => {
     if (!mapContainer.current) return;
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    initMapbox();
 
     const center: [number, number] = ss
       ? [ss.longitude, ss.latitude]
@@ -63,7 +61,7 @@ export default function SafetyMapRenderer({ customer, substation: ss, layers, ma
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: MAPBOX_STYLE,
       center,
       zoom: 13,
     });
@@ -178,7 +176,7 @@ export default function SafetyMapRenderer({ customer, substation: ss, layers, ma
         }
       });
 
-      map.addControl(new mapboxgl.NavigationControl(), "top-right");
+      map.addControl(new mapboxgl.NavigationControl(), NAV_CONTROL_POSITION);
     });
 
     return () => {
