@@ -214,7 +214,7 @@ export default function PspsSimulator() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({
       container: mapRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [-119.4, 36.8],
       zoom: 5.2,
     });
