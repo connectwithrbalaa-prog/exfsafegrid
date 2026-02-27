@@ -9,13 +9,16 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle, Save, Trash2, History, GitCompareArrows, ArrowUp, ArrowDown, Minus,
+  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle, Save, Trash2, History, GitCompareArrows, ArrowUp, ArrowDown, Minus, BookOpen,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 // ── Circuit seed data (mirrors scripts/seed_circuits.sql) ──────────
 interface Circuit {
   circuit_id: string;
@@ -101,6 +104,7 @@ export default function PspsSimulator() {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [scenarioName, setScenarioName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -109,6 +113,26 @@ export default function PspsSimulator() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [playbookOpen, setPlaybookOpen] = useState(false);
+  const [playbookName, setPlaybookName] = useState("");
+  const [playbookDesc, setPlaybookDesc] = useState("");
+  const [playbookTags, setPlaybookTags] = useState("");
+
+  // Load from playbook via sessionStorage
+  useEffect(() => {
+    const raw = sessionStorage.getItem("playbook_load");
+    if (raw) {
+      sessionStorage.removeItem("playbook_load");
+      try {
+        const pb = JSON.parse(raw);
+        setScenarioName(pb.name || "");
+        setSelectedIds(pb.circuit_ids || []);
+        if (pb.baseline_metrics) {
+          setResult(pb.baseline_metrics);
+        }
+      } catch {}
+    }
+  }, []);
 
   const selectedCircuits = useMemo(
     () => CIRCUITS.filter((c) => selectedIds.includes(c.circuit_id)),
@@ -174,6 +198,31 @@ export default function PspsSimulator() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["psps-scenarios"] });
+    },
+  });
+
+  const savePlaybookMutation = useMutation({
+    mutationFn: async () => {
+      if (!result) throw new Error("No result");
+      const { error } = await supabase.from("psps_playbooks" as any).insert({
+        name: playbookName.trim() || scenarioName || `Playbook ${new Date().toLocaleDateString()}`,
+        description: playbookDesc.trim() || null,
+        circuit_ids: selectedIds,
+        baseline_metrics: result,
+        tags: playbookTags.split(",").map((t) => t.trim()).filter(Boolean),
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Playbook saved", description: playbookName || "Saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["psps-playbooks"] });
+      setPlaybookOpen(false);
+      setPlaybookName("");
+      setPlaybookDesc("");
+      setPlaybookTags("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -467,8 +516,57 @@ export default function PspsSimulator() {
                 <Save className="w-4 h-4 mr-1" />
                 {saveMutation.isPending ? "Saving…" : "Save Scenario"}
               </Button>
+
+              {/* Save as Playbook + nav buttons */}
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => {
+                    setPlaybookName(scenarioName);
+                    setPlaybookOpen(true);
+                  }}
+                >
+                  <BookOpen className="w-4 h-4 mr-1" /> Save as Playbook
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate("/playbooks")}>
+                  Playbooks
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate("/replay")}>
+                  Replay
+                </Button>
+              </div>
             </div>
           )}
+
+          {/* Playbook save dialog */}
+          <Dialog open={playbookOpen} onOpenChange={setPlaybookOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save as Playbook</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="pb-name">Playbook Name</Label>
+                  <Input id="pb-name" value={playbookName} onChange={(e) => setPlaybookName(e.target.value)} placeholder="e.g. Santa Ana Wind Protocol" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pb-desc">Description</Label>
+                  <Textarea id="pb-desc" value={playbookDesc} onChange={(e) => setPlaybookDesc(e.target.value)} placeholder="Describe when to use this playbook…" rows={3} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pb-tags">Tags (comma-separated)</Label>
+                  <Input id="pb-tags" value={playbookTags} onChange={(e) => setPlaybookTags(e.target.value)} placeholder="e.g. santa-ana, high-wind, tier-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPlaybookOpen(false)}>Cancel</Button>
+                <Button onClick={() => savePlaybookMutation.mutate()} disabled={savePlaybookMutation.isPending}>
+                  <BookOpen className="w-4 h-4 mr-1" /> {savePlaybookMutation.isPending ? "Saving…" : "Save Playbook"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* ── Saved Scenarios ─────────────────────── */}
           {savedScenarios.length > 0 && (
