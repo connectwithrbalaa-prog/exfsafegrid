@@ -32,6 +32,8 @@ import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
 
 import CircuitRiskTrendRow from "@/components/CircuitRiskTrendRow";
+import PredictionsChatPanel from "@/components/PredictionsChatPanel";
+import { PREDICTIONS_CONFIG } from "@/lib/predictions-config";
 import Top5RisingRiskCard from "@/components/Top5RisingRiskCard";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -148,7 +150,7 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [section, setSection] = useState<"overview" | "operations" | "risk">("overview");
-  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds" | "field-ops">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "hvra" | "nvc" | "evac" | "resources" | "insurance" | "history" | "behavior" | "alerts" | "sms" | "after-action" | "compliance" | "vegetation" | "backend" | "risk-alerts" | "outage" | "thresholds" | "field-ops" | "gridoracle">("assets");
   const [customers, setCustomers] = useState<{ hftd_tier: string; zip_code: string; medical_baseline?: boolean; has_portable_battery?: boolean; has_permanent_battery?: string }[]>([]);
   const [hvraAssets, setHvraAssets] = useState<HvraAsset[]>([]);
   const [assetSort, setAssetSort] = useState<{ col: string; desc: boolean }>({ col: "risk", desc: true });
@@ -1104,6 +1106,9 @@ export default function CommandCenter() {
                 <button onClick={() => setActiveTab("outage")} className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "outage" ? "border-violet-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
                   <Zap className="w-4 h-4 text-violet-400" /> Outage Impact
                 </button>
+                <button onClick={() => setActiveTab("gridoracle")} className={`flex items-center gap-1.5 text-sm font-semibold pb-1 border-b-2 transition-colors ${activeTab === "gridoracle" ? "border-cyan-400 text-white" : "border-transparent text-white/40 hover:text-white/60"}`}>
+                  <Activity className="w-4 h-4 text-cyan-400" /> GridOracle
+                </button>
               </div>
               {activeTab === "assets" ? (
                 <>
@@ -1211,6 +1216,8 @@ export default function CommandCenter() {
                 <div className="p-5"><RiskAlertsPanel circuitRiskMap={circuitRiskMap} assetNames={assetNamesMap} /></div>
               ) : activeTab === "outage" ? (
                 <div className="p-5"><CircuitOutagePanel circuitRiskMap={circuitRiskMap} psaRiskMap={psaRiskMap} customers={customers} /></div>
+              ) : activeTab === "gridoracle" ? (
+                <div className="h-[450px]"><PredictionsChatPanel config={PREDICTIONS_CONFIG.executive.config} /></div>
               ) : null}
             </div>
           </div>
