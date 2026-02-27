@@ -208,6 +208,22 @@ function buildDemoFallback(targetPath: string, url: URL, status: number | "netwo
     return jsonResponse({ outlooks: [], demo: true }, 200);
   }
 
+  if (targetPath === "/fire-spread-risk") {
+    console.log(`Upstream /fire-spread-risk unavailable (${status}); returning demo data`);
+    return jsonResponse({ predictions: [], demo: true }, 200);
+  }
+
+  if (targetPath === "/customer-density") {
+    console.log(`Upstream /customer-density unavailable (${status}); returning demo data`);
+    return jsonResponse({ circuits: [], demo: true }, 200);
+  }
+
+  // Catch-all: any other GET endpoint returns an empty demo payload instead of a 502
+  if (isOptionalFailure) {
+    console.log(`Upstream ${targetPath} unavailable (${status}); returning catch-all demo fallback`);
+    return jsonResponse({ data: null, demo: true, message: `${targetPath} unavailable – using fallback` }, 200);
+  }
+
   return null;
 }
 
@@ -254,7 +270,7 @@ Deno.serve(async (req) => {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort("upstream_timeout"), 20000);
+    const timeout = setTimeout(() => controller.abort("upstream_timeout"), 30000);
 
     let upstream: Response;
     try {
