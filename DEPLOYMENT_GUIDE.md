@@ -234,9 +234,12 @@ mkdir -p /docker/exfsafegrid
 cd /docker/exfsafegrid
 git clone https://github.com/connectwithrbalaa-prog/exfsafegrid.git .
 
-# Create .env for build-time and runtime variables
-# Use printf to avoid heredoc parsing issues on some shells
-printf 'POSTGRES_PASSWORD=your-db-password\nANTHROPIC_API_KEY=sk-ant-...\nAPI_KEY=your-api-key\nVITE_SUPABASE_URL=https://efutjtbgcqbprgtefcfy.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGci...\nVITE_SUPABASE_PROJECT_ID=efutjtbgcqbprgtefcfy\n' > .env
+# Create .env from the committed example, then fill in secrets
+cp .env.example .env
+# Edit .env and set at minimum:
+#   POSTGRES_PASSWORD=<strong password>
+#   ANTHROPIC_API_KEY=sk-ant-...
+# The Supabase VITE_* vars are already pre-filled in .env.example.
 # NIFC_OUTLOOK_7DAY_URL, NIFC_OUTLOOK_MONTHLY_URL, NIFC_RAWS_URL have
 # working defaults in config/settings.py — only add them if URLs change.
 
@@ -327,7 +330,7 @@ Required additional GitHub Secrets:
 | `API_KEY` | _(optional)_ | Bearer token to protect API endpoints |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`) |
 | `MODEL_DIR` | `/app/models/artifacts` | Path for trained ML model files |
-| `CLAUDE_MODEL` | `claude-opus-4-5` | Claude model ID used by agents |
+| `CLAUDE_MODEL` | `claude-opus-4-6` | Claude model ID used by agents |
 | `ARCGIS_MAX_RECORDS` | `1000` | Max features per ArcGIS paginated request |
 | `ARCGIS_REQUEST_TIMEOUT` | `30` | Seconds before ArcGIS fetch times out |
 | `NIFC_OUTLOOK_7DAY_URL` | NIFC MapServer URL | 7-Day Significant Fire Potential service |
