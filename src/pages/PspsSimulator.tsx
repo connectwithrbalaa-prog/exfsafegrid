@@ -507,32 +507,64 @@ export default function PspsSimulator() {
                     )}
                     onClick={() => compareMode ? toggleCompareId(s.id) : loadScenario(s)}
                   >
-                    <CardContent className="pt-3 pb-2.5 flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex items-center gap-2">
-                        {compareMode && (
-                          <div className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center shrink-0",
-                            isCompareSelected ? "bg-primary border-primary" : "border-input",
-                          )}>
-                            {isCompareSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                    <CardContent className="pt-3 pb-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-2">
+                          {compareMode && (
+                            <div className={cn(
+                              "w-4 h-4 rounded border flex items-center justify-center shrink-0",
+                              isCompareSelected ? "bg-primary border-primary" : "border-input",
+                            )}>
+                              {isCompareSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-foreground truncate">{s.scenario_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(s.circuit_ids?.length || 0)} circuits · {s.horizon_hours}h horizon · {new Date(s.created_at).toLocaleDateString()}
+                            </p>
                           </div>
+                        </div>
+                        {!compareMode && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         )}
-                        <div>
-                          <p className="text-sm font-medium text-foreground truncate">{s.scenario_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(s.circuit_ids?.length || 0)} circuits · {s.total_customers?.toLocaleString()} customers · {s.horizon_hours}h
-                          </p>
+                      </div>
+                      {/* Detail metrics */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total Customers</span>
+                          <span className="font-semibold text-foreground">{(s.total_customers || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">MW Lost</span>
+                          <span className="font-semibold text-foreground">{Number(s.mw_lost || 0).toFixed(1)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Residential</span>
+                          <span className="font-medium text-foreground">{(s.residential || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Commercial</span>
+                          <span className="font-medium text-foreground">{(s.commercial || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Critical</span>
+                          <span className="font-semibold text-destructive">{(s.critical || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Restoration</span>
+                          <span className="font-semibold text-foreground">{s.restoration_hours || 0}h</span>
                         </div>
                       </div>
-                      {!compareMode && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                      {s.summary && (
+                        <p className="text-[11px] text-muted-foreground italic border-t border-border pt-1.5 mt-1">{s.summary}</p>
                       )}
                     </CardContent>
                   </Card>
