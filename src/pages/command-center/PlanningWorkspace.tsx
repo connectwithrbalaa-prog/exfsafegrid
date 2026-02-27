@@ -2,17 +2,18 @@
  * PlanningWorkspace — Asset risk list, vegetation, insurance, threshold sliders.
  */
 import { useState } from "react";
-import { BarChart3, Layers, DollarSign, Settings, Shield } from "lucide-react";
+import { BarChart3, Layers, DollarSign, Settings, Shield, Bell } from "lucide-react";
 import VegetationRiskPanel from "@/components/VegetationRiskPanel";
 import InsuranceRiskPanel from "@/components/InsuranceRiskPanel";
 import RiskThresholdSettings from "@/components/RiskThresholdSettings";
 import ComplianceDashboard from "@/components/ComplianceDashboard";
+import NotificationSendPanel from "@/components/NotificationSendPanel";
 import { useCircuitIgnitionRisk, usePsaRisk } from "@/hooks/use-backend-data";
 import DemoBadge from "@/components/DemoBadge";
 import { downloadCsv, formatCircuitRiskCsv } from "@/lib/csv-export";
 import { Download } from "lucide-react";
 
-type Tab = "risk-list" | "vegetation" | "insurance" | "thresholds" | "compliance";
+type Tab = "risk-list" | "vegetation" | "insurance" | "thresholds" | "compliance" | "notifications";
 
 const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
   { key: "risk-list", label: "Circuit Risk", icon: BarChart3 },
@@ -20,6 +21,7 @@ const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
   { key: "insurance", label: "Insurance", icon: DollarSign },
   { key: "thresholds", label: "Thresholds", icon: Settings },
   { key: "compliance", label: "Compliance", icon: Shield },
+  { key: "notifications", label: "Notifications", icon: Bell },
 ];
 
 export default function PlanningWorkspace() {
@@ -113,6 +115,7 @@ export default function PlanningWorkspace() {
         {activeTab === "insurance" && <InsuranceRiskPanel fires={[]} hvraAssets={[]} />}
         {activeTab === "thresholds" && <RiskThresholdSettings />}
         {activeTab === "compliance" && <ComplianceDashboard />}
+        {activeTab === "notifications" && <NotificationSendPanel />}
       </div>
     </div>
   );
