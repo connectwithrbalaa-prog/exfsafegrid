@@ -247,15 +247,24 @@ export default function CustomerPortal() {
                     <span className="text-sm font-semibold">Nearest Shelter / CRC</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{c.nearest_crc_location}</p>
-                  <a
-                    href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(c.nearest_crc_location)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  <button
+                    onClick={() => {
+                      const query = encodeURIComponent(c.nearest_crc_location);
+                      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                      const url = isIOS
+                        ? `maps://maps.apple.com/?q=${query}`
+                        : `geo:0,0?q=${query}`;
+                      // Try native map intent first, fall back to Google Maps web
+                      const w = window.open(url, "_blank");
+                      if (!w || w.closed) {
+                        window.open(`https://maps.google.com/maps?q=${query}`, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline cursor-pointer bg-transparent border-none p-0"
                   >
                     <MapPin className="w-3 h-3" /> Get Directions
                     <ExternalLink className="w-3 h-3" />
-                  </a>
+                  </button>
                 </div>
               )}
 
