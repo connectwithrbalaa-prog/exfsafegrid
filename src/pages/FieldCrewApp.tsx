@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   MapPin, Wifi, WifiOff, CheckCircle2, Circle, AlertTriangle,
-  Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, LogOut, Flame, X, Image,
+  Camera, Send, RefreshCw, Navigation, Clock, User, ArrowLeft, Flame, X, Image,
   ChevronLeft, ChevronRight, Moon, Sun,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/use-dark-mode";
@@ -299,12 +299,6 @@ export default function FieldCrewApp() {
               title={dark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={() => { setCustomer(null); setRole("customer"); setAgentEmail(null); navigate("/login"); }}
-              className="text-white/30 hover:text-white/60"
-            >
-              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
