@@ -179,7 +179,11 @@ export const useDailyRiskTrend = (circuitId?: string, days: number = 3) =>
     queryFn: () => getDailyRiskTrend({ circuit_id: circuitId!, days, summary: true }),
     enabled: !!circuitId,
     staleTime: 2 * 60_000,
-    retry: (count, error) => !String(error).includes("404") && count < 1,
+    retry: (count, error) => {
+      const msg = String(error ?? "");
+      if (msg.includes("404") || msg.includes("502") || msg.includes("503") || msg.includes("BOOT_ERROR")) return false;
+      return count < 1;
+    },
   });
 
 // Nearby Sensors
