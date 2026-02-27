@@ -354,6 +354,87 @@ export type Database = {
         }
         Relationships: []
       }
+      psps_events: {
+        Row: {
+          circuit_ids: string[]
+          commercial: number
+          created_at: string
+          critical: number
+          event_date: string
+          event_name: string
+          horizon_hours: number
+          id: string
+          mw_lost: number
+          residential: number
+          restoration_hours: number
+          summary: string | null
+          total_customers: number
+        }
+        Insert: {
+          circuit_ids?: string[]
+          commercial?: number
+          created_at?: string
+          critical?: number
+          event_date: string
+          event_name: string
+          horizon_hours?: number
+          id?: string
+          mw_lost?: number
+          residential?: number
+          restoration_hours?: number
+          summary?: string | null
+          total_customers?: number
+        }
+        Update: {
+          circuit_ids?: string[]
+          commercial?: number
+          created_at?: string
+          critical?: number
+          event_date?: string
+          event_name?: string
+          horizon_hours?: number
+          id?: string
+          mw_lost?: number
+          residential?: number
+          restoration_hours?: number
+          summary?: string | null
+          total_customers?: number
+        }
+        Relationships: []
+      }
+      psps_playbooks: {
+        Row: {
+          baseline_metrics: Json
+          circuit_ids: string[]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          tags: string[]
+        }
+        Insert: {
+          baseline_metrics?: Json
+          circuit_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          tags?: string[]
+        }
+        Update: {
+          baseline_metrics?: Json
+          circuit_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          tags?: string[]
+        }
+        Relationships: []
+      }
       psps_scenarios: {
         Row: {
           circuit_ids: string[]
