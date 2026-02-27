@@ -172,7 +172,10 @@ export default function CustomerPortal() {
           {/* ═══ DASHBOARD ═══ */}
           {activeTab === "home" && (
             <div className="space-y-4">
-              {/* ── Weather Advisory (top) ── */}
+              {/* ── Air Quality (top) ── */}
+              <AirQualityWidget zip={c.zip_code} />
+
+              {/* ── Weather Advisory ── */}
               <CollapsibleCard title="Weather Advisory" icon={Flame} defaultOpen={false}>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Elevated fire weather may be expected. Consider reducing energy use during peak hours (4–9 PM) and keep emergency supplies accessible.
@@ -245,8 +248,6 @@ export default function CustomerPortal() {
                 </div>
               </CollapsibleCard>
 
-              {/* ── Air Quality ── */}
-              <AirQualityWidget zip={c.zip_code} />
 
               {/* ── Nearest Shelter / CRC ── */}
               {c.nearest_crc_location && (
