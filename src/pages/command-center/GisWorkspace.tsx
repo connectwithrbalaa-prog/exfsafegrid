@@ -127,44 +127,48 @@ export default function GisWorkspace() {
   return (
     <div className="space-y-5">
       {/* Controls */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <h2 className="text-sm font-semibold flex items-center gap-2 mr-4">
+      <div className="flex items-center gap-2.5 flex-wrap">
+        <h2 className="text-sm font-semibold flex items-center gap-2 mr-2">
           <MapPin className="w-4 h-4 text-primary" /> GIS Network View
         </h2>
-        {([
-          { key: "evac", label: "Evac Routes", state: showEvac, set: setShowEvac, icon: Route },
-          { key: "weather", label: "Weather", state: showWeather, set: setShowWeather, icon: Cloud },
-          { key: "spread", label: "Spread", state: showSpread, set: setShowSpread, icon: Flame },
-          { key: "ignition", label: "Ignition", state: showIgnition, set: setShowIgnition, icon: Activity },
-        ] as const).map((t) => (
+        <div className="flex items-center gap-1.5 bg-muted/60 rounded-lg p-1">
+          {([
+            { key: "evac", label: "Evac Routes", state: showEvac, set: setShowEvac, icon: Route },
+            { key: "weather", label: "Weather", state: showWeather, set: setShowWeather, icon: Cloud },
+            { key: "spread", label: "Spread", state: showSpread, set: setShowSpread, icon: Flame },
+            { key: "ignition", label: "Ignition", state: showIgnition, set: setShowIgnition, icon: Activity },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => t.set(!t.state)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                t.state
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <t.icon className="w-3.5 h-3.5" /> {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto">
           <button
-            key={t.key}
-            onClick={() => t.set(!t.state)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
-              t.state
-                ? "bg-primary/15 border-primary/30 text-primary"
-                : "bg-card border-border text-foreground/60 hover:text-foreground"
-            }`}
+            onClick={fetchFires}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors bg-muted/60 hover:bg-muted px-3 py-1.5 rounded-lg"
           >
-            <t.icon className="w-3 h-3" /> {t.label}
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
           </button>
-        ))}
-        <button
-          onClick={fetchFires}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-md border border-border ml-auto"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
-        {assetRisks.length > 0 && (
-          <button
-            onClick={() => downloadCsv(formatAssetRiskCsv(assetRisks), "gis-asset-risks.csv")}
-            className="flex items-center gap-1.5 text-xs text-foreground/60 hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-md border border-border"
-          >
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
-        )}
+          {assetRisks.length > 0 && (
+            <button
+              onClick={() => downloadCsv(formatAssetRiskCsv(assetRisks), "gis-asset-risks.csv")}
+              className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors bg-muted/60 hover:bg-muted px-3 py-1.5 rounded-lg"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Map */}
