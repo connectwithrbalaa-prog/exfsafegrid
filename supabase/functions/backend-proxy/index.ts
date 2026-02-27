@@ -193,6 +193,21 @@ function buildDemoFallback(targetPath: string, url: URL, status: number | "netwo
     return jsonResponse({ predictions, demo: true }, 200);
   }
 
+  if (targetPath === "/perimeters/current") {
+    console.log(`Upstream /perimeters/current unavailable (${status}); returning demo data`);
+    return jsonResponse({ perimeters: [], demo: true }, 200);
+  }
+
+  if (targetPath === "/outlooks/7day") {
+    console.log(`Upstream /outlooks/7day unavailable (${status}); returning demo data`);
+    return jsonResponse({ outlooks: [], demo: true }, 200);
+  }
+
+  if (targetPath === "/outlooks/monthly") {
+    console.log(`Upstream /outlooks/monthly unavailable (${status}); returning demo data`);
+    return jsonResponse({ outlooks: [], demo: true }, 200);
+  }
+
   return null;
 }
 
