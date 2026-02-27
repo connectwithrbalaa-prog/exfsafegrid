@@ -20,6 +20,7 @@ import {
   triggerIngestion,
   getCircuitRiskTrend,
   getNearbySensors,
+  getDailyRiskTrend,
   type PsaRiskParams,
   type CircuitIgnitionParams,
   type ActiveIncidentsParams,
@@ -152,11 +153,21 @@ export const useTriggerIngestion = () => {
   });
 };
 
-// Circuit Risk Trend (12h)
+// Circuit Risk Trend (12h) — legacy
 export const useCircuitRiskTrend = (circuitId?: string) =>
   useQuery({
     queryKey: ["circuit-risk-trend", circuitId],
     queryFn: () => getCircuitRiskTrend(circuitId!),
+    enabled: !!circuitId,
+    staleTime: 2 * 60_000,
+    retry: (count, error) => !String(error).includes("404") && count < 1,
+  });
+
+// Daily Risk Trend (new /api/risk/trends)
+export const useDailyRiskTrend = (circuitId?: string, days: number = 3) =>
+  useQuery({
+    queryKey: ["daily-risk-trend", circuitId, days],
+    queryFn: () => getDailyRiskTrend({ circuit_id: circuitId!, days, summary: true }),
     enabled: !!circuitId,
     staleTime: 2 * 60_000,
     retry: (count, error) => !String(error).includes("404") && count < 1,
