@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useCustomer } from "@/hooks/use-customer";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import PredictionsChatPanel from "@/components/PredictionsChatPanel";
+import { PREDICTIONS_CONFIG } from "@/lib/predictions-config";
 
 interface GpsPos { lat: number; lng: number; accuracy: number; timestamp: number }
 
@@ -79,7 +81,7 @@ export default function FieldCrewApp() {
   const [submitting, setSubmitting] = useState(false);
   const [submissions, setSubmissions] = useState<HazardSubmission[]>([]);
   const [queue, setQueue] = useState<HazardSubmission[]>([]);
-  const [activeTab, setActiveTab] = useState<"patrol" | "hazard" | "reports">("patrol");
+  const [activeTab, setActiveTab] = useState<"patrol" | "hazard" | "reports" | "firesight">("patrol");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -251,6 +253,7 @@ export default function FieldCrewApp() {
     { id: "patrol" as const, label: "Patrol", icon: CheckCircle2 },
     { id: "hazard" as const, label: "Report", icon: AlertTriangle },
     { id: "reports" as const, label: "Feed", icon: Flame },
+    { id: "firesight" as const, label: "FireSight", icon: Navigation },
   ];
 
   return (
@@ -517,6 +520,13 @@ export default function FieldCrewApp() {
             {submissions.length === 0 && (
               <div className="text-center py-12 text-white/15 text-sm">No reports yet</div>
             )}
+          </div>
+        )}
+
+        {/* ── FIRESIGHT TAB ── */}
+        {activeTab === "firesight" && (
+          <div className="h-[calc(100vh-200px)] rounded-lg border border-white/[0.08] overflow-hidden bg-gray-900/50">
+            <PredictionsChatPanel config={PREDICTIONS_CONFIG.field.config} />
           </div>
         )}
       </main>

@@ -66,17 +66,7 @@ export default function ChatPanel({ customerContext }: ChatPanelProps) {
   const empty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full rounded-lg border border-border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-accent">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary">
-          <Bot className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-accent-foreground">ExfSafeGrid Assistant</h3>
-          <p className="text-xs text-muted-foreground">Ask about outages, billing, safety & more</p>
-        </div>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 chat-scrollbar">

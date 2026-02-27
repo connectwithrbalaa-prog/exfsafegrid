@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Loader2 as Loader2Icon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ChatPanel from "@/components/ChatPanel";
+import TabbedChatPanel from "@/components/TabbedChatPanel";
+import { PREDICTIONS_CONFIG } from "@/lib/predictions-config";
 import CustomerRequestForms from "@/components/CustomerRequestForms";
 import { useCustomer } from "@/hooks/use-customer";
 import { buildCustomerContext } from "@/lib/customer-types";
@@ -300,10 +302,13 @@ export default function CustomerPortal() {
                 <MessageSquare className="w-4 h-4 text-primary" />
                 <h2 className="text-sm font-semibold">AI Assistant</h2>
               </div>
-              <div className="rounded-lg border border-border bg-card overflow-hidden">
-                <div className={isMobile ? "h-[calc(100vh-220px)]" : "h-[520px]"}>
-                  <ChatPanel customerContext={customerContext} />
-                </div>
+              <div className={isMobile ? "h-[calc(100vh-220px)]" : "h-[520px]"}>
+                <TabbedChatPanel
+                  chatPanel={<ChatPanel customerContext={customerContext} />}
+                  chatTabLabel={PREDICTIONS_CONFIG.customer.chatTab}
+                  predictionsConfig={PREDICTIONS_CONFIG.customer.config}
+                  predictionsTabLabel={PREDICTIONS_CONFIG.customer.predictionsTab}
+                />
               </div>
             </div>
           )}
