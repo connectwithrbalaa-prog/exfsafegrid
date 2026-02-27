@@ -4,9 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ShieldAlert, ShieldCheck, ShieldOff, RefreshCw, AlertTriangle,
-  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, ArrowLeft, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, ChevronDown, Moon, Sun,
+  Activity, Zap, Radio, TrendingUp, TrendingDown, Minus, Layers, MapPin, BarChart3, Route, Shield, DollarSign, Cloud, Clock, Flame, Bell, FileText, Users, Server, Volume2, VolumeX, Download, Settings, ChevronDown,
 } from "lucide-react";
-import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useCustomer } from "@/hooks/use-customer";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import HvraPanel, { CATEGORY_CONFIG, type HvraAsset } from "@/components/HvraPanel";
@@ -31,7 +30,7 @@ import {
 } from "@/lib/evacuation-data";
 import { downloadCsv, formatAssetRiskCsv } from "@/lib/csv-export";
 import { toast } from "sonner";
-import TopNav from "@/components/TopNav";
+
 import CircuitRiskTrendRow from "@/components/CircuitRiskTrendRow";
 import Top5RisingRiskCard from "@/components/Top5RisingRiskCard";
 import mapboxgl from "mapbox-gl";
@@ -146,7 +145,6 @@ function computeAssetRisks(enriched: EnrichedFire[]): AssetRisk[] {
 export default function CommandCenter() {
   const navigate = useNavigate();
   const { setCustomer, setRole, setAgentEmail } = useCustomer();
-  const { dark, toggle } = useDarkMode();
   const [fires, setFires] = useState<FirePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -970,59 +968,7 @@ export default function CommandCenter() {
   /* ── Render ─────────────────────────────────────────────── */
 
   return (
-    <div className="min-h-screen bg-[hsl(220,25%,6%)] text-[hsl(210,40%,93%)]">
-      <TopNav variant="dark" />
-      {/* Header */}
-      <header className="border-b border-white/[0.08] bg-[hsl(220,25%,8%)]">
-        <div className="max-w-[1600px] mx-auto px-6 flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors mr-2"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center">
-              <Radio className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold tracking-tight">Wildfire Executive Command Center</h1>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest">Situational Awareness · Asset Protection</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {lastUpdated && (
-              <span className="text-[10px] text-white/30">
-                Updated {lastUpdated.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            )}
-            <button
-              onClick={() => navigate("/docs")}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-md border border-white/10"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Docs
-            </button>
-            <button
-              onClick={fetchFires}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors disabled:opacity-30 bg-white/5 px-3 py-1.5 rounded-md border border-white/10"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
-            <button
-              onClick={toggle}
-              className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-md border border-white/10"
-              title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {dark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-[1600px] mx-auto px-6 py-5 space-y-5">
+    <div className="space-y-5">
         {/* ── Top-level Section Tabs ─────────────────────────── */}
         <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-lg p-1">
           {([
@@ -1378,7 +1324,6 @@ export default function CommandCenter() {
             </div>
           </div>
         )}
-      </main>
     </div>
   );
 }
