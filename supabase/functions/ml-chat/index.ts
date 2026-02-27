@@ -11,16 +11,20 @@ const BACKEND_KEY = Deno.env.get("BACKEND_API_KEY") ?? "";
 
 // ── Fetch prediction data from the FastAPI backend ────────────────────────
 
-async function backendGet(path: string): Promise<unknown | null> {
-  if (!BACKEND_URL) return null;
+type FetchResult = { data: unknown; ok: true } | { ok: false; reason: "no_url" | "network_error" | "http_error"; status?: number };
+
+async function backendGet(path: string): Promise<FetchResult> {
+  if (!BACKEND_URL) return { ok: false, reason: "no_url" };
   try {
     const r = await fetch(`${BACKEND_URL}${path}`, {
       headers: { "X-API-Key": BACKEND_KEY },
+      signal: AbortSignal.timeout(8000),
     });
-    if (!r.ok) return null;
-    return await r.json();
+    if (!r.ok) return { ok: false, reason: "http_error", status: r.status };
+    const data = await r.json();
+    return { ok: true, data };
   } catch {
-    return null;
+    return { ok: false, reason: "network_error" };
   }
 }
 
@@ -30,36 +34,59 @@ function extractIds(text: string) {
   return { psa, ckt };
 }
 
-async function gatherContext(question: string): Promise<Record<string, unknown>> {
+async function gatherContext(question: string): Promise<{ ctx: Record<string, unknown>; backendStatus: string }> {
   const { psa, ckt } = extractIds(question);
   const q = question.toLowerCase();
   const ctx: Record<string, unknown> = {};
+  const errors: string[] = [];
 
-  // Always fetch a top-level summary if no specific ID was detected
   const needsPsa  = psa.length > 0 || q.includes("psa") || q.includes("density") || q.includes("risk") || q.includes("activity");
-  const needsCkt  = ckt.length > 0 || q.includes("circuit") || q.includes("ignition") || q.includes("spike");
-  const needsBoth = !needsPsa && !needsCkt; // fallback: fetch both
+  const needsCkt  = ckt.length > 0 || q.includes("circuit") || q.includes("ignition") || q.includes("spike") || q.includes("critical");
+  const needsBoth = !needsPsa && !needsCkt;
 
   if (needsPsa || needsBoth) {
     const qs = psa.length > 0 ? `psa_id=${psa[0]}&limit=20` : "limit=20";
-    ctx.psa_risk = await backendGet(`/psa-risk?${qs}`);
+    const r = await backendGet(`/psa-risk?${qs}`);
+    if (r.ok) ctx.psa_risk = r.data;
+    else errors.push(`psa_risk: ${r.reason}`);
   }
 
   if (needsCkt || needsBoth) {
     const qs = ckt.length > 0 ? `circuit_id=${ckt[0]}&limit=20` : "limit=20";
-    ctx.circuit_risk = await backendGet(`/circuit-ignition-risk?${qs}`);
+    const r = await backendGet(`/circuit-ignition-risk?${qs}`);
+    if (r.ok) ctx.circuit_risk = r.data;
+    else errors.push(`circuit_risk: ${r.reason}`);
   }
 
   if (q.includes("trend") && (psa.length > 0 || ckt.length > 0)) {
     const id = ckt[0] ?? psa[0];
-    ctx.risk_trends = await backendGet(`/api/risk/trends?circuit_id=${id}&days=5&summary=false`);
+    const r = await backendGet(`/api/risk/trends?circuit_id=${id}&days=5&summary=false`);
+    if (r.ok) ctx.risk_trends = r.data;
+    else errors.push(`risk_trends: ${r.reason}`);
   }
 
   if (q.includes("incident") || q.includes("fire") || q.includes("active")) {
-    ctx.active_incidents = await backendGet("/incidents/active?limit=10");
+    const r = await backendGet("/incidents/active?limit=10");
+    if (r.ok) ctx.active_incidents = r.data;
+    else errors.push(`incidents: ${r.reason}`);
   }
 
-  return ctx;
+  // Determine a concise backend status string for the AI
+  const hasData = Object.keys(ctx).length > 0;
+  let backendStatus: string;
+
+  if (!BACKEND_URL) {
+    backendStatus = "BACKEND_NOT_CONFIGURED";
+  } else if (hasData) {
+    backendStatus = errors.length > 0 ? `PARTIAL_DATA (some endpoints unavailable: ${errors.join(", ")})` : "OK";
+  } else {
+    const reasons = new Set(errors.map((e) => e.split(": ")[1]));
+    if (reasons.has("network_error")) backendStatus = "NETWORK_UNREACHABLE";
+    else if (reasons.has("http_error")) backendStatus = "BACKEND_ERROR";
+    else backendStatus = "NO_DATA";
+  }
+
+  return { ctx, backendStatus };
 }
 
 // ── System prompt ──────────────────────────────────────────────────────────
@@ -78,8 +105,13 @@ RESPONSE STYLE:
 - Use tables or bullet lists when comparing multiple circuits or PSAs.
 - Always state the risk level (LOW / MODERATE / HIGH / CRITICAL) and the probability score (0–1).
 - If asked about customer density, reference customer_count from the prediction results.
-- If backend data is unavailable, explain that models need to be trained and scored first.
 - Keep answers concise — under 200 words unless the user explicitly asks for detail.
+
+BACKEND STATUS HANDLING — follow these rules exactly based on the BACKEND_STATUS value below:
+- OK or PARTIAL_DATA: Answer using the data provided. Note any missing data sources if relevant.
+- BACKEND_NOT_CONFIGURED: Say "The backend API URL is not configured yet. Ask your admin to set BACKEND_API_URL in the Supabase edge function secrets." Do not mention server errors.
+- NETWORK_UNREACHABLE: Say "The backend is not reachable from this environment (likely a preview/sandbox limitation). Once deployed to production with the correct BACKEND_API_URL, live predictions will appear here." Do not say "server error".
+- BACKEND_ERROR or NO_DATA: Say "The backend returned no prediction data. Go to Backend Ops → Train All Models → Score Circuits to generate predictions, then retry." Do not say "server error".
 
 DATA FORMAT NOTES:
 - prob_above_normal / prob_spike: 0–1 probability score
@@ -100,13 +132,12 @@ serve(async (req) => {
 
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
-    // Fetch relevant prediction data from the FastAPI backend
-    const backendCtx = await gatherContext(lastUserMsg);
-    const hasData = Object.values(backendCtx).some((v) => v !== null);
+    const { ctx, backendStatus } = await gatherContext(lastUserMsg);
+    const hasData = Object.keys(ctx).length > 0;
 
     const dataBlock = hasData
-      ? `\n\nCURRENT PREDICTION DATA (from ExfSafeGrid backend):\n${JSON.stringify(backendCtx, null, 2)}`
-      : "\n\nNOTE: No backend prediction data available. Advise the user to train and score models first (Backend Ops panel → Train All Models → Score Circuits).";
+      ? `\n\nBACKEND_STATUS: ${backendStatus}\n\nCURRENT PREDICTION DATA:\n${JSON.stringify(ctx, null, 2)}`
+      : `\n\nBACKEND_STATUS: ${backendStatus}\n\nNo prediction data retrieved.`;
 
     const systemContent = SYSTEM + dataBlock;
 
