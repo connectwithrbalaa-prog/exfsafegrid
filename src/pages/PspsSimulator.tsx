@@ -54,7 +54,7 @@ const CIRCUITS: Circuit[] = [
   { circuit_id: "SCE-006", circuit_name: "Ventura Hills 66kV", voltage_kv: 66, utility_name: "SCE", county: "Ventura", hftd_tier: 2, customer_count: 6800, critical_customers: 90, length_miles: 27.6, lat: 34.27, lon: -119.23 },
 ];
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiZXhmc2FmZWdyaWQiLCJhIjoiY200aWw5Y3RjMGRkODJrcjJ3OHdxOXp4YiJ9.xFKqkNeT3MkJRCFj1vtwcg";
+const MAPBOX_TOKEN = "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
 
 const HORIZONS = [
   { value: "12", label: "12 hours" },
