@@ -49,15 +49,37 @@ Deno.serve(async (req) => {
     const upstream = await fetch(targetUrl.toString(), fetchInit);
     const body = await upstream.text();
 
-    // Optional resources: return empty JSON instead of 404 to avoid noisy runtime errors.
+    // Optional resources: return empty JSON instead of 404/500 to avoid noisy runtime errors.
     if (
-      upstream.status === 404 &&
+      (upstream.status === 404 || upstream.status === 500) &&
       (targetPath === "/briefing" || targetPath === "/psps-watchlist")
     ) {
-      console.log(`Upstream ${targetPath} missing; returning null payload`);
+      console.log(`Upstream ${targetPath} returned ${upstream.status}; returning null payload`);
       return new Response("null", {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fallback for /incidents/active
+    if (
+      (upstream.status === 404 || upstream.status === 500) &&
+      targetPath === "/incidents/active"
+    ) {
+      console.log(`Upstream /incidents/active returned ${upstream.status}; returning demo data`);
+      return new Response(JSON.stringify({ incidents: [], demo: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fallback for /ingestion/status
+    if (
+      (upstream.status === 404 || upstream.status === 500) &&
+      targetPath === "/ingestion/status"
+    ) {
+      console.log(`Upstream /ingestion/status returned ${upstream.status}; returning demo data`);
+      return new Response(JSON.stringify({ status: "unavailable", pipelines: [], demo: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -101,7 +123,7 @@ Deno.serve(async (req) => {
     }
 
     // Demo fallback for /api/risk/trends
-    if (upstream.status === 404 && targetPath === "/api/risk/trends") {
+    if ((upstream.status === 404 || upstream.status === 500) && targetPath === "/api/risk/trends") {
       console.log("Upstream /api/risk/trends missing; returning demo data");
       const circuitId = url.searchParams.get("circuit_id") || "UNKNOWN";
       const days = Math.min(Math.max(parseInt(url.searchParams.get("days") || "3"), 2), 7);
