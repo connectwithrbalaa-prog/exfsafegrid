@@ -22,12 +22,42 @@ logger = logging.getLogger(__name__)
 scheduler = None
 
 
+def _auto_seed_predictions() -> None:
+    """
+    On startup, if model_predictions is empty, score today using both models.
+    build_features_for_date() already falls back to 50 synthetic bootstrap
+    circuits when circuit_features / utility_circuits are empty, so this
+    is safe to call on a fresh database.
+    Never raises — logs a warning on failure so the API still starts.
+    """
+    try:
+        from config.database import SessionLocal
+        db = SessionLocal()
+        try:
+            count = db.execute(text("SELECT COUNT(*) FROM model_predictions")).scalar()
+        finally:
+            db.close()
+
+        if count and count > 0:
+            logger.info("model_predictions already populated (%d rows) — skipping auto-seed", count)
+            return
+
+        logger.info("model_predictions empty — auto-seeding predictions for today …")
+        from models import train_psa_risk, train_ignition_spike
+        stored_a = train_psa_risk.score_and_store()
+        stored_b = train_ignition_spike.score_and_store()
+        logger.info("Auto-seed complete: psa_risk=%d rows, ignition_spike=%d rows", stored_a, stored_b)
+    except Exception as exc:
+        logger.warning("Auto-seed failed (non-fatal, API will still start): %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global scheduler
     scheduler = build_scheduler()
     scheduler.start()
     logger.info("Ingestion scheduler started")
+    _auto_seed_predictions()       # no-op if predictions already exist
     yield
     scheduler.shutdown(wait=False)
 
