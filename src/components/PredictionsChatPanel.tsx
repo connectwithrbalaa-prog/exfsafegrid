@@ -180,16 +180,29 @@ export default function PredictionsChatPanel({ config }: Props) {
         )}
       </div>
 
-      {/* Reset + Input */}
-      <div className="p-2 border-t border-border">
-        {messages.length > 0 && (
+      {/* Quick suggestions after response */}
+      {!isLoading && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && (
+        <div className="px-2 py-1.5 border-t border-border flex flex-wrap gap-1.5">
+          {config.suggestions.map(s => (
+            <button
+              key={s}
+              onClick={() => send(s)}
+              className="text-[10px] px-2 py-1 rounded-md border border-border bg-muted/50 hover:bg-accent transition-colors text-foreground truncate max-w-[48%]"
+            >
+              {s}
+            </button>
+          ))}
           <button
             onClick={() => setMessages([])}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground mb-1.5 transition-colors"
+            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ml-auto"
           >
-            <RotateCcw className="w-3 h-3" /> New query
+            <RotateCcw className="w-3 h-3" /> New
           </button>
-        )}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-2 border-t border-border">
         <form onSubmit={e => { e.preventDefault(); send(input); }} className="flex gap-1.5">
           <input
             ref={inputRef}
