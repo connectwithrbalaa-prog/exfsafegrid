@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { Loader2 as Loader2Icon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ChatPanel from "@/components/ChatPanel";
 import CustomerRequestForms from "@/components/CustomerRequestForms";
@@ -340,39 +341,99 @@ function PspsStatusCard({ customer: c }: { customer: Customer }) {
   );
 }
 
-/* ── Readiness Steps Hero Card ── */
+/* ── Readiness Steps Hero Card (Interactive) ── */
 function ReadinessCard({ customer: c }: { customer: Customer }) {
-  const steps = [
+  const { setCustomer } = useCustomer();
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  interface ReadinessStep {
+    key: string;
+    done: boolean;
+    label: string;
+    actionLabel: string;
+    tip: string;
+    field: string;
+    value: any;
+  }
+
+  const steps: ReadinessStep[] = [
     {
+      key: "backup",
       done: c.has_portable_battery || c.has_permanent_battery !== "None",
       label: "Backup power source ready",
+      actionLabel: "I have a backup battery",
       tip: "Get a portable battery or permanent backup to keep essentials running.",
+      field: "has_portable_battery",
+      value: true,
     },
     {
+      key: "medical",
       done: c.medical_baseline,
       label: "Medical Baseline enrolled",
+      actionLabel: "Enroll in Medical Baseline",
       tip: "If you rely on powered medical equipment, enroll for priority notifications.",
+      field: "medical_baseline",
+      value: true,
     },
     {
+      key: "ack",
       done: c.digital_ack_status === "Confirmed",
       label: "PSPS alerts acknowledged",
+      actionLabel: "Confirm my alerts",
       tip: "Confirm your notification preferences so we can reach you before shutoffs.",
+      field: "digital_ack_status",
+      value: "Confirmed",
     },
     {
+      key: "transfer",
       done: c.has_transfer_meter,
       label: "Transfer meter installed",
+      actionLabel: "I have a transfer meter",
       tip: "A transfer meter lets you safely use a generator during outages.",
+      field: "has_transfer_meter",
+      value: true,
     },
     {
+      key: "crc",
       done: !!c.nearest_crc_location && c.nearest_crc_location !== "",
       label: "Know your nearest CRC",
+      actionLabel: "",
       tip: c.nearest_crc_location
         ? `Your nearest Community Resource Center: ${c.nearest_crc_location}`
         : "Find your nearest Community Resource Center for charging and supplies.",
+      field: "",
+      value: null,
     },
   ];
 
   const completed = steps.filter((s) => s.done).length;
+
+  const handleToggle = async (step: ReadinessStep) => {
+    if (!step.field) return;
+    setUpdating(step.key);
+    const newValue = step.done
+      ? (typeof step.value === "boolean" ? false : step.field === "digital_ack_status" ? "Sent" : "None")
+      : step.value;
+
+    const { error } = await supabase
+      .from("customers")
+      .update({ [step.field]: newValue })
+      .eq("id", c.id);
+
+    if (error) {
+      toast.error("Failed to update");
+    } else {
+      // Refresh customer data
+      const { data } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", c.id)
+        .maybeSingle();
+      if (data) setCustomer(data as unknown as Customer);
+      toast.success(step.done ? `"${step.label}" unmarked` : `"${step.label}" marked complete!`);
+    }
+    setUpdating(null);
+  };
 
   return (
     <div className="p-5 rounded-xl border-2 border-border bg-card space-y-4">
@@ -399,24 +460,46 @@ function ReadinessCard({ customer: c }: { customer: Customer }) {
 
       {/* Steps */}
       <div className="space-y-2">
-        {steps.map((step, i) => (
-          <div key={i} className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors ${
-            step.done ? "bg-success/5" : "bg-muted/30"
-          }`}>
-            {step.done
-              ? <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-              : <Circle className="w-4 h-4 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
-            }
-            <div>
-              <p className={`text-xs font-medium ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
-                {step.label}
-              </p>
-              {!step.done && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">{step.tip}</p>
+        {steps.map((step) => {
+          const isToggleable = !!step.field;
+          const isUpdating = updating === step.key;
+          return (
+            <div
+              key={step.key}
+              className={`flex items-start gap-3 p-2.5 rounded-lg transition-colors ${
+                step.done ? "bg-success/5" : "bg-muted/30"
+              } ${isToggleable ? "cursor-pointer hover:bg-muted/50" : ""}`}
+              onClick={() => isToggleable && !isUpdating && handleToggle(step)}
+              role={isToggleable ? "button" : undefined}
+              tabIndex={isToggleable ? 0 : undefined}
+            >
+              {isUpdating ? (
+                <Loader2Icon className="w-4 h-4 text-primary animate-spin flex-shrink-0 mt-0.5" />
+              ) : step.done ? (
+                <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-4 h-4 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-medium ${step.done ? "text-foreground" : "text-muted-foreground"}`}>
+                  {step.label}
+                </p>
+                {!step.done && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{step.tip}</p>
+                )}
+              </div>
+              {isToggleable && !isUpdating && (
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
+                  step.done
+                    ? "bg-success/10 text-success"
+                    : "bg-primary/10 text-primary"
+                }`}>
+                  {step.done ? "Undo" : "Mark done"}
+                </span>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
