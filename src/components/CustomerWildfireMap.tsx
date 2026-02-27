@@ -6,9 +6,7 @@ import {
 import { toast } from "sonner";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-
-const MAPBOX_TOKEN =
-  "pk.eyJ1IjoiY29ubmVjdHdpdGhyYmFsYSIsImEiOiJjbWxrc3QzZDgwMDVqM2VzY2phb2FjOW50In0.JF_UToZxKEOs0i01BA_esw";
+import { MAPBOX_STYLE, NAV_CONTROL_POSITION, initMapbox } from "@/lib/mapbox-config";
 
 /* ── Types ────────────────────────────────────────────────────── */
 
@@ -221,16 +219,16 @@ export default function CustomerWildfireMap({
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    initMapbox();
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: MAPBOX_STYLE,
       center: [assetLng, assetLat],
       zoom: 8,
     });
 
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    map.addControl(new mapboxgl.NavigationControl(), NAV_CONTROL_POSITION);
     mapRef.current = map;
 
     map.on("load", () => {
