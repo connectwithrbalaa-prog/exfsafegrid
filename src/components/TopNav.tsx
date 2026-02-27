@@ -16,6 +16,7 @@ const NAV_LINKS: NavItem[] = [
   { to: "/agent", label: "Agent Desk", icon: Headset, roles: ["agent"] },
   { to: "/command-center", label: "Command Center", icon: Radio, roles: ["agent", "executive"] },
   { to: "/field-crew", label: "Field Crew", icon: HardHat, roles: ["agent", "field"] },
+  { to: "/psps-simulator", label: "Simulator", icon: Zap, roles: ["executive"] },
   { to: "/status", label: "Status", icon: Globe },
   { to: "/docs", label: "Docs", icon: FileText },
 ];
