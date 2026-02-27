@@ -129,21 +129,21 @@ export default function GisWorkspace() {
       {/* Controls */}
       <div className="flex items-center gap-2 flex-wrap">
         <h2 className="text-sm font-semibold flex items-center gap-2 mr-4">
-          <MapPin className="w-4 h-4 text-blue-400" /> GIS Network View
+          <MapPin className="w-4 h-4 text-primary" /> GIS Network View
         </h2>
         {([
-          { key: "evac", label: "Evac Routes", state: showEvac, set: setShowEvac, icon: Route, color: "emerald" },
-          { key: "weather", label: "Weather", state: showWeather, set: setShowWeather, icon: Cloud, color: "sky" },
-          { key: "spread", label: "Spread", state: showSpread, set: setShowSpread, icon: Flame, color: "rose" },
-          { key: "ignition", label: "Ignition", state: showIgnition, set: setShowIgnition, icon: Activity, color: "orange" },
+          { key: "evac", label: "Evac Routes", state: showEvac, set: setShowEvac, icon: Route },
+          { key: "weather", label: "Weather", state: showWeather, set: setShowWeather, icon: Cloud },
+          { key: "spread", label: "Spread", state: showSpread, set: setShowSpread, icon: Flame },
+          { key: "ignition", label: "Ignition", state: showIgnition, set: setShowIgnition, icon: Activity },
         ] as const).map((t) => (
           <button
             key={t.key}
             onClick={() => t.set(!t.state)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium border transition-colors ${
               t.state
-                ? `bg-${t.color}-500/15 border-${t.color}-500/30 text-${t.color}-300`
-                : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                ? "bg-primary/15 border-primary/30 text-primary"
+                : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             <t.icon className="w-3 h-3" /> {t.label}
@@ -152,7 +152,7 @@ export default function GisWorkspace() {
         <button
           onClick={fetchFires}
           disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-md border border-white/10 ml-auto"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-muted/50 px-3 py-1.5 rounded-md border border-border ml-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
@@ -160,7 +160,7 @@ export default function GisWorkspace() {
         {assetRisks.length > 0 && (
           <button
             onClick={() => downloadCsv(formatAssetRiskCsv(assetRisks), "gis-asset-risks.csv")}
-            className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-md border border-white/10"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-muted/50 px-3 py-1.5 rounded-md border border-border"
           >
             <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
@@ -171,16 +171,16 @@ export default function GisWorkspace() {
       <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ height: 520 }}>
         <div ref={mapContainerRef} style={{ width: "100%", height: "100%", position: "absolute", top: 0, left: 0 }} />
         {loading && (
-          <div className="absolute inset-0 z-[1000] bg-black/50 flex items-center justify-center">
-            <RefreshCw className="w-6 h-6 animate-spin text-white/50" />
+          <div className="absolute inset-0 z-[1000] bg-background/50 flex items-center justify-center">
+            <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         )}
       </div>
 
       {/* Asset Summary */}
-      <div className="rounded-xl border border-white/[0.08] bg-[hsl(220,25%,9%)] p-5">
+      <div className="rounded-xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Layers className="w-4 h-4 text-cyan-400" /> Network Assets
+          <Layers className="w-4 h-4 text-accent-foreground" /> Network Assets
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard label="Substations" value={String(SUBSTATIONS.length)} />
@@ -195,9 +195,9 @@ export default function GisWorkspace() {
 
 function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`p-3 rounded-lg border ${highlight ? "border-red-500/30 bg-red-500/5" : "border-white/[0.08] bg-white/[0.02]"}`}>
-      <div className="text-[10px] text-white/40">{label}</div>
-      <div className={`text-xl font-bold tabular-nums ${highlight ? "text-red-400" : ""}`}>{value}</div>
+    <div className={`p-3 rounded-lg border ${highlight ? "border-destructive/30 bg-destructive/5" : "border-border bg-muted/30"}`}>
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className={`text-xl font-bold tabular-nums ${highlight ? "text-destructive" : "text-foreground"}`}>{value}</div>
     </div>
   );
 }
