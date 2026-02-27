@@ -26,6 +26,7 @@ export interface Customer {
   digital_ack_status: string;
   last_update: string;
   psps_event_id: string;
+  demand_response_enrolled: boolean;
 }
 
 export function buildCustomerContext(c: Customer): string {
