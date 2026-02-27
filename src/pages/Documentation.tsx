@@ -318,6 +318,13 @@ const Documentation = () => {
       <TopNav />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
           {/* Sidebar nav */}
           <nav className="hidden lg:block">
