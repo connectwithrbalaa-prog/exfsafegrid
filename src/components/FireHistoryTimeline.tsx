@@ -5,7 +5,7 @@ import {
   AreaChart, Area, CartesianGrid, Legend, LineChart, Line,
 } from "recharts";
 import { FirePoint, SUBSTATIONS, haversineKm } from "@/lib/wildfire-utils";
-import { use7DayOutlook, useMonthlyOutlook } from "@/hooks/use-api";
+import { use7DayOutlooks as use7DayOutlook, useMonthlyOutlooks as useMonthlyOutlook } from "@/hooks/use-backend-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -171,7 +171,7 @@ function LiveOutlookSection() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {(outlook7?.outlooks ?? []).slice(0, 20).map((o, i) => (
+                {(outlook7?.outlooks ?? []).slice(0, 20).map((o: any, i: number) => (
                   <tr key={`${o.psa_id}-${i}`} className="hover:bg-white/[0.02]">
                     <td className="px-3 py-2 font-mono text-white/70">{o.psa_id}</td>
                     <td className="px-3 py-2 text-white/50">{o.period_label}</td>
@@ -217,7 +217,7 @@ function LiveOutlookSection() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {(outlookM?.outlooks ?? []).slice(0, 10).map((o, i) => (
+                {(outlookM?.outlooks ?? []).slice(0, 10).map((o: any, i: number) => (
                   <tr key={`${o.psa_id}-${i}`} className="hover:bg-white/[0.02]">
                     <td className="px-3 py-2 font-mono text-white/70">{o.psa_id}</td>
                     <td className={`px-3 py-2 font-bold ${POTENTIAL_COLORS[o.fire_potential] ?? "text-white/50"}`}>

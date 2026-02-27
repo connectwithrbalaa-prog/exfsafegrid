@@ -14,6 +14,7 @@ import {
   getActiveIncidents,
   getCurrentPerimeters,
   get7DayOutlooks,
+  getMonthlyOutlooks,
   getIngestionStatus,
   trainModels,
   scoreModels,
@@ -104,7 +105,7 @@ export const useActiveIncidents = (params?: ActiveIncidentsParams) =>
     retry: 1,
   });
 
-export const useCurrentPerimeters = (params?: { incident_id?: string }) =>
+export const useCurrentPerimeters = (params?: { incident_id?: string; min_acres?: number; limit?: number }) =>
   useQuery({
     queryKey: ["perimeters", params],
     queryFn: () => getCurrentPerimeters(params),
@@ -116,6 +117,14 @@ export const use7DayOutlooks = (params?: { period_label?: string; psa_id?: strin
   useQuery({
     queryKey: ["outlooks-7day", params],
     queryFn: () => get7DayOutlooks(params),
+    staleTime: STALE,
+    retry: 1,
+  });
+
+export const useMonthlyOutlooks = (params?: { period_label?: string; min_potential?: number }) =>
+  useQuery({
+    queryKey: ["outlooks-monthly", params],
+    queryFn: () => getMonthlyOutlooks(params),
     staleTime: STALE,
     retry: 1,
   });
