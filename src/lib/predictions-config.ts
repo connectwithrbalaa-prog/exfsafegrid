@@ -9,9 +9,9 @@ export const PREDICTIONS_CONFIG: Record<string, { chatTab: string; predictionsTa
       subtitle: "AI-powered wildfire safety insights for your area",
       suggestions: [
         "Is my area at risk of a power shutoff?",
-        "What's the current wildfire risk near my ZIP code?",
-        "Are there any high-risk circuits affecting my service?",
-        "How many customers could be impacted by PSPS?",
+        "What's the current wildfire risk near my home?",
+        "Should I prepare for an outage this week?",
+        "What safety steps should I take right now?",
       ],
     },
   },
