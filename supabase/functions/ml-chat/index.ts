@@ -242,6 +242,8 @@ serve(async (req) => {
           ...toolResults,
           { role: "system", content: "Summarize the tool results for the user in a clear, formatted way. Do NOT call any more tools." },
         ],
+        tools,
+        tool_choice: "none",
         stream: true,
       }),
     });
