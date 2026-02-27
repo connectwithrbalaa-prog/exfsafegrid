@@ -35,9 +35,6 @@ export default function CommandCenterLayout() {
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
-            <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center">
-              <Radio className="w-4 h-4 text-white" />
-            </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight">Wildfire Executive Command Center</h1>
               <p className="text-[10px] text-white/40 uppercase tracking-widest">Situational Awareness · Asset Protection</p>
