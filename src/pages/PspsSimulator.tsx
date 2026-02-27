@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle, Save, Trash2, History,
+  Zap, Users, Clock, Activity, X, ChevronDown, Check, AlertTriangle, Save, Trash2, History, GitCompareArrows, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -107,6 +107,8 @@ export default function PspsSimulator() {
   const [horizon, setHorizon] = useState("24");
   const [result, setResult] = useState<SimResult | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
 
   const selectedCircuits = useMemo(
     () => CIRCUITS.filter((c) => selectedIds.includes(c.circuit_id)),
@@ -189,6 +191,22 @@ export default function PspsSimulator() {
       summary: s.summary,
     });
   };
+
+  const toggleCompareId = (id: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id]; // replace oldest
+      return [...prev, id];
+    });
+  };
+
+  const compareScenarios = useMemo(() => {
+    if (compareIds.length !== 2) return null;
+    const a = savedScenarios.find((s: any) => s.id === compareIds[0]);
+    const b = savedScenarios.find((s: any) => s.id === compareIds[1]);
+    if (!a || !b) return null;
+    return [a, b] as [any, any];
+  }, [compareIds, savedScenarios]);
 
   // ── Map ────────────────────────────────────────────────────
   useEffect(() => {
@@ -455,33 +473,76 @@ export default function PspsSimulator() {
           {/* ── Saved Scenarios ─────────────────────── */}
           {savedScenarios.length > 0 && (
             <div className="space-y-2 border-t border-border pt-4">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5" /> Saved Scenarios
-              </h2>
-              {savedScenarios.map((s: any) => (
-                <Card
-                  key={s.id}
-                  className="cursor-pointer hover:border-primary/40 transition-colors"
-                  onClick={() => loadScenario(s)}
-                >
-                  <CardContent className="pt-3 pb-2.5 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{s.scenario_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(s.circuit_ids?.length || 0)} circuits · {s.total_customers?.toLocaleString()} customers · {s.horizon_hours}h
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5" /> Saved Scenarios
+                </h2>
+                {savedScenarios.length >= 2 && (
+                  <Button
+                    variant={compareMode ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => { setCompareMode(!compareMode); setCompareIds([]); }}
+                  >
+                    <GitCompareArrows className="w-3.5 h-3.5" />
+                    {compareMode ? "Exit Compare" : "Compare"}
+                  </Button>
+                )}
+              </div>
+
+              {compareMode && (
+                <p className="text-xs text-muted-foreground">Select 2 scenarios to compare side-by-side.</p>
+              )}
+
+              {savedScenarios.map((s: any) => {
+                const isCompareSelected = compareIds.includes(s.id);
+                return (
+                  <Card
+                    key={s.id}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      compareMode && isCompareSelected
+                        ? "border-primary ring-1 ring-primary/30"
+                        : "hover:border-primary/40",
+                    )}
+                    onClick={() => compareMode ? toggleCompareId(s.id) : loadScenario(s)}
+                  >
+                    <CardContent className="pt-3 pb-2.5 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex items-center gap-2">
+                        {compareMode && (
+                          <div className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center shrink-0",
+                            isCompareSelected ? "bg-primary border-primary" : "border-input",
+                          )}>
+                            {isCompareSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-foreground truncate">{s.scenario_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(s.circuit_ids?.length || 0)} circuits · {s.total_customers?.toLocaleString()} customers · {s.horizon_hours}h
+                          </p>
+                        </div>
+                      </div>
+                      {!compareMode && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(s.id); }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {/* Comparison panel */}
+              {compareMode && compareScenarios && (
+                <ComparisonPanel a={compareScenarios[0]} b={compareScenarios[1]} />
+              )}
             </div>
           )}
         </div>
@@ -518,6 +579,81 @@ function ResultCard({
         <div>
           <p className="text-xs text-muted-foreground">{label}</p>
           <p className="text-lg font-bold text-foreground">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Delta helper ──────────────────────────────────────────────
+function DeltaIndicator({ a, b, unit = "", invert = false }: { a: number; b: number; unit?: string; invert?: boolean }) {
+  const diff = b - a;
+  if (diff === 0) return <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Minus className="w-3 h-3" />0{unit}</span>;
+  const isUp = diff > 0;
+  const isBad = invert ? !isUp : isUp;
+  return (
+    <span className={cn("text-xs font-medium flex items-center gap-0.5", isBad ? "text-destructive" : "text-accent-foreground")}>
+      {isUp ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      {isUp ? "+" : ""}{diff.toLocaleString()}{unit}
+    </span>
+  );
+}
+
+// ── Comparison Panel ──────────────────────────────────────────
+function ComparisonPanel({ a, b }: { a: any; b: any }) {
+  const metrics = [
+    { label: "Total Customers", keyA: a.total_customers, keyB: b.total_customers, unit: "" },
+    { label: "Critical", keyA: a.critical, keyB: b.critical, unit: "" },
+    { label: "Residential", keyA: a.residential, keyB: b.residential, unit: "" },
+    { label: "Commercial", keyA: a.commercial, keyB: b.commercial, unit: "" },
+    { label: "MW Lost", keyA: Number(a.mw_lost), keyB: Number(b.mw_lost), unit: " MW" },
+    { label: "Restoration", keyA: a.restoration_hours, keyB: b.restoration_hours, unit: "h" },
+  ];
+
+  return (
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-1.5">
+          <GitCompareArrows className="w-4 h-4" /> Scenario Comparison
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-0 pb-3">
+        {/* Header row */}
+        <div className="grid grid-cols-4 gap-2 pb-2 border-b border-border text-xs font-semibold text-muted-foreground">
+          <span>Metric</span>
+          <span className="text-right truncate" title={a.scenario_name}>{a.scenario_name}</span>
+          <span className="text-right truncate" title={b.scenario_name}>{b.scenario_name}</span>
+          <span className="text-right">Delta</span>
+        </div>
+
+        {metrics.map((m) => (
+          <div key={m.label} className="grid grid-cols-4 gap-2 py-1.5 border-b border-border/50 last:border-0 text-sm">
+            <span className="text-muted-foreground text-xs">{m.label}</span>
+            <span className="text-right font-medium text-foreground">{m.keyA.toLocaleString()}{m.unit}</span>
+            <span className="text-right font-medium text-foreground">{m.keyB.toLocaleString()}{m.unit}</span>
+            <span className="text-right"><DeltaIndicator a={m.keyA} b={m.keyB} unit={m.unit} /></span>
+          </div>
+        ))}
+
+        {/* Circuits diff */}
+        <div className="pt-2 space-y-1">
+          <p className="text-xs text-muted-foreground font-semibold">Circuit differences</p>
+          {(() => {
+            const aIds: string[] = a.circuit_ids || [];
+            const bIds: string[] = b.circuit_ids || [];
+            const bSet = new Set(bIds);
+            const aSet = new Set(aIds);
+            const onlyA = aIds.filter((x) => !bSet.has(x));
+            const onlyB = bIds.filter((x) => !aSet.has(x));
+            const shared = aIds.filter((x) => bSet.has(x));
+            return (
+              <div className="text-xs space-y-0.5">
+                {shared.length > 0 && <p className="text-muted-foreground">Shared: {shared.join(", ")}</p>}
+                {onlyA.length > 0 && <p className="text-destructive">Only in {a.scenario_name}: {onlyA.join(", ")}</p>}
+                {onlyB.length > 0 && <p className="text-primary">Only in {b.scenario_name}: {onlyB.join(", ")}</p>}
+              </div>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
