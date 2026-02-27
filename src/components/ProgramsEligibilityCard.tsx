@@ -32,7 +32,7 @@ interface ProgramInfo {
   reason: string;
   enrolled?: boolean;
   enrollLabel?: string;
-  prefillType?: "assistance_application";
+  prefillType?: "assistance_application" | "generator_rebate";
 }
 
 function derivePrograms(c: Customer): ProgramInfo[] {
@@ -78,14 +78,20 @@ function derivePrograms(c: Customer): ProgramInfo[] {
             ? "Not in a qualifying high-risk zone"
             : "No recent outage history or already has backup",
       enrollLabel: "Apply for rebate",
-      prefillType: "assistance_application",
+      prefillType: "generator_rebate",
     },
   ];
 }
 
 export default function ProgramsEligibilityCard({ customer }: Props) {
   const [openForm, setOpenForm] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState<ProgramInfo | null>(null);
   const programs = derivePrograms(customer);
+
+  const handleApply = (program: ProgramInfo) => {
+    setSelectedProgram(program);
+    setOpenForm(true);
+  };
 
   return (
     <>
@@ -126,7 +132,7 @@ export default function ProgramsEligibilityCard({ customer }: Props) {
                   size="sm"
                   variant="outline"
                   className="flex-shrink-0 text-xs h-8 gap-1"
-                  onClick={() => setOpenForm(true)}
+                  onClick={() => handleApply(p)}
                 >
                   {p.enrollLabel}
                   <ChevronRight className="w-3 h-3" />
@@ -140,11 +146,126 @@ export default function ProgramsEligibilityCard({ customer }: Props) {
       <Dialog open={openForm} onOpenChange={setOpenForm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Apply for Program</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedProgram && <selectedProgram.icon className="w-5 h-5 text-primary" />}
+              {selectedProgram?.prefillType === "generator_rebate"
+                ? "Apply for Generator Rebate"
+                : "Apply for Program"}
+            </DialogTitle>
           </DialogHeader>
-          <CustomerRequestForms customer={customer} />
+          {selectedProgram?.prefillType === "generator_rebate" ? (
+            <GeneratorRebateForm customer={customer} onClose={() => setOpenForm(false)} />
+          ) : (
+            <CustomerRequestForms customer={customer} />
+          )}
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function GeneratorRebateForm({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [fields, setFields] = useState<Record<string, string>>({
+    generator_type: "",
+    generator_size: "",
+    purchase_status: "",
+    address: "",
+    notes: "",
+  });
+
+  const update = (key: string, value: string) => setFields((p) => ({ ...p, [key]: value }));
+
+  const inputClass = "w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await (await import("@/integrations/supabase/client")).supabase
+      .from("customer_requests")
+      .insert({
+        customer_id: customer.id,
+        customer_name: customer.name,
+        request_type: "generator_rebate",
+        details: fields,
+      } as any);
+    setSubmitting(false);
+    if (error) {
+      toast.error("Failed to submit application");
+      return;
+    }
+    toast.success("Generator rebate application submitted!");
+    setSubmitted(true);
+    setTimeout(() => onClose(), 2000);
+  };
+
+  if (submitted) {
+    return (
+      <div className="py-8 text-center space-y-2">
+        <p className="text-2xl">✅</p>
+        <p className="text-sm font-medium text-foreground">Application submitted successfully!</p>
+        <p className="text-xs text-muted-foreground">An agent will review your generator rebate application and follow up.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-3 rounded-md bg-muted text-xs space-y-1 text-muted-foreground">
+        <p><strong className="text-foreground">Applicant:</strong> {customer.name}</p>
+        <p><strong className="text-foreground">ZIP Code:</strong> {customer.zip_code}</p>
+        <p><strong className="text-foreground">HFTD Tier:</strong> {customer.hftd_tier}</p>
+        <p><strong className="text-foreground">Risk Level:</strong> {customer.wildfire_risk}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Generator Type</label>
+        <select required className={inputClass} value={fields.generator_type} onChange={(e) => update("generator_type", e.target.value)}>
+          <option value="">Select type</option>
+          <option value="portable_gas">Portable — Gasoline</option>
+          <option value="portable_propane">Portable — Propane</option>
+          <option value="portable_dual">Portable — Dual Fuel</option>
+          <option value="standby">Standby / Whole-Home</option>
+          <option value="solar_battery">Solar + Battery System</option>
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Generator Size (Watts)</label>
+        <select required className={inputClass} value={fields.generator_size} onChange={(e) => update("generator_size", e.target.value)}>
+          <option value="">Select size</option>
+          <option value="under_3000">Under 3,000W</option>
+          <option value="3000_5000">3,000 – 5,000W</option>
+          <option value="5000_10000">5,000 – 10,000W</option>
+          <option value="over_10000">Over 10,000W</option>
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Purchase Status</label>
+        <select required className={inputClass} value={fields.purchase_status} onChange={(e) => update("purchase_status", e.target.value)}>
+          <option value="">Select status</option>
+          <option value="not_purchased">Not yet purchased</option>
+          <option value="purchased_30">Purchased within last 30 days</option>
+          <option value="purchased_90">Purchased within last 90 days</option>
+          <option value="purchased_older">Purchased more than 90 days ago</option>
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Installation Address</label>
+        <input required className={inputClass} placeholder="123 Main St, City, CA" value={fields.address} onChange={(e) => update("address", e.target.value)} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground">Additional Notes</label>
+        <textarea className={`${inputClass} resize-none h-16`} placeholder="Any other details (e.g. medical equipment needs, transfer switch installed)..." value={fields.notes} onChange={(e) => update("notes", e.target.value)} />
+      </div>
+
+      <Button type="submit" disabled={submitting} className="w-full">
+        {submitting ? "Submitting…" : "Submit Rebate Application"}
+      </Button>
+    </form>
   );
 }
