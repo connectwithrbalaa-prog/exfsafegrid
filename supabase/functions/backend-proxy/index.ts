@@ -100,6 +100,34 @@ Deno.serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Demo fallback for /api/risk/trends
+    if (upstream.status === 404 && targetPath === "/api/risk/trends") {
+      console.log("Upstream /api/risk/trends missing; returning demo data");
+      const circuitId = url.searchParams.get("circuit_id") || "UNKNOWN";
+      const days = Math.min(Math.max(parseInt(url.searchParams.get("days") || "3"), 2), 7);
+      const now = new Date();
+      const bucketOf = (p: number) => p >= 0.7 ? "CRITICAL" : p >= 0.5 ? "HIGH" : p >= 0.3 ? "MODERATE" : "LOW";
+      const probabilities = Array.from({ length: days }, (_, i) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() - (days - 1 - i));
+        const p = +(0.3 + 0.12 * i + Math.random() * 0.1).toFixed(3);
+        return { date: d.toISOString().slice(0, 10), p: Math.min(p, 0.95), risk_bucket: bucketOf(Math.min(p, 0.95)) };
+      });
+      const delta = probabilities[probabilities.length - 1].p - probabilities[0].p;
+      const trend_label = delta > 0.15 ? "APPROACHING" : delta > 0.05 ? "RISING" : delta < -0.1 ? "FALLING" : "STABLE";
+      const lastP = probabilities[probabilities.length - 1];
+      const wantSummary = url.searchParams.get("summary") === "true";
+      return new Response(JSON.stringify({
+        circuit_id: circuitId,
+        trend_label,
+        probabilities,
+        summary: wantSummary
+          ? `Risk has ${delta > 0 ? "increased" : "decreased"} over ${days} days and is now ${lastP.risk_bucket} (${Math.round(lastP.p * 100)}%).`
+          : null,
+        demo: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     console.log(`Upstream responded ${upstream.status}`);
 
     return new Response(body, {
