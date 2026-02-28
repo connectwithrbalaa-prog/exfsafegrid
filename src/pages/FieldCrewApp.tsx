@@ -4,6 +4,7 @@
  * Tabs: Tasks | Map | Reports
  */
 import { useState, useEffect, useRef } from "react";
+import { AlertTriangle } from "lucide-react";
 import CrewHeader from "@/components/crew/CrewHeader";
 import CrewTabBar, { type CrewTab } from "@/components/crew/CrewTabBar";
 import CrewTasksView from "@/components/crew/CrewTasksView";
@@ -70,7 +71,7 @@ export default function FieldCrewApp() {
       <CrewTabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Content area */}
-      <main className={`flex-1 ${activeTab === "map" ? "" : "px-4 py-4"} overflow-y-auto`}>
+      <main className={`flex-1 ${activeTab === "map" ? "" : "px-4 py-4 pb-20"} overflow-y-auto`}>
         {activeTab === "tasks" && (
           <CrewTasksView patrolId={PATROL_ID} onSwitchTab={setActiveTab} />
         )}
@@ -81,6 +82,19 @@ export default function FieldCrewApp() {
           <CrewReportsView gps={gps} online={online} queue={queue} setQueue={setQueue} />
         )}
       </main>
+
+      {/* Sticky bottom action bar on Tasks tab */}
+      {activeTab === "tasks" && (
+        <div className="sticky bottom-0 z-30 bg-gray-950/95 backdrop-blur-sm border-t border-white/10 px-4 py-3">
+          <button
+            onClick={() => setActiveTab("reports")}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-600 text-white text-sm font-semibold active:scale-[0.98] transition-transform"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Report Hazard
+          </button>
+        </div>
+      )}
     </div>
   );
 }
