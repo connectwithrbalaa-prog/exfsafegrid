@@ -66,8 +66,11 @@ export default function FieldCrewApp() {
         shiftEnd="14:00"
       />
 
+      {/* Tab bar at top, below header */}
+      <CrewTabBar active={activeTab} onChange={setActiveTab} />
+
       {/* Content area */}
-      <main className={`flex-1 ${activeTab === "map" ? "" : "px-4 py-4"} pb-20 overflow-y-auto`}>
+      <main className={`flex-1 ${activeTab === "map" ? "" : "px-4 py-4"} overflow-y-auto`}>
         {activeTab === "tasks" && (
           <CrewTasksView patrolId={PATROL_ID} onSwitchTab={setActiveTab} />
         )}
@@ -78,9 +81,6 @@ export default function FieldCrewApp() {
           <CrewReportsView gps={gps} online={online} queue={queue} setQueue={setQueue} />
         )}
       </main>
-
-      {/* Sticky bottom tab bar */}
-      <CrewTabBar active={activeTab} onChange={setActiveTab} />
     </div>
   );
 }
