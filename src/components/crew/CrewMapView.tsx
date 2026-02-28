@@ -226,23 +226,22 @@ export default function CrewMapView({ gps, patrolId }: Props) {
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
     initMapbox();
-    // Default to patrol task area in California
     const defaultCenter: [number, number] = [-122.08, 37.385];
     const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: MAPBOX_STYLES.satellite,
       center: gps ? [gps.lng, gps.lat] : defaultCenter,
-      zoom: 15,
+      zoom: 14,
       attributionControl: false,
-      projection: "mercator" as any, // Prevent globe view
+      projection: { name: "mercator" } as any,
     });
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     mapRef.current = map;
+
+    // Ensure map resizes properly when container becomes visible
+    setTimeout(() => map.resize(), 100);
+
     map.on("load", () => {
-      // Fly to patrol area immediately in case initial center was off
-      if (!gps) {
-        map.flyTo({ center: defaultCenter, zoom: 15, duration: 500 });
-      }
       loadPatrolRoute(map);
       loadHvraAssets(map);
     });
