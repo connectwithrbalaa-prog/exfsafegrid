@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { initMapbox, MAPBOX_STYLES } from "@/lib/mapbox-config";
 import { supabase } from "@/integrations/supabase/client";
 import { Wind, Droplets, Flame, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 interface GpsPos { lat: number; lng: number; accuracy: number }
 
@@ -339,6 +340,62 @@ export default function CrewMapView({ gps, patrolId }: Props) {
     : "LOW";
   const riskColor = riskBand === "CRITICAL" ? "bg-red-600" : riskBand === "HIGH" ? "bg-orange-500" : riskBand === "MEDIUM" ? "bg-yellow-500" : "bg-emerald-500";
   const humidityAlert = weather && weather.humidity_pct < 20;
+
+  // Track previous risk band and alert on escalation
+  const prevRiskRef = useRef<string>("LOW");
+
+  useEffect(() => {
+    const prev = prevRiskRef.current;
+    const elevated = riskBand === "CRITICAL" || riskBand === "HIGH";
+    const wasElevated = prev === "CRITICAL" || prev === "HIGH";
+    const escalated = elevated && !wasElevated;
+    const wentCritical = riskBand === "CRITICAL" && prev !== "CRITICAL";
+
+    if (escalated || wentCritical) {
+      // In-app toast alert
+      const isCritical = riskBand === "CRITICAL";
+      toast.error(
+        isCritical
+          ? "🚨 CRITICAL FIRE RISK — Seek safety immediately"
+          : "⚠️ HIGH FIRE RISK — Heightened awareness required",
+        {
+          description: weather
+            ? `Wind ${Math.round(weather.wind_speed_mph)} mph, Humidity ${Math.round(weather.humidity_pct)}%${nearestIncidentKm !== null ? `, Fire ${nearestIncidentKm.toFixed(1)} km` : ""}`
+            : undefined,
+          duration: isCritical ? 15000 : 8000,
+        }
+      );
+
+      // Browser push notification (if permission granted)
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(
+          isCritical ? "🚨 CRITICAL FIRE RISK" : "⚠️ HIGH FIRE RISK",
+          {
+            body: isCritical
+              ? "Conditions are critical. Seek safety and contact dispatch."
+              : "Fire risk has escalated. Stay alert and follow protocols.",
+            icon: "/favicon.ico",
+            tag: "risk-alert",
+            requireInteraction: isCritical,
+          }
+        );
+      }
+
+      // Vibrate on mobile if available
+      if (navigator.vibrate) {
+        navigator.vibrate(isCritical ? [300, 100, 300, 100, 300] : [200, 100, 200]);
+      }
+    }
+
+    prevRiskRef.current = riskBand;
+  }, [riskBand, weather, nearestIncidentKm]);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   return (
     <div className="relative h-[calc(100vh-140px)]">
