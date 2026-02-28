@@ -357,6 +357,54 @@ export type Database = {
         }
         Relationships: []
       }
+      patrol_tasks: {
+        Row: {
+          assigned_crew_id: string | null
+          circuit_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          lat: number | null
+          lon: number | null
+          notes: string | null
+          patrol_id: string
+          priority: number | null
+          status: Database["public"]["Enums"]["patrol_task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_crew_id?: string | null
+          circuit_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          notes?: string | null
+          patrol_id?: string
+          priority?: number | null
+          status?: Database["public"]["Enums"]["patrol_task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_crew_id?: string | null
+          circuit_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          notes?: string | null
+          patrol_id?: string
+          priority?: number | null
+          status?: Database["public"]["Enums"]["patrol_task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       psps_events: {
         Row: {
           circuit_ids: string[]
@@ -556,6 +604,7 @@ export type Database = {
     }
     Enums: {
       app_role: "agent" | "customer" | "executive" | "field"
+      patrol_task_status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -684,6 +733,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["agent", "customer", "executive", "field"],
+      patrol_task_status: ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
     },
   },
 } as const
