@@ -15,20 +15,20 @@ const TABS: { id: CrewTab; label: string; icon: typeof ClipboardList }[] = [
 
 export default function CrewTabBar({ active, onChange }: Props) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-gray-950 border-t border-white/10 safe-area-bottom">
+    <nav className="sticky top-0 z-30 bg-gray-950 border-b border-white/10">
       <div className="flex">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors border-b-2 ${
               active === tab.id
-                ? "text-orange-400"
-                : "text-white/25 active:text-white/50"
+                ? "border-orange-500 text-orange-400"
+                : "border-transparent text-white/25 hover:text-white/50"
             }`}
           >
-            <tab.icon className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{tab.label}</span>
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
           </button>
         ))}
       </div>
