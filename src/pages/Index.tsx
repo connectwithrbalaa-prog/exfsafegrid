@@ -1,14 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useCustomer, type UserRole } from "@/hooks/use-customer";
 import { Zap, User, Headset, Shield, HardHat } from "lucide-react";
-import { useEffect } from "react";
-
-const ROLE_HOME: Record<UserRole, string> = {
-  customer: "/customer",
-  agent: "/agent",
-  executive: "/command-center",
-  field: "/field-crew",
-};
 
 const PERSONAS = [
   { key: "customer" as const, label: "Customer Portal", desc: "View your account, outages & wildfire risk", icon: User, path: "/customer" },
@@ -18,17 +9,9 @@ const PERSONAS = [
 ] as const;
 
 export default function Index() {
-  const { role, customer } = useCustomer();
   const navigate = useNavigate();
 
-  // Auto-redirect if role is already set
-  useEffect(() => {
-    if (role === "customer" && customer) {
-      navigate("/customer", { replace: true });
-    } else if (role && role !== "customer") {
-      navigate(ROLE_HOME[role], { replace: true });
-    }
-  }, [role, customer, navigate]);
+  // No auto-redirect — always show persona chooser on "/"
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
